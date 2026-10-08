@@ -1,0 +1,15 @@
+[package]
+name = "domos-control"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "JSON-RPC 2.0 control protocol."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-engine = { path = "../engine" }

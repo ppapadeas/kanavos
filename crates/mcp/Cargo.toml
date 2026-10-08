@@ -1,0 +1,15 @@
+[package]
+name = "domos-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "MCP server adapter over the control protocol."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-control = { path = "../control" }

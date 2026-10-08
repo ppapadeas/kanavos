@@ -1,0 +1,30 @@
+//! Layer of every workspace crate. A crate may depend only on crates in a strictly lower layer.
+//! `domos-testkit` (99) is dev-only and may be used by any crate in `[dev-dependencies]`.
+
+pub const LAYERS: &[(&str, u32)] = &[
+    ("domos-units", 0),
+    ("domos-geom", 1),
+    ("domos-solid", 2),
+    ("domos-drawing", 2),
+    ("domos-geo", 2),
+    ("domos-model", 3),
+    ("domos-elements", 4),
+    ("domos-objects", 4),
+    ("domos-views", 5),
+    ("domos-schedules", 5),
+    ("domos-rules-gr", 5),
+    ("domos-sheets", 6),
+    ("domos-format", 6),
+    ("domos-ifc", 6),
+    ("domos-dxf", 6),
+    ("domos-pdf", 6),
+    ("domos-engine", 7),
+    ("domos-tools", 8),
+    ("domos-render", 8),
+    ("domos-control", 8),
+    ("domos-ui", 9),
+    ("domos-mcp", 9),
+    ("domos-testkit", 99),
+    ("domos", 10),
+    ("domos-cli", 10),
+];

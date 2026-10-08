@@ -1,0 +1,16 @@
+[package]
+name = "domos-solid"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Solid modelling façade (extrude, sweep, CSG) over swappable kernels."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-geom = { path = "../geom" }
+domos-units = { path = "../units" }

@@ -1,0 +1,19 @@
+[package]
+name = "domos-rules-gr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Greek building regulation calculations (ΝΟΚ ν. 4067/2012) and permit sheet presets."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-model = { path = "../model" }
+domos-elements = { path = "../elements" }
+domos-geom = { path = "../geom" }
+domos-units = { path = "../units" }
+domos-drawing = { path = "../drawing" }

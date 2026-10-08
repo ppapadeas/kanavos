@@ -1,0 +1,12 @@
+[package]
+name = "domos-units"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Lengths, angles, areas and volumes with explicit tolerances and locale-aware formatting."
+publish = false
+
+[lints]
+workspace = true

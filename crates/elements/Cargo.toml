@@ -1,0 +1,18 @@
+[package]
+name = "domos-elements"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Rules that turn element parameters into geometry: walls, slabs, openings, roofs, stairs, spaces."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-model = { path = "../model" }
+domos-geom = { path = "../geom" }
+domos-solid = { path = "../solid" }
+domos-units = { path = "../units" }

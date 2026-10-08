@@ -1,0 +1,16 @@
+[package]
+name = "domos-schedules"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Quantities and schedules."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-model = { path = "../model" }
+domos-elements = { path = "../elements" }

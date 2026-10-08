@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt, clippy, tests, layering
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace --quiet
+          cargo xtask layering
+      - name: provenance (sign-off and clean-room trailers)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            cargo xtask provenance "origin/${{ github.base_ref }}..HEAD"
+          else
+            cargo xtask provenance "${{ github.event.before }}..${{ github.sha }}" || cargo xtask provenance HEAD~1..HEAD
+          fi
+
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses bans sources

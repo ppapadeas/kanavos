@@ -1,0 +1,17 @@
+[package]
+name = "domos-sheets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Sheets, title blocks, viewports and sheet sets."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-views = { path = "../views" }
+domos-drawing = { path = "../drawing" }
+domos-model = { path = "../model" }

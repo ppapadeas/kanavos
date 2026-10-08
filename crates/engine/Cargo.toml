@@ -1,0 +1,23 @@
+[package]
+name = "domos-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Session, command bus, undo/redo and background job scheduling."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-model = { path = "../model" }
+domos-elements = { path = "../elements" }
+domos-views = { path = "../views" }
+domos-schedules = { path = "../schedules" }
+domos-rules-gr = { path = "../rules-gr" }
+domos-sheets = { path = "../sheets" }
+domos-format = { path = "../format" }
+domos-units = { path = "../units" }
+domos-geom = { path = "../geom" }

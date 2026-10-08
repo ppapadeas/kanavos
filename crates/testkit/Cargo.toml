@@ -1,0 +1,16 @@
+[package]
+name = "domos-testkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Test fixtures, golden drawings and visual diffs (dev only)."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+domos-drawing = { path = "../drawing" }
+domos-model = { path = "../model" }

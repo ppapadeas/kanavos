@@ -1,0 +1,160 @@
+# Architecture
+
+Domos is a BIM authoring application: people model a building once, and plans, sections, elevations, schedules and
+sheets come out of that model automatically and stay in sync. This document describes how the code is organised to
+make that fast, robust and scriptable. Decisions with real trade-offs are recorded as ADRs in [`adr/`](adr).
+
+## 1. Goals that shape the design
+
+1. **Drawings are derived, never drawn twice.** Every 2D view is computed from the model. Editing a wall in plan
+   updates the section, the schedule and the sheet in the same frame budget.
+2. **Every action is a command.** Mouse tools, menus, the control protocol and tests all go through the same command
+   bus. That gives unlimited undo, reliable automation and reproducible bug reports for free.
+3. **The interface never waits for geometry.** Heavy work (booleans, hidden-line removal, exports) runs off the UI
+   thread, is cancellable and streams results in.
+4. **Open by default.** IFC is a first-class format, the native format is documented, and the engine runs headless.
+5. **Never crash, never lose work.** No panics in shipped code, autosave with crash recovery, file round-trips
+   covered by property tests.
+6. **Greek practice built in.** ΕΓΣΑ87 georeferencing, ΝΟΚ area and coverage calculations and permit sheet sets are
+   part of the core, not plug-ins.
+
+## 2. Layered workspace
+
+Crates may depend only on crates in **lower** layers. `cargo xtask layering` enforces this in CI.
+
+```
+ L10 apps/domos (desktop)        apps/domos-cli (headless, batch, control server)
+ L9  domos-ui (egui front end)   domos-mcp (MCP adapter)
+ L8  domos-tools (interactive tools, snapping)   domos-render (wgpu)   domos-control (JSON-RPC)
+ L7  domos-engine (session, command bus, undo, scheduling, selection)
+ L6  domos-sheets   domos-format (.domos)   domos-ifc   domos-dxf   domos-pdf
+ L5  domos-views (plan/section/elevation/3D derivation, hidden-line removal)   domos-schedules   domos-rules-gr
+ L4  domos-elements (walls, slabs, openings, roofs, stairs, spaces …)   domos-objects (parametric objects)
+ L3  domos-model (project document, attributes, relations, IDs)
+ L2  domos-solid (solid modelling façade)   domos-drawing (2D drawing primitives)   domos-geo (CRS, ΕΓΣΑ87)
+ L1  domos-geom
+ L0  domos-units
+ dev domos-testkit (fixtures, golden drawings, visual diffs)
+```
+
+### Responsibilities
+
+| Crate | Owns |
+| --- | --- |
+| `domos-units` | Lengths, angles, areas, volumes; tolerances; locale-aware formatting (decimal comma for `el`). |
+| `domos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
+| `domos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
+| `domos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
+| `domos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |
+| `domos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
+| `domos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |
+| `domos-objects` | Parametric object system for doors, windows, furniture and fixtures, in a sandboxed language (ADR‑0006). |
+| `domos-views` | Derives views: plan cut at a storey's cut plane, projection above/below, sections and elevations with hidden-line removal, 3D tessellation; output is `domos-drawing`. |
+| `domos-schedules` | Quantities and tables (doors, windows, areas, materials). |
+| `domos-rules-gr` | ΝΟΚ (ν. 4067/2012) calculations: κάλυψη, δόμηση, όγκος, εξαιρούμενοι χώροι; διάγραμμα κάλυψης; permit sheet-set presets. |
+| `domos-sheets` | Sheets, title blocks, viewports with scale, sheet sets, publishing. |
+| `domos-format` | Native `.domos` container read/write and schema migrations. |
+| `domos-ifc` | IFC 4.3 (ISO 16739‑1:2024) import/export over STEP Part 21. |
+| `domos-dxf` | DXF import (survey, underlays) and export (drawings). |
+| `domos-pdf` | Vector PDF export, PDF/A for archiving. |
+| `domos-engine` | Open session, command bus, undo/redo, selection, change propagation, background job scheduling and cancellation, autosave. |
+| `domos-tools` | Interactive tools that turn input into commands; snapping and inference; typed numeric input. |
+| `domos-render` | GPU rendering of 2D views and 3D viewports (wgpu). |
+| `domos-control` | JSON-RPC 2.0 control protocol over stdio and local WebSocket (see [`control-protocol.md`](control-protocol.md)). |
+| `domos-ui` | The desktop interface (egui). Contains no model logic. |
+| `domos-mcp` | Exposes the control protocol as an MCP server for automation clients. |
+
+## 3. Data flow
+
+```
+ user input ─▶ tool ─▶ Command ─▶ engine ─▶ new Document (persistent) ─┬─▶ dirty set
+                          ▲                                            │
+ control protocol ────────┘                                            ▼
+                                                     dependency graph recomputes only what changed
+                                                     element geometry → view derivation → drawing
+                                                                            │
+                                                     render (UI) ◀──────────┴──────▶ export (PDF/DXF/IFC)
+```
+
+- **Document** is an immutable, structurally shared value. A command produces a new document; undo keeps the old
+  one. Memory cost per step is proportional to what changed.
+- **Dependency graph**: each derived artefact (wall solid, plan of storey 1, area table) records which document
+  entities it read. A change marks only dependants dirty.
+- **Jobs**: recomputation runs on a work-stealing thread pool. Jobs carry a document version; results for an old
+  version are discarded. The UI shows the last complete result plus a subtle "updating" state, never a blank view.
+
+## 4. Commands
+
+```rust
+pub trait Command {
+    /// Stable, documented name, e.g. "wall.create". Used by menus, shortcuts, scripts and the control protocol.
+    fn name(&self) -> &'static str;
+    /// Apply to a document, returning the new document or a user-facing error. Never panics.
+    fn apply(&self, doc: &Document) -> Result<Document, CommandError>;
+}
+```
+
+- Every command has a JSON schema for its arguments, generated from the Rust type.
+- Command names are the public API. They are versioned and listed in `docs/commands.md` (generated).
+- Interactive tools build a preview command while the user drags, and commit it on click.
+
+## 5. Geometry strategy
+
+- **2D first.** Plans are computed from footprints and cut sections of elements, not by slicing a full 3D mesh,
+  which keeps plans exact and fast. Sections and elevations use 3D solids plus exact hidden-line removal.
+- **Solids** go through the `domos-solid` façade. Initial backend: robust mesh booleans (a pure-Rust Manifold port,
+  Apache‑2.0). Exact B-rep (NURBS) can be added behind the same façade for curved work (ADR‑0003).
+- **Tolerances** are explicit and project-wide (default 0.1 mm), never ad hoc epsilons.
+- **Junctions** (walls meeting walls, slabs meeting walls) are resolved by our own priority rules defined in specs,
+  recomputed locally around changed elements.
+
+## 6. Files
+
+- **Native `.domos`**: a ZIP container with a versioned JSON model (deterministic key order for diffs), binary
+  geometry caches that can always be rebuilt, embedded assets and a manifest. Documented in `docs/format.md`
+  (to write). Readers must accept older schema versions through migrations.
+- **IFC 4.3** import and export is a first-class path, tested against buildingSMART sample files and models exported
+  from other BIM tools.
+- **DXF** for survey underlays (τοπογραφικό) and drawing export. **PDF** vector export, PDF/A for archiving.
+- **glTF** export for visualisation.
+
+## 7. Performance budgets
+
+| Interaction | Budget |
+| --- | --- |
+| Pointer move to updated preview (2D) | ≤ 8 ms at 120 Hz, ≤ 16 ms worst case |
+| Edit a wall → plan of its storey updated | ≤ 50 ms for a 5,000-element storey |
+| Edit a wall → section updated | ≤ 300 ms, streamed |
+| Open a 50,000-element project | ≤ 2 s to first interactive view |
+| Save | ≤ 200 ms incremental, never blocks input |
+
+`cargo xtask bench` tracks these on reference projects; regressions over 10 % fail CI.
+
+## 8. Robustness
+
+- `#![forbid(unsafe_code)]` except in narrowly reviewed crates (render, FFI), and `#![deny(clippy::unwrap_used,
+  clippy::expect_used, clippy::panic)]` in all shipped crates.
+- Every fallible geometry operation returns a typed error; the UI shows which element failed and why, and keeps the
+  last good geometry.
+- Autosave every 60 s to a recovery journal; crash recovery on next start.
+- Property tests: save → load → save is byte-identical; IFC export → import preserves element counts and quantities.
+
+## 9. Platforms
+
+Linux, Windows and macOS desktop builds from one codebase. A WebAssembly viewer (read-only, then light editing) is a
+later target; the engine has no OS dependencies to keep that open.
+
+## 10. Licensing of dependencies
+
+Allowed: MIT, Apache‑2.0, BSD‑2/3, ISC, Zlib, Unicode‑3.0, MPL‑2.0. Denied: GPL, LGPL, AGPL, SSPL, proprietary.
+Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencies are checked before adoption:
+
+| Need | Candidate | Licence (verify on adoption) |
+| --- | --- | --- |
+| GPU | wgpu | MIT OR Apache‑2.0 |
+| UI | egui / eframe, with AccessKit | MIT OR Apache‑2.0 |
+| Mesh booleans | manifold-rust (pure-Rust port of Manifold) | Apache‑2.0 |
+| B-rep (later) | truck / monstertruck | Apache‑2.0 |
+| STEP parsing | ruststep, or own Part 21 parser | Apache‑2.0 |
+| Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
+| Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
