@@ -104,7 +104,7 @@ and their Greek transposition must be confirmed by a lawyer specialised in intel
 
 **Rules for the project**
 
-1. Product, crates, binaries, file extensions and domains never contain any Graphisoft mark. Working name: **Domos**.
+1. Product, crates, binaries, file extensions and domains never contain any Graphisoft mark. Product name: **Kanavos** (from κάναβος, the structural grid).
    A trademark clearance search (EUIPO, OBI/ΓΓΕ for Greece, WIPO Global Brand Database) is needed before public launch.
 2. Allowed factual statements, in plain text and not in a logo or headline style, with the mark noted the first time:
    - "Opens IFC files exported from GRAPHISOFT® Archicad® and other BIM tools."
@@ -112,7 +112,7 @@ and their Greek transposition must be confirmed by a lawyer specialised in intel
 3. Not allowed: "Archicad alternative" as a product tagline, "free Archicad", comparisons implying endorsement, any
    Graphisoft logo, colour or trade dress.
 4. Include in `NOTICE` and on the website: "Archicad, BIMcloud, BIMx, GDL and GRAPHISOFT are trademarks of
-   GRAPHISOFT SE. Domos is an independent project, not affiliated with or endorsed by GRAPHISOFT SE."
+   GRAPHISOFT SE. Kanavos is an independent project, not affiliated with or endorsed by GRAPHISOFT SE."
 
 ## 6. Unfair competition and look-alike risk
 
@@ -135,7 +135,7 @@ The cost of a professional FTO opinion should be budgeted.
 - Contributions under the Developer Certificate of Origin (`Signed-off-by`), plus the `Clean-Room` trailer.
 - Third-party dependencies must be MIT, Apache‑2.0, BSD, ISC, Zlib, Unicode or MPL‑2.0 (file-level copyleft,
   acceptable as a dependency). No GPL or LGPL in the shipped binary. Enforced by `cargo deny` (`deny.toml`).
-- Copyright holder line: "the Domos contributors". If a legal entity should hold the project later (for example a
+- Copyright holder line: "the Kanavos contributors". If a legal entity should hold the project later (for example a
   non-profit foundation), adopt a contributor licence agreement before external contributions grow.
 
 ## 9. Open questions for the lawyer

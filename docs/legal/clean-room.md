@@ -1,6 +1,6 @@
 # Clean-room protocol
 
-Domos is an independent, open-source BIM authoring application. Its workflow will feel familiar to people who
+Kanavos is an independent, open-source BIM authoring application. Its workflow will feel familiar to people who
 use commercial BIM tools, including GRAPHISOFT® Archicad®. It contains no code, text, artwork, library content or
 file-format knowledge taken from any of them.
 
@@ -138,20 +138,20 @@ CI rejects commits without `Signed-off-by` and `Clean-Room` trailers (see `xtask
 
 - **Interchange is through open standards only**: IFC, DXF, PDF, SVG, glTF, CSV.
 - The native format of the reference product is **out of scope**. We do not read or write it. Users export IFC from
-  their existing tool and open it in Domos.
+  their existing tool and open it in Kanavos.
 - Any future proposal to read a proprietary format needs a written legal opinion first, covering Article 6 of
   Directive 2009/24/EC (decompilation for interoperability) and its conditions, which are narrow: the information
   must not already be readily available, and IFC export arguably makes it available.
 
 ## 8. Library objects and scripting
 
-- Domos ships only objects authored by contributors from scratch or under a compatible open licence, listed in
+- Kanavos ships only objects authored by contributors from scratch or under a compatible open licence, listed in
   `ASSETS.md`.
-- Domos has its own parametric object system. Compatibility with any vendor scripting language for library objects
+- Kanavos has its own parametric object system. Compatibility with any vendor scripting language for library objects
   is **deferred** to a later phase and needs a legal review before work starts. If approved, it follows this
   protocol with an extra rule: the language spec is reconstructed from observed behaviour of our own test scripts,
   not from the vendor's reference guide, whose notice expressly prohibits reproduction and paraphrasing.
-- Users may open their own objects in a future compatibility mode; Domos never redistributes vendor objects.
+- Users may open their own objects in a future compatibility mode; Kanavos never redistributes vendor objects.
 
 ## 9. Incidents
 

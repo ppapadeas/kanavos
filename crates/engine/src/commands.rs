@@ -1,8 +1,8 @@
 //! Built-in commands. Each command's `name()` is part of the public control-protocol API.
 
-use domos_geom::Point2;
-use domos_model::{Document, Element, Id, ReferenceLine, Storey, Wall};
-use domos_units::Length;
+use kanavos_geom::Point2;
+use kanavos_model::{Document, Element, Id, ReferenceLine, Storey, Wall};
+use kanavos_units::Length;
 
 use crate::{Command, CommandError, Outcome};
 

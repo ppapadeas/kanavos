@@ -10,7 +10,7 @@ with months of work) and one codebase for Linux, Windows, macOS and later the we
 
 ## Decision
 
-Write Domos in Rust as a single Cargo workspace of small crates arranged in strict layers (see
+Write Kanavos in Rust as a single Cargo workspace of small crates arranged in strict layers (see
 `docs/architecture.md` §2). Lower layers never depend on higher ones; the UI never contains model logic.
 `cargo xtask layering` enforces the rule in CI.
 

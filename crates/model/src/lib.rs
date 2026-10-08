@@ -2,14 +2,14 @@
 //!
 //! Layer L3. See `docs/architecture.md`.
 //!
-//! A [`Document`] is an immutable value. Changes produce a new document (see `domos-engine`), and unchanged parts
+//! A [`Document`] is an immutable value. Changes produce a new document (see `kanavos-engine`), and unchanged parts
 //! are shared between versions through reference counting, so keeping every version for undo is cheap.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use domos_geom::Point2;
-use domos_units::{Length, Tolerance};
+use kanavos_geom::Point2;
+use kanavos_units::{Length, Tolerance};
 
 /// Stable identifier of anything in a document. Never reused within a document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

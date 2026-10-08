@@ -1,17 +1,17 @@
-//! Domos headless command-line interface.
+//! Kanavos headless command-line interface.
 
 use std::process::ExitCode;
 
-use domos_engine::Session;
-use domos_engine::commands::{CreateStorey, CreateWall};
-use domos_geom::Point2;
-use domos_units::{Length, LengthDisplay, Locale};
+use kanavos_engine::Session;
+use kanavos_engine::commands::{CreateStorey, CreateWall};
+use kanavos_geom::Point2;
+use kanavos_units::{Length, LengthDisplay, Locale};
 
 const HELP: &str = "\
-domos-cli — headless Domos
+kanavos-cli — headless Kanavos
 
 USAGE:
-    domos-cli <COMMAND>
+    kanavos-cli <COMMAND>
 
 COMMANDS:
     demo        Build a small sample model and print its quantities
@@ -32,7 +32,7 @@ fn main() -> ExitCode {
             }
         },
         "version" | "--version" | "-V" => {
-            println!("domos-cli {}", env!("CARGO_PKG_VERSION"));
+            println!("kanavos-cli {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         "help" | "--help" | "-h" => {
@@ -46,7 +46,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn demo() -> Result<(), domos_engine::CommandError> {
+fn demo() -> Result<(), kanavos_engine::CommandError> {
     let mut session = Session::default();
     let created = session
         .run(&CreateStorey {

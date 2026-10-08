@@ -1,6 +1,6 @@
-# Domos
+# Kanavos
 
-**Open-source BIM for architects. Model once; plans, sections, elevations, schedules and permit-ready sheets follow
+**Kanavos (κάναβος, the structural grid) is open-source BIM for architects. Model once; plans, sections, elevations, schedules and permit-ready sheets follow
 the model.** Built in Rust, with Greek building regulations built in.
 
 > **Status: pre-alpha.** Architecture, legal process and workspace are in place; nothing is usable yet.
@@ -16,7 +16,7 @@ the model.** Built in Rust, with Greek building regulations built in.
   protocol and an MCP server.
 - **Bilingual.** Ελληνικά and English throughout.
 
-Domos opens IFC files exported from GRAPHISOFT® Archicad® and other BIM tools. It is an independent project built
+Kanavos opens IFC files exported from GRAPHISOFT® Archicad® and other BIM tools. It is an independent project built
 under a documented clean-room process and is not affiliated with any BIM vendor (see [NOTICE](NOTICE)).
 
 ## Read first
@@ -37,8 +37,8 @@ under a documented clean-room process and is not affiliated with any BIM vendor 
 ## Build
 
 ```sh
-cargo run -p domos            # desktop app (placeholder)
-cargo run -p domos-cli -- --help
+cargo run -p kanavos            # desktop app (placeholder)
+cargo run -p kanavos-cli -- --help
 cargo xtask ci                # fmt, clippy, tests, layering, provenance
 ```
 
@@ -47,7 +47,7 @@ Requires the Rust toolchain pinned in `rust-toolchain.toml`.
 ## Licence
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your
-option. Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Domos, as
+option. Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Kanavos, as
 defined in the Apache‑2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 Archicad, BIMcloud, BIMx, GDL and GRAPHISOFT are trademarks of GRAPHISOFT SE, used here only to describe

@@ -3,218 +3,218 @@
 version = 4
 
 [[package]]
-name = "domos"
+name = "kanavos"
 version = "0.0.1"
 dependencies = [
- "domos-engine",
- "domos-ui",
+ "kanavos-engine",
+ "kanavos-ui",
 ]
 
 [[package]]
-name = "domos-cli"
+name = "kanavos-cli"
 version = "0.0.1"
 dependencies = [
- "domos-control",
- "domos-engine",
- "domos-format",
- "domos-geom",
- "domos-mcp",
- "domos-units",
+ "kanavos-control",
+ "kanavos-engine",
+ "kanavos-format",
+ "kanavos-geom",
+ "kanavos-mcp",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-control"
+name = "kanavos-control"
 version = "0.0.1"
 dependencies = [
- "domos-engine",
+ "kanavos-engine",
 ]
 
 [[package]]
-name = "domos-drawing"
+name = "kanavos-drawing"
 version = "0.0.1"
 dependencies = [
- "domos-geom",
- "domos-units",
+ "kanavos-geom",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-dxf"
+name = "kanavos-dxf"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-geom",
+ "kanavos-drawing",
+ "kanavos-geom",
 ]
 
 [[package]]
-name = "domos-elements"
+name = "kanavos-elements"
 version = "0.0.1"
 dependencies = [
- "domos-geom",
- "domos-model",
- "domos-solid",
- "domos-units",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-solid",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-engine"
+name = "kanavos-engine"
 version = "0.0.1"
 dependencies = [
- "domos-elements",
- "domos-format",
- "domos-geom",
- "domos-model",
- "domos-rules-gr",
- "domos-schedules",
- "domos-sheets",
- "domos-units",
- "domos-views",
+ "kanavos-elements",
+ "kanavos-format",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-rules-gr",
+ "kanavos-schedules",
+ "kanavos-sheets",
+ "kanavos-units",
+ "kanavos-views",
 ]
 
 [[package]]
-name = "domos-format"
+name = "kanavos-format"
 version = "0.0.1"
 dependencies = [
- "domos-model",
+ "kanavos-model",
 ]
 
 [[package]]
-name = "domos-geo"
+name = "kanavos-geo"
 version = "0.0.1"
 dependencies = [
- "domos-geom",
- "domos-units",
+ "kanavos-geom",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-geom"
+name = "kanavos-geom"
 version = "0.0.1"
 dependencies = [
- "domos-units",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-ifc"
+name = "kanavos-ifc"
 version = "0.0.1"
 dependencies = [
- "domos-elements",
- "domos-model",
+ "kanavos-elements",
+ "kanavos-model",
 ]
 
 [[package]]
-name = "domos-mcp"
+name = "kanavos-mcp"
 version = "0.0.1"
 dependencies = [
- "domos-control",
+ "kanavos-control",
 ]
 
 [[package]]
-name = "domos-model"
+name = "kanavos-model"
 version = "0.0.1"
 dependencies = [
- "domos-geo",
- "domos-geom",
- "domos-units",
+ "kanavos-geo",
+ "kanavos-geom",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-objects"
+name = "kanavos-objects"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-geom",
- "domos-model",
- "domos-solid",
+ "kanavos-drawing",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-solid",
 ]
 
 [[package]]
-name = "domos-pdf"
+name = "kanavos-pdf"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
+ "kanavos-drawing",
 ]
 
 [[package]]
-name = "domos-render"
+name = "kanavos-render"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-geom",
+ "kanavos-drawing",
+ "kanavos-geom",
 ]
 
 [[package]]
-name = "domos-rules-gr"
+name = "kanavos-rules-gr"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-elements",
- "domos-geom",
- "domos-model",
- "domos-units",
+ "kanavos-drawing",
+ "kanavos-elements",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-schedules"
+name = "kanavos-schedules"
 version = "0.0.1"
 dependencies = [
- "domos-elements",
- "domos-model",
+ "kanavos-elements",
+ "kanavos-model",
 ]
 
 [[package]]
-name = "domos-sheets"
+name = "kanavos-sheets"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-model",
- "domos-views",
+ "kanavos-drawing",
+ "kanavos-model",
+ "kanavos-views",
 ]
 
 [[package]]
-name = "domos-solid"
+name = "kanavos-solid"
 version = "0.0.1"
 dependencies = [
- "domos-geom",
- "domos-units",
+ "kanavos-geom",
+ "kanavos-units",
 ]
 
 [[package]]
-name = "domos-testkit"
+name = "kanavos-testkit"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-model",
+ "kanavos-drawing",
+ "kanavos-model",
 ]
 
 [[package]]
-name = "domos-tools"
+name = "kanavos-tools"
 version = "0.0.1"
 dependencies = [
- "domos-engine",
- "domos-geom",
+ "kanavos-engine",
+ "kanavos-geom",
 ]
 
 [[package]]
-name = "domos-ui"
+name = "kanavos-ui"
 version = "0.0.1"
 dependencies = [
- "domos-engine",
- "domos-render",
- "domos-tools",
+ "kanavos-engine",
+ "kanavos-render",
+ "kanavos-tools",
 ]
 
 [[package]]
-name = "domos-units"
+name = "kanavos-units"
 version = "0.0.1"
 
 [[package]]
-name = "domos-views"
+name = "kanavos-views"
 version = "0.0.1"
 dependencies = [
- "domos-drawing",
- "domos-elements",
- "domos-geom",
- "domos-model",
- "domos-solid",
+ "kanavos-drawing",
+ "kanavos-elements",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-solid",
 ]
 
 [[package]]

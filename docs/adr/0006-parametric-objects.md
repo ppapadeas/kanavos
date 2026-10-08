@@ -10,7 +10,7 @@ use proprietary scripting languages; compatibility with them raises legal questi
 
 ## Decision (proposed)
 
-Define Domos objects as a sandboxed, deterministic script plus a parameter schema, producing 2D symbol, 3D geometry
+Define Kanavos objects as a sandboxed, deterministic script plus a parameter schema, producing 2D symbol, 3D geometry
 and IFC classification. Candidate embedded languages: Rhai, Luau, or a small declarative DSL. Choose after a spike
 measuring safety (no file or network access), speed and authoring ergonomics.
 

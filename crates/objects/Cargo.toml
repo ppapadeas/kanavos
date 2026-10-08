@@ -1,5 +1,5 @@
 [package]
-name = "domos-objects"
+name = "kanavos-objects"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,7 +12,7 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-model = { path = "../model" }
-domos-geom = { path = "../geom" }
-domos-solid = { path = "../solid" }
-domos-drawing = { path = "../drawing" }
+kanavos-model = { path = "../model" }
+kanavos-geom = { path = "../geom" }
+kanavos-solid = { path = "../solid" }
+kanavos-drawing = { path = "../drawing" }

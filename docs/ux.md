@@ -1,9 +1,9 @@
 # User experience
 
-The measure of Domos is simple: an architect who already works in a commercial BIM tool should model a small house
-and print a permit-ready drawing set **faster** in Domos, on day one, without a manual. Everything below serves that.
+The measure of Kanavos is simple: an architect who already works in a commercial BIM tool should model a small house
+and print a permit-ready drawing set **faster** in Kanavos, on day one, without a manual. Everything below serves that.
 
-Domos has its own visual identity, names and layout. It keeps the working *concepts* architects already rely on —
+Kanavos has its own visual identity, names and layout. It keeps the working *concepts* architects already rely on —
 storeys, cut planes, layered build-ups, drawings derived from the model — because those are the craft, not anyone's
 property. It does not imitate any product's screens (see the [clean-room protocol](legal/clean-room.md) §4.6).
 
@@ -16,7 +16,7 @@ property. It does not imitate any product's screens (see the [clean-room protoco
    "update drawings" button, and nothing gets out of sync.
 4. **Fast is a feature.** The interface never freezes. Heavy work runs in the background and the last good picture
    stays on screen until the new one is ready (see budgets in [`architecture.md`](architecture.md#7-performance-budgets)).
-5. **Explain, don't fail.** When something can't be built (a roof that doesn't close, a wall that can't join), Domos
+5. **Explain, don't fail.** When something can't be built (a roof that doesn't close, a wall that can't join), Kanavos
    highlights the element, says why in plain words, and keeps going.
 6. **Show the rules while you design.** Greek regulations are visible while drawing, not discovered at submission.
 7. **Two languages, one product.** Ελληνικά and English are complete from the first release, including units,
@@ -89,8 +89,8 @@ property. It does not imitate any product's screens (see the [clean-room protoco
 
 ### Shortcuts
 
-- Domos ships its own default keymap, designed for one-hand access while the other hand is on the mouse.
-- Every shortcut is remappable; keymaps are plain files users can share. Domos does not ship keymaps that mirror any
+- Kanavos ships its own default keymap, designed for one-hand access while the other hand is on the mouse.
+- Every shortcut is remappable; keymaps are plain files users can share. Kanavos does not ship keymaps that mirror any
   other product.
 
 ## 4. Regulation-aware design (Greek practice)
@@ -122,9 +122,9 @@ property. It does not imitate any product's screens (see the [clean-room protoco
 
 ## 7. Vocabulary
 
-Domos uses plain, standard terms, aligned with IFC where possible. Specs and UI strings use only these.
+Kanavos uses plain, standard terms, aligned with IFC where possible. Specs and UI strings use only these.
 
-| Domos term (EN) | Ελληνικά | Meaning | IFC |
+| Kanavos term (EN) | Ελληνικά | Meaning | IFC |
 | --- | --- | --- | --- |
 | Storey | Επίπεδο / Όροφος | Horizontal level of the building with an elevation and height | IfcBuildingStorey |
 | Cut plane | Επίπεδο τομής | Height at which a plan view slices the storey | — |

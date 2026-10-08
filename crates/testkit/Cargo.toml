@@ -1,5 +1,5 @@
 [package]
-name = "domos-testkit"
+name = "kanavos-testkit"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,5 +12,5 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-drawing = { path = "../drawing" }
-domos-model = { path = "../model" }
+kanavos-drawing = { path = "../drawing" }
+kanavos-model = { path = "../model" }

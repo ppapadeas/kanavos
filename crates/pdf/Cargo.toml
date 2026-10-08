@@ -1,5 +1,5 @@
 [package]
-name = "domos-pdf"
+name = "kanavos-pdf"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,4 +12,4 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-drawing = { path = "../drawing" }
+kanavos-drawing = { path = "../drawing" }

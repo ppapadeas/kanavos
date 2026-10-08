@@ -6,7 +6,7 @@
 //! δόμηση (floor area counted towards the building coefficient) and their limits. Which spaces count, and how, is
 //! defined in specs under `specs/rules-gr/`, each citing the article of the law it implements.
 
-use domos_units::{Area, AreaDisplay, Locale};
+use kanavos_units::{Area, AreaDisplay, Locale};
 
 /// Building terms that apply to a plot (όροι δόμησης).
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -12,7 +12,7 @@ every serious BIM tool exports. IFC is an exchange schema, not an efficient edit
 ## Decision
 
 - Interchange: IFC 4.3 import and export are first-class and continuously tested. IFC 2x3 import is supported.
-- Native: `.domos`, a ZIP container with a versioned JSON model (deterministic ordering), rebuildable binary caches,
+- Native: `.kanavos`, a ZIP container with a versioned JSON model (deterministic ordering), rebuildable binary caches,
   embedded assets and a manifest. The format is documented in the repository and versioned with migrations.
 - No proprietary native formats are read or written (clean-room protocol §7).
 
@@ -20,4 +20,4 @@ every serious BIM tool exports. IFC is an exchange schema, not an efficient edit
 
 - Migration path for new users is "export IFC from your current tool". Some semantics (parametric objects,
   drawing settings) will not survive that path; import maps what it can and keeps the rest as reference geometry.
-- A documented native format lets others build tools on Domos projects.
+- A documented native format lets others build tools on Kanavos projects.

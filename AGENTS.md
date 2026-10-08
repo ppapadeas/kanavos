@@ -10,7 +10,7 @@ Working rules for anyone changing this repository, people and coding tools alike
 - Never use, quote, paraphrase or imitate: commercial BIM product manuals, help text, UI strings, icons, screen
   layouts, library objects, templates, SDKs, add-on code or file internals.
 - Never decompile, disassemble or byte-inspect any commercial BIM binary or project/library file.
-- Never use vendor names for tools, panels or settings in code, UI strings, specs or docs. Use the Domos vocabulary in
+- Never use vendor names for tools, panels or settings in code, UI strings, specs or docs. Use the Kanavos vocabulary in
   [`docs/ux.md` §7](docs/ux.md#7-vocabulary). Vendor trademarks may appear only in `NOTICE`, the legal docs, and
   factual interoperability statements.
 - Never paste code or text whose source and licence you cannot name. Record third-party code in `NOTICE`.
@@ -26,15 +26,15 @@ Working rules for anyone changing this repository, people and coding tools alike
 
 - Crates live in layers L0–L10 (`docs/architecture.md` §2). A crate depends only on lower layers.
 - New crate → add it to the layer table in `xtask/src/layers.rs` and to `docs/architecture.md`.
-- `domos-ui` contains no model or geometry logic. `domos-model` contains no I/O.
+- `kanavos-ui` contains no model or geometry logic. `kanavos-model` contains no I/O.
 
 ## 4. Code rules
 
 - Rust edition and toolchain from `rust-toolchain.toml`. `cargo fmt`, `cargo clippy --all-targets -- -D warnings`.
-- Shipped crates: `#![forbid(unsafe_code)]` (exceptions only in `domos-render` and FFI crates, reviewed), and no
+- Shipped crates: `#![forbid(unsafe_code)]` (exceptions only in `kanavos-render` and FFI crates, reviewed), and no
   `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` or indexing that can panic on user data. Return typed errors.
 - All changes to a document go through a `Command` (ADR‑0005). No direct mutation from tools or UI.
-- Lengths are `domos_units::Length` (metres, f64) with the project tolerance; never compare floats with `==`.
+- Lengths are `kanavos_units::Length` (metres, f64) with the project tolerance; never compare floats with `==`.
 - Geometry functions document their tolerance and failure modes.
 - Public items have doc comments. Commands have JSON schemas and examples.
 - User-facing strings go through the i18n catalogue, with both `el` and `en` entries in the same change.
@@ -42,7 +42,7 @@ Working rules for anyone changing this repository, people and coding tools alike
 ## 5. Tests
 
 - Unit tests next to code; integration tests in `tests/`.
-- Geometry and view derivation: golden tests in `domos-testkit` (SVG output compared with tolerance).
+- Geometry and view derivation: golden tests in `kanavos-testkit` (SVG output compared with tolerance).
 - File formats: round-trip property tests.
 - Every bug fix adds a test that fails before the fix.
 - Performance-sensitive changes run `cargo xtask bench` and stay within the budgets in `docs/architecture.md` §7.

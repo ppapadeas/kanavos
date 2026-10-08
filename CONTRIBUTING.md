@@ -1,6 +1,6 @@
-# Contributing to Domos
+# Contributing to Kanavos
 
-Thank you for helping. Domos is built under a strict clean-room process, so please read this whole page once.
+Thank you for helping. Kanavos is built under a strict clean-room process, so please read this whole page once.
 
 ## Before your first commit
 

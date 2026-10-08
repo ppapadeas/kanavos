@@ -11,7 +11,7 @@ serialisable description of every change.
 ## Decision
 
 Every change is a `Command` with a stable name and a JSON-schema'd argument type. Tools, menus, the control protocol
-and tests all submit commands to `domos-engine`. Documents are immutable values; a command returns a new document.
+and tests all submit commands to `kanavos-engine`. Documents are immutable values; a command returns a new document.
 
 ## Consequences
 

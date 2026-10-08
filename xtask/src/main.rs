@@ -68,7 +68,7 @@ fn ci() -> Result<(), String> {
     Ok(())
 }
 
-/// Reads `domos-*` (and app) dependency names from a manifest's `[dependencies]` and `[dev-dependencies]`.
+/// Reads `kanavos-*` (and app) dependency names from a manifest's `[dependencies]` and `[dev-dependencies]`.
 fn internal_deps(manifest: &str) -> (Vec<String>, Vec<String>) {
     let mut deps = Vec::new();
     let mut dev = Vec::new();
@@ -85,7 +85,7 @@ fn internal_deps(manifest: &str) -> (Vec<String>, Vec<String>) {
         }
         if let Some((name, _)) = line.split_once('=') {
             let name = name.trim();
-            if name.starts_with("domos") {
+            if name.starts_with("kanavos") {
                 match section {
                     "deps" => deps.push(name.to_owned()),
                     "dev" => dev.push(name.to_owned()),
@@ -127,7 +127,7 @@ fn layering() -> Result<(), String> {
             }
             for dep in dev {
                 match layer.get(dep.as_str()) {
-                    Some(_) if dep == "domos-testkit" => {}
+                    Some(_) if dep == "kanavos-testkit" => {}
                     Some(&l) if l < own => {}
                     Some(&l) => errors.push(format!("{name} (L{own}) dev-depends on {dep} (L{l})")),
                     None => errors.push(format!("{name} dev-depends on unknown crate {dep}")),
@@ -203,11 +203,11 @@ mod tests {
 
     #[test]
     fn parses_internal_dependencies() {
-        let m = "[package]\nname = \"x\"\n[dependencies]\ndomos-geom = { path = \"../geom\" }\nserde = \"1\"\n\
-                 [dev-dependencies]\ndomos-testkit = { path = \"../testkit\" }\n";
+        let m = "[package]\nname = \"x\"\n[dependencies]\nkanavos-geom = { path = \"../geom\" }\nserde = \"1\"\n\
+                 [dev-dependencies]\nkanavos-testkit = { path = \"../testkit\" }\n";
         let (deps, dev) = internal_deps(m);
-        assert_eq!(deps, vec!["domos-geom"]);
-        assert_eq!(dev, vec!["domos-testkit"]);
+        assert_eq!(deps, vec!["kanavos-geom"]);
+        assert_eq!(dev, vec!["kanavos-testkit"]);
     }
 
     #[test]

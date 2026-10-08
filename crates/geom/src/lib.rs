@@ -2,7 +2,7 @@
 //!
 //! Layer L1. See `docs/architecture.md`.
 
-use domos_units::{Area, Length, Tolerance};
+use kanavos_units::{Area, Length, Tolerance};
 
 /// A point in the plane, in metres.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

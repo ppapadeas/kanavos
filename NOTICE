@@ -1,17 +1,17 @@
-Domos
-Copyright (c) 2026 the Domos contributors
+Kanavos
+Copyright (c) 2026 the Kanavos contributors
 
 Licensed under either of
   - Apache License, Version 2.0 (LICENSE-APACHE)
   - MIT license (LICENSE-MIT)
 at your option.
 
-Domos is an independent, open-source project developed under a documented clean-room process
+Kanavos is an independent, open-source project developed under a documented clean-room process
 (docs/legal/clean-room.md). It contains no code, documentation text, artwork, library content or
 proprietary file-format knowledge from any commercial BIM product.
 
 Archicad, BIMcloud, BIMx, GDL and GRAPHISOFT are trademarks of GRAPHISOFT SE. Revit is a trademark of
-Autodesk, Inc. These names are used only to describe interoperability through open standards. Domos is not
+Autodesk, Inc. These names are used only to describe interoperability through open standards. Kanavos is not
 affiliated with, sponsored by or endorsed by GRAPHISOFT SE, Autodesk, Inc. or any other BIM vendor.
 
 IFC is an open standard published as ISO 16739-1 and maintained by buildingSMART International.

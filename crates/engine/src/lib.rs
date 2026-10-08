@@ -9,7 +9,7 @@ pub mod commands;
 
 use std::fmt;
 
-use domos_model::{Document, Id};
+use kanavos_model::{Document, Id};
 
 /// Error returned when a command cannot be applied. The message is shown to the user.
 #[derive(Debug, Clone, PartialEq)]
@@ -112,8 +112,8 @@ impl Session {
 mod tests {
     use super::commands::{CreateStorey, CreateWall};
     use super::*;
-    use domos_geom::Point2;
-    use domos_units::Length;
+    use kanavos_geom::Point2;
+    use kanavos_units::Length;
 
     fn storey(session: &mut Session) -> Id {
         let out = session

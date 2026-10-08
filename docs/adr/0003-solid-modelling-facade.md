@@ -11,7 +11,7 @@ roofs). Robustness matters more than curved-surface exactness. Pure-Rust options
 
 ## Decision
 
-- All solid operations go through `domos-solid`, which exposes our own types.
+- All solid operations go through `kanavos-solid`, which exposes our own types.
 - First backend: robust mesh booleans. Plans do not depend on 3D booleans (they are computed in 2D from footprints).
 - Add an exact B-rep backend behind the same façade when curved elements require it.
 

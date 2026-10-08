@@ -1,6 +1,6 @@
 # Control protocol
 
-Everything a person can do in Domos can be done by a script or an automation client, through the same commands the
+Everything a person can do in Kanavos can be done by a script or an automation client, through the same commands the
 interface uses. This makes batch work (export every sheet of 20 projects), testing and integrations possible
 without screen scraping.
 
@@ -8,9 +8,9 @@ without screen scraping.
 
 | Transport | Use | Security |
 | --- | --- | --- |
-| stdio | `domos-cli serve --stdio`: one client, spawned as a child process | Inherits the caller's permissions |
+| stdio | `kanavos-cli serve --stdio`: one client, spawned as a child process | Inherits the caller's permissions |
 | WebSocket | Desktop app, `Preferences › Automation › Allow local control` | Binds to `127.0.0.1` only, random port, one-time token shown in the app; off by default |
-| MCP | `domos-cli mcp`: MCP server over stdio, mapping tools onto the methods below | Same as stdio |
+| MCP | `kanavos-cli mcp`: MCP server over stdio, mapping tools onto the methods below | Same as stdio |
 
 ## Message format
 

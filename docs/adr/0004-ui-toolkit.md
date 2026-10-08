@@ -12,7 +12,7 @@ licence policy), and newer retained-mode stacks that are not yet mature.
 ## Decision
 
 Use egui/eframe with wgpu for the first interface, with a custom design system (tokens, icons, widgets) in
-`domos-ui`. The canvas is rendered by `domos-render`, not by egui widgets.
+`kanavos-ui`. The canvas is rendered by `kanavos-render`, not by egui widgets.
 
 ## Consequences
 

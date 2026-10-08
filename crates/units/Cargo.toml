@@ -1,5 +1,5 @@
 [package]
-name = "domos-units"
+name = "kanavos-units"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

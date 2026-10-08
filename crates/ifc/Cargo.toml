@@ -1,5 +1,5 @@
 [package]
-name = "domos-ifc"
+name = "kanavos-ifc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,5 +12,5 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-model = { path = "../model" }
-domos-elements = { path = "../elements" }
+kanavos-model = { path = "../model" }
+kanavos-elements = { path = "../elements" }

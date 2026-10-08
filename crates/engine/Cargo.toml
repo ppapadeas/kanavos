@@ -1,5 +1,5 @@
 [package]
-name = "domos-engine"
+name = "kanavos-engine"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,12 +12,12 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-model = { path = "../model" }
-domos-elements = { path = "../elements" }
-domos-views = { path = "../views" }
-domos-schedules = { path = "../schedules" }
-domos-rules-gr = { path = "../rules-gr" }
-domos-sheets = { path = "../sheets" }
-domos-format = { path = "../format" }
-domos-units = { path = "../units" }
-domos-geom = { path = "../geom" }
+kanavos-model = { path = "../model" }
+kanavos-elements = { path = "../elements" }
+kanavos-views = { path = "../views" }
+kanavos-schedules = { path = "../schedules" }
+kanavos-rules-gr = { path = "../rules-gr" }
+kanavos-sheets = { path = "../sheets" }
+kanavos-format = { path = "../format" }
+kanavos-units = { path = "../units" }
+kanavos-geom = { path = "../geom" }

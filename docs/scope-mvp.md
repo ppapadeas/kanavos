@@ -2,8 +2,8 @@
 
 ## Definition of done
 
-A practising architect models a real one- or two-storey house in Domos, from survey to sheets, and submits the
-architectural drawings for a Greek building permit (e‑Άδειες) exported from Domos, with no other CAD/BIM tool
+A practising architect models a real one- or two-storey house in Kanavos, from survey to sheets, and submits the
+architectural drawings for a Greek building permit (e‑Άδειες) exported from Kanavos, with no other CAD/BIM tool
 needed for those drawings.
 
 Parity with any commercial BIM product is **not** a goal. Depth on one real workflow is.
@@ -44,7 +44,7 @@ Parity with any commercial BIM product is **not** a goal. Depth on one real work
 - Vector PDF (and PDF/A), DXF per sheet, IFC 4.3 export, glTF export, CSV schedules.
 
 ### Import
-- IFC 4.3 / IFC 2x3 import of walls, slabs, columns, beams, openings and spaces as editable Domos elements where they
+- IFC 4.3 / IFC 2x3 import of walls, slabs, columns, beams, openings and spaces as editable Kanavos elements where they
   map cleanly; everything else as read-only reference geometry.
 
 ### Automation
@@ -68,4 +68,4 @@ Parity with any commercial BIM product is **not** a goal. Depth on one real work
 | Crash-free sessions | ≥ 99.9 % |
 | Area table matches manual calculation | Exact to 0.01 m² on 10 reference projects |
 | IFC export validity | Passes buildingSMART validation for the exported entities |
-| Pilot | 3 permit submissions prepared in Domos |
+| Pilot | 3 permit submissions prepared in Kanavos |

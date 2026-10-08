@@ -1,0 +1,20 @@
+[package]
+name = "kanavos-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Kanavos headless command-line interface."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kanavos-engine = { path = "../../crates/engine" }
+kanavos-control = { path = "../../crates/control" }
+kanavos-mcp = { path = "../../crates/mcp" }
+kanavos-format = { path = "../../crates/format" }
+kanavos-geom = { path = "../../crates/geom" }
+kanavos-units = { path = "../../crates/units" }

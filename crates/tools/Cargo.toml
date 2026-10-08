@@ -1,5 +1,5 @@
 [package]
-name = "domos-tools"
+name = "kanavos-tools"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,5 +12,5 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-engine = { path = "../engine" }
-domos-geom = { path = "../geom" }
+kanavos-engine = { path = "../engine" }
+kanavos-geom = { path = "../geom" }

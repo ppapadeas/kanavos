@@ -1,5 +1,5 @@
 [package]
-name = "domos-sheets"
+name = "kanavos-sheets"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,6 +12,6 @@ publish = false
 workspace = true
 
 [dependencies]
-domos-views = { path = "../views" }
-domos-drawing = { path = "../drawing" }
-domos-model = { path = "../model" }
+kanavos-views = { path = "../views" }
+kanavos-drawing = { path = "../drawing" }
+kanavos-model = { path = "../model" }

@@ -4,7 +4,7 @@ about: Ask for a behaviour to be observed and specified under the clean-room pro
 labels: spec
 ---
 
-**Behaviour needed** (in Domos vocabulary, see docs/ux.md §7):
+**Behaviour needed** (in Kanavos vocabulary, see docs/ux.md §7):
 
 **Why users need it:**
 
