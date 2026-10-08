@@ -26,6 +26,7 @@ under a documented clean-room process and is not affiliated with any BIM vendor 
 | [docs/ux.md](docs/ux.md) | UX principles, workspace, interaction model, vocabulary |
 | [docs/scope-mvp.md](docs/scope-mvp.md) | What the first release does, and does not do |
 | [docs/architecture.md](docs/architecture.md) | Crates, data flow, geometry, files, budgets |
+| [docs/plan/full-parity.el.md](docs/plan/full-parity.el.md) | Full-functionality plan: feature map, subsystems, phases, team (Greek) |
 | [docs/adr/](docs/adr) | Architecture decisions |
 | [docs/control-protocol.md](docs/control-protocol.md) | Automation API |
 | [docs/legal/clean-room.md](docs/legal/clean-room.md) | **Binding** clean-room rules for every contributor |
