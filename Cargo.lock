@@ -1637,9 +1637,11 @@ version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
  "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-model",
  "kanavos-solid",
  "kanavos-units",
+ "tiny-skia",
 ]
 
 [[package]]
