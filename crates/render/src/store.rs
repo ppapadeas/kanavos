@@ -54,6 +54,9 @@ pub(crate) struct GrowBuffer {
 }
 
 impl GrowBuffer {
+    /// Writes `data` into the buffer in `slot`, reusing it when the data fits and it is not wastefully large.
+    /// Empty data, or data larger than the device's buffer limit, leaves the slot empty (nothing is drawn
+    /// rather than the device failing).
     pub(crate) fn write(
         slot: &mut Option<GrowBuffer>,
         device: &wgpu::Device,
@@ -62,11 +65,11 @@ impl GrowBuffer {
         usage: wgpu::BufferUsages,
         data: &[u8],
     ) {
-        if data.is_empty() {
+        let len = data.len() as u64;
+        if data.is_empty() || len > device.limits().max_buffer_size {
             *slot = None;
             return;
         }
-        let len = data.len() as u64;
         if let Some(existing) = slot.as_mut()
             && existing.buffer.size() >= len
             && existing.buffer.size() <= len.saturating_mul(4)
@@ -75,8 +78,8 @@ impl GrowBuffer {
             existing.len = len;
             return;
         }
-        // Round up to a multiple of 4 with ~25 % headroom for later edits.
-        let capacity = (len + len / 4 + 3) & !3;
+        // Round up to a multiple of 4 with ~25 % headroom for later edits, within the device limit.
+        let capacity = ((len + len / 4 + 3) & !3).min(device.limits().max_buffer_size & !3).max(len);
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
             size: capacity,
