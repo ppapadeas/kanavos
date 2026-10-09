@@ -204,6 +204,7 @@ dependencies = [
  "kanavos-geom",
  "kanavos-model",
  "kanavos-solid",
+ "proptest",
 ]
 
 [[package]]

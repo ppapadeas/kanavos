@@ -13,6 +13,7 @@
 
 mod export;
 pub mod guid;
+mod import;
 pub mod math;
 pub mod step;
 
@@ -24,6 +25,10 @@ pub use export::{
     export_to_file, space_category_key,
 };
 pub use guid::Guid;
+pub use import::{
+    ImportBase, ImportIssue, ImportOptions, ImportReport, Imported, Schema, Units, import, import_file,
+    import_parsed,
+};
 pub use step::{StepError, StepFile};
 
 /// Error from reading or writing IFC.
