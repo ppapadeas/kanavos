@@ -13,3 +13,8 @@ workspace = true
 
 [dependencies]
 kanavos-control = { path = "../control" }
+kanavos-i18n = { path = "../i18n" }
+serde_json.workspace = true
+
+[dev-dependencies]
+kanavos-units = { path = "../units" }

@@ -23,6 +23,15 @@ kanavos-format = { path = "../format" }
 kanavos-units = { path = "../units" }
 kanavos-geom = { path = "../geom" }
 kanavos-i18n = { path = "../i18n" }
+kanavos-drawing = { path = "../drawing" }
+kanavos-solid = { path = "../solid" }
+kanavos-pdf = { path = "../pdf" }
+kanavos-dxf = { path = "../dxf" }
+kanavos-raster = { path = "../raster" }
+kanavos-ifc = { path = "../ifc" }
+kanavos-gltf = { path = "../gltf" }
 serde.workspace = true
-serde_json.workspace = true
+# Exact float round trips: command logs and saved documents must replay bit for bit.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 schemars.workspace = true
+serde_path_to_error.workspace = true

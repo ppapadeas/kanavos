@@ -15,7 +15,8 @@ workspace = true
 kanavos-engine = { path = "../../crates/engine" }
 kanavos-control = { path = "../../crates/control" }
 kanavos-mcp = { path = "../../crates/mcp" }
-kanavos-format = { path = "../../crates/format" }
-kanavos-geom = { path = "../../crates/geom" }
-kanavos-units = { path = "../../crates/units" }
 kanavos-model = { path = "../../crates/model" }
+kanavos-rules-gr = { path = "../../crates/rules-gr" }
+kanavos-units = { path = "../../crates/units" }
+kanavos-i18n = { path = "../../crates/i18n" }
+serde_json.workspace = true

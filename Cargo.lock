@@ -1517,18 +1517,30 @@ version = "0.0.1"
 dependencies = [
  "kanavos-control",
  "kanavos-engine",
- "kanavos-format",
- "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-mcp",
  "kanavos-model",
+ "kanavos-rules-gr",
  "kanavos-units",
+ "serde_json",
 ]
 
 [[package]]
 name = "kanavos-control"
 version = "0.0.1"
 dependencies = [
+ "kanavos-drawing",
+ "kanavos-elements",
  "kanavos-engine",
+ "kanavos-geom",
+ "kanavos-i18n",
+ "kanavos-model",
+ "kanavos-rules-gr",
+ "kanavos-schedules",
+ "kanavos-units",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
 ]
 
 [[package]]
@@ -1568,20 +1580,28 @@ dependencies = [
 name = "kanavos-engine"
 version = "0.0.1"
 dependencies = [
+ "kanavos-drawing",
+ "kanavos-dxf",
  "kanavos-elements",
  "kanavos-format",
  "kanavos-geom",
+ "kanavos-gltf",
  "kanavos-i18n",
+ "kanavos-ifc",
  "kanavos-model",
  "kanavos-objects",
+ "kanavos-pdf",
+ "kanavos-raster",
  "kanavos-rules-gr",
  "kanavos-schedules",
  "kanavos-sheets",
+ "kanavos-solid",
  "kanavos-units",
  "kanavos-views",
  "schemars",
  "serde",
  "serde_json",
+ "serde_path_to_error",
 ]
 
 [[package]]
@@ -1660,6 +1680,9 @@ name = "kanavos-mcp"
 version = "0.0.1"
 dependencies = [
  "kanavos-control",
+ "kanavos-i18n",
+ "kanavos-units",
+ "serde_json",
 ]
 
 [[package]]
