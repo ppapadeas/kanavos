@@ -1,1 +1,14 @@
 # key	el	en
+# Generated text in plans, sections, elevations and 3D views.
+views.stair.up	ΑΝ	UP
+views.stair.down	ΚΑΤ	DN
+views.north	Β	N
+views.space.area	Ε	A
+views.space.perimeter	Π	P
+views.space.height	Υ	H
+views.level.ground	Φ.Ε.	G.L.
+views.title.section	Τομή {m}-{m}	Section {m}-{m}
+views.title.elevation	Όψη {m}	Elevation {m}
+views.title.plan	Κάτοψη {storey}	Plan {storey}
+views.title.axonometric	Αξονομετρικό	Axonometric
+views.title.perspective	Προοπτικό	Perspective
