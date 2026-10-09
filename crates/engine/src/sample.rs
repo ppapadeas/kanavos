@@ -27,8 +27,8 @@ use kanavos_model::{
 use kanavos_units::{Length, Locale};
 
 use crate::commands::{
-    AutoDimensions, CreateElement, CreateView, DetectSpace, MoveViewport, PermitSet, PlaceOpening,
-    RoofFromWalls, RoofKind, SetBuildingTerms, SetPlot, SetProjectInfo, SetSite, SlabFromWalls, UpdateView,
+    AutoDimensions, CreateElement, CreateView, DetectSpace, PermitSet, PlaceOpening, RoofFromWalls, RoofKind,
+    SetBuildingTerms, SetPlot, SetProjectInfo, SetSite, SlabFromWalls, UpdateView,
 };
 use crate::geo::OutlineFace;
 use crate::{AnyCommand, CommandError, Outcome, Session};
@@ -771,21 +771,8 @@ impl Builder {
             self.view_levels(v, along)?;
         }
 
+        // The permit set lays out its sheets (papers, viewport positions and crops) itself.
         self.run(PermitSet { locale: Locale::El })?;
-        // Four elevations on one A3 sheet: arrange them two by two.
-        let doc = self.s.document().clone();
-        let elevations_sheet = doc.sheets().into_iter().find(|s| {
-            !s.viewports.is_empty()
-                && s.viewports
-                    .iter()
-                    .all(|vp| doc.view(vp.view).is_some_and(|v| matches!(v.kind, ViewKind::Elevation { .. })))
-        });
-        if let Some(sheet) = elevations_sheet {
-            let cells = [[120.0, 215.0], [310.0, 215.0], [120.0, 115.0], [310.0, 115.0]];
-            for (index, centre) in cells.iter().enumerate().take(sheet.viewports.len()) {
-                self.run(MoveViewport { sheet: sheet.id, index: Some(index), view: None, centre: *centre })?;
-            }
-        }
         Ok(())
     }
 }
