@@ -70,6 +70,12 @@ pub fn command_from_value(value: Value) -> Result<AnyCommand, ParseError> {
 
 /// Reads a JSON-lines command log.
 pub fn parse_jsonl(text: &str) -> Result<Vec<AnyCommand>, LogError> {
+    Ok(parse_jsonl_numbered(text)?.into_iter().map(|(_, c)| c).collect())
+}
+
+/// Reads a JSON-lines command log, keeping the 1-based line number of every command (for error messages when a
+/// command later fails to apply).
+pub fn parse_jsonl_numbered(text: &str) -> Result<Vec<(usize, AnyCommand)>, LogError> {
     let mut out = Vec::new();
     for (i, raw) in text.lines().enumerate() {
         let line = raw.trim().trim_start_matches('\u{feff}');
@@ -86,7 +92,7 @@ pub fn parse_jsonl(text: &str) -> Result<Vec<AnyCommand>, LogError> {
             path: e.path,
             message: e.message,
         })?;
-        out.push(c);
+        out.push((i + 1, c));
     }
     Ok(out)
 }

@@ -7,6 +7,7 @@
 mod build;
 mod dup;
 mod edit;
+pub mod examples;
 mod sheet;
 mod site;
 
