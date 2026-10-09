@@ -141,6 +141,8 @@ struct Entry {
     active: bool,
     /// Bumped when the request's results are dropped, so jobs from before are discarded.
     generation: u64,
+    /// The document of the newest request, to tell another document at the same revision apart.
+    source: Option<Document>,
 }
 
 impl Entry {
@@ -240,21 +242,29 @@ impl Derived {
         let send = {
             let mut entries = self.shared.lock();
             let e = entries.entry(request.clone()).or_default();
-            if e.newest_known().is_some_and(|newest| revision < newest) {
-                // A new session: forget this request's results.
+            let newest = e.newest_known();
+            // Revisions only grow within a session; a lower one, or the same one for another document (sessions
+            // start at 0), means a new session.
+            let other_document =
+                newest == Some(revision) && e.source.as_ref().is_some_and(|s| !s.shares_elements_with(doc));
+            let reset = newest.is_some_and(|n| revision < n) || other_document;
+            if reset {
                 e.ready = None;
                 e.error = None;
                 e.pending = None;
+                e.source = None;
                 e.generation += 1;
             }
-            let have = e.ready.as_ref().is_some_and(|r| r.0 == revision)
-                || e.error.as_ref().is_some_and(|x| x.0 == revision)
-                || e.running == Some(revision)
-                || e.pending.as_ref().is_some_and(|p| p.0 == revision);
+            let have = !reset
+                && (e.ready.as_ref().is_some_and(|r| r.0 == revision)
+                    || e.error.as_ref().is_some_and(|x| x.0 == revision)
+                    || e.running == Some(revision)
+                    || e.pending.as_ref().is_some_and(|p| p.0 == revision));
             if have {
                 return;
             }
             e.pending = Some((revision, doc.clone()));
+            e.source = Some(doc.clone());
             if e.active {
                 false
             } else {
@@ -366,6 +376,7 @@ impl Derived {
             e.error = None;
             e.pending = None;
             e.generation += 1;
+            e.source = None;
             if !e.active {
                 entries.remove(request);
             }
@@ -381,6 +392,7 @@ impl Derived {
             e.error = None;
             e.pending = None;
             e.generation += 1;
+            e.source = None;
         }
     }
 
@@ -556,6 +568,25 @@ mod tests {
         let (rev, scene) = d.latest_scene(&req).unwrap();
         assert_eq!(rev, 0);
         assert!(scene.items.is_empty());
+    }
+
+    #[test]
+    fn another_document_at_the_same_revision_is_recomputed() {
+        let d = Derived::with_workers(1);
+        let req = Request::scene();
+        let empty = Session::new(starter());
+        d.request(empty.document(), 0, req.clone());
+        assert!(d.wait_idle(WAIT));
+        assert!(d.latest_scene(&req).unwrap().1.items.is_empty());
+        // A document opened in a new session also starts at revision 0.
+        let mut s = Session::new(starter());
+        add_wall(&mut s, 0.0);
+        let opened = Session::new(s.document().clone());
+        d.request(opened.document(), opened.revision(), req.clone());
+        assert!(d.wait_idle(WAIT));
+        let (rev, scene) = d.latest_scene(&req).unwrap();
+        assert_eq!(rev, 0);
+        assert!(!scene.items.is_empty());
     }
 
     #[test]
