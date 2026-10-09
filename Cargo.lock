@@ -200,8 +200,10 @@ dependencies = [
 name = "kanavos-ifc"
 version = "0.0.1"
 dependencies = [
- "kanavos-elements",
+ "kanavos-drawing",
+ "kanavos-geom",
  "kanavos-model",
+ "kanavos-solid",
 ]
 
 [[package]]
