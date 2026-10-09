@@ -176,6 +176,8 @@ struct Inner {
     storeys: StoreyFilter,
     section_box: Option<Aabb>,
     moving: bool,
+    /// Camera of the previous frame (a change means the view is moving).
+    last_camera: Option<OrbitCamera>,
     hover_set: bool,
     hidden: HashSet<Id>,
     caps: Option<(u64, Aabb, Arc<Vec<scene::Cap>>)>,
@@ -196,6 +198,7 @@ impl Inner {
             storeys: StoreyFilter::All,
             section_box: None,
             moving: false,
+            last_camera: None,
             hover_set: false,
             hidden: HashSet::new(),
             caps: None,
@@ -499,6 +502,10 @@ impl Inner {
             moving = true;
             ctx.request_repaint();
         }
+        // Any camera change since the last frame (navigation, animation, a camera set from outside) counts as
+        // moving: the software path then trades detail for speed.
+        moving |= self.last_camera.is_some_and(|c| c != self.camera);
+        self.last_camera = Some(self.camera);
         self.moving = moving;
         let proj = self.camera.projection(size, centre);
         let edges = self.edges;
@@ -565,7 +572,7 @@ impl Inner {
                         hover: state.hover.and_then(|h| scene.items.iter().position(|it| it.element == h)),
                         visible: scene.items.iter().map(|it| !self.hidden.contains(&it.element)).collect(),
                         edges: edges && !(moving && scene.tris.len() > EDGES_WHILE_MOVING_LIMIT),
-                        edge_resolution: if moving { 0.5 } else { 1.0 },
+                        edge_resolution: if moving { 0.35 } else { 0.75 },
                         occlusion: true,
                         section_box,
                         caps: self.caps_for(&scene, state.session.revision()),

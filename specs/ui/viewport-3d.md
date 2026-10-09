@@ -74,8 +74,9 @@ drawings.
 
 - The scene is prepared once per model revision; large faces are subdivided (at most a sixtieth of the scene, at
   least 0.5 m, within a budget of 60 000 triangles).
-- Interactive for about 50 000 triangles: while the camera moves, edges are skipped above 15 000 triangles and the
-  visibility buffer runs at half resolution.
+- Interactive for about 50 000 triangles on the software path: while the camera moves (any change of camera since
+  the previous frame), edges are skipped above 15 000 triangles and the visibility buffer runs at about a third of
+  the screen resolution (three quarters when still).
 
 ## Edge cases
 

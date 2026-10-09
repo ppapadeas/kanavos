@@ -102,6 +102,16 @@ struct MeshCache {
     mesh: Mesh,
 }
 
+/// A tessellation in progress, advanced a little every frame.
+struct PendingBuild {
+    generation: u64,
+    params: TessParams,
+    builder: Builder,
+    mesh: Mesh,
+    /// Next item to tessellate.
+    next: usize,
+}
+
 /// The selection/hover overlay mesh.
 struct OverlayCache {
     generation: u64,
@@ -133,6 +143,7 @@ pub struct Canvas {
     derived: Option<Derived>,
     generation: u64,
     base: Option<MeshCache>,
+    pending: Option<PendingBuild>,
     overlay: Option<OverlayCache>,
     // Tool output kept between events.
     preview: Drawing,
@@ -171,8 +182,12 @@ enum FitRequest {
 
 /// Fraction of the remaining distance a view animation covers per frame.
 const ANIMATION_STEP: f64 = 0.35;
-/// Re-tessellate when the zoom drifts by more than this factor from the cached mesh's zoom.
-const RETESSELLATE_FACTOR: f64 = 1.19;
+/// Start a background re-tessellation when the zoom drifts by more than this factor from the mesh's zoom.
+const RETESSELLATE_FACTOR: f64 = 1.12;
+/// Re-tessellate at once when the zoom drifts by more than this factor (the scaled mesh would look wrong).
+const SYNC_RETESSELLATE_FACTOR: f64 = 1.7;
+/// Time per frame given to a background re-tessellation, milliseconds.
+const BUILD_BUDGET_MS: f64 = 3.0;
 /// Pick radius in screen points.
 const PICK_RADIUS_PT: f64 = 6.0;
 /// Wheel zoom per point of scroll (a typical wheel notch scrolls 50 points: about ×1.2).
@@ -192,6 +207,7 @@ impl Canvas {
             derived: None,
             generation: 0,
             base: None,
+            pending: None,
             overlay: None,
             preview: Drawing::default(),
             snap: None,
@@ -607,20 +623,80 @@ impl Canvas {
         let _ = rect;
     }
 
-    /// Tessellates the drawing again when needed; returns whether it did.
+    /// Keeps the tessellated drawing fit for the view; returns whether it re-tessellated in this frame.
+    ///
+    /// A new mesh is needed when the drawing changed, when the zoom drifted too far from the mesh's zoom, or when
+    /// the view leaves the tessellated window. Small drifts start a background build that advances a few
+    /// milliseconds per frame while the old mesh keeps being shown scaled, so zooming never stalls; only large
+    /// jumps (or a changed drawing) build at once.
     fn ensure_base(&mut self, prep: &Prepared, size: [f64; 2], ppp: f32) -> bool {
         let Some(generation) = self.derived.as_ref().map(|d| d.generation) else { return false };
         let visible = self.view.visible(size);
         let zoom = self.view.zoom;
-        let reuse = self.base.as_ref().is_some_and(|b| {
-            b.generation == generation
-                && (b.params.pixels_per_point - ppp).abs() < 1e-3
-                && (zoom / b.params.zoom).max(b.params.zoom / zoom) < RETESSELLATE_FACTOR
-                && b.params.window.is_none_or(|w| view::contains_rect(&w, &visible))
-        });
-        if reuse {
-            return false;
+        let drift = |z: f64| (zoom / z).max(z / zoom);
+        let sync = match &self.base {
+            None => true,
+            Some(b) => {
+                b.generation != generation
+                    || (b.params.pixels_per_point - ppp).abs() > 1e-3
+                    || drift(b.params.zoom) > SYNC_RETESSELLATE_FACTOR
+                    || b.params.window.is_some_and(|w| !view::contains_rect(&w, &visible))
+            }
+        };
+        if sync {
+            let params = self.tess_params(prep, &visible, ppp);
+            let mut mesh = Mesh::default();
+            let mut b = Builder::new(params, prep.paper_unit());
+            b.add(prep, None, Style::Normal, &mut mesh);
+            self.base = Some(MeshCache { generation, params, mesh });
+            self.pending = None;
+            return true;
         }
+        let stale = self.base.as_ref().is_some_and(|b| {
+            drift(b.params.zoom) > RETESSELLATE_FACTOR
+                || b.params.window.is_some_and(|w| {
+                    let (mx, my) = (w.width() * 0.2, w.height() * 0.2);
+                    let inner =
+                        Rect { min: pt(w.min.x + mx, w.min.y + my), max: pt(w.max.x - mx, w.max.y - my) };
+                    !view::contains_rect(&inner, &visible)
+                })
+        });
+        if self.pending.as_ref().is_some_and(|p| p.generation != generation) {
+            self.pending = None;
+        }
+        if stale && self.pending.is_none() {
+            let params = self.tess_params(prep, &visible, ppp);
+            self.pending = Some(PendingBuild {
+                generation,
+                params,
+                builder: Builder::new(params, prep.paper_unit()),
+                mesh: Mesh::default(),
+                next: 0,
+            });
+        }
+        let Some(p) = &mut self.pending else { return false };
+        let started = Instant::now();
+        while p.next < prep.items.len() {
+            let end = (p.next + 48).min(prep.items.len());
+            for it in prep.items.get(p.next..end).unwrap_or(&[]) {
+                p.builder.item(it, Style::Normal, &mut p.mesh);
+            }
+            p.next = end;
+            if started.elapsed().as_secs_f64() * 1000.0 > BUILD_BUDGET_MS {
+                break;
+            }
+        }
+        if p.next >= prep.items.len()
+            && let Some(done) = self.pending.take()
+        {
+            self.base = Some(MeshCache { generation, params: done.params, mesh: done.mesh });
+        }
+        true
+    }
+
+    /// Tessellation parameters for the current view: the whole drawing when it fits in a window of three by three
+    /// screens around the view, that window otherwise.
+    fn tess_params(&self, prep: &Prepared, visible: &Rect, ppp: f32) -> TessParams {
         let grown = Rect {
             min: pt(visible.min.x - visible.width(), visible.min.y - visible.height()),
             max: pt(visible.max.x + visible.width(), visible.max.y + visible.height()),
@@ -631,12 +707,7 @@ impl Canvas {
         } else {
             (Some(grown), self.view.centre)
         };
-        let params = TessParams { zoom, anchor, window, pixels_per_point: ppp };
-        let mut mesh = Mesh::default();
-        let mut b = Builder::new(params, prep.paper_unit());
-        b.add(prep, None, Style::Normal, &mut mesh);
-        self.base = Some(MeshCache { generation, params, mesh });
-        true
+        TessParams { zoom: self.view.zoom, anchor, window, pixels_per_point: ppp }
     }
 
     /// Selection and hover highlights, cached until either changes.

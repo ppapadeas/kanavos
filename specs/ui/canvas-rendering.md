@@ -54,7 +54,10 @@ spacing, text height) are given in paper millimetres.
 
 - Zoom-independent work (fill triangulation, hatch lines, bounds) is done once per drawing revision.
 - Zoom-dependent work (widths, dashes, level of detail) is done once per zoom level and window and reused while
-  panning and while the zoom stays within ±19 %; panning and small zooms only move the cached picture.
+  panning; panning and small zooms only move the cached picture. When the zoom drifts by more than 12 % (or the
+  view nears the edge of the prepared window), a new picture is prepared in the background, a few milliseconds per
+  frame, while the old one is shown scaled; only jumps beyond ×1.7, leaving the window, or a changed drawing
+  prepare it at once.
 - When zoomed far into a large drawing, only items in a window of three by three screens around the view are
   prepared; the window is rebuilt when the view leaves it.
 - Target: pan and zoom of a 300-element storey plan at 60 frames per second.
