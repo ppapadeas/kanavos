@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+mod export;
 pub mod guid;
 pub mod math;
 pub mod step;
@@ -18,6 +19,10 @@ pub mod step;
 use std::fmt;
 use std::path::PathBuf;
 
+pub use export::{
+    EXPORT_SCHEMA, ExportOptions, ExportReport, Exported, GLOBAL_ID_PROPERTY, GeometryFn, export,
+    export_to_file, space_category_key,
+};
 pub use guid::Guid;
 pub use step::{StepError, StepFile};
 
