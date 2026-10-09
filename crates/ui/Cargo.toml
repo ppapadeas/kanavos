@@ -28,6 +28,13 @@ kanavos-solid = { path = "../solid" }
 kanavos-units = { path = "../units" }
 kanavos-i18n = { path = "../i18n" }
 kanavos-format = { path = "../format" }
+kanavos-pdf = { path = "../pdf" }
+kanavos-dxf = { path = "../dxf" }
+kanavos-raster = { path = "../raster" }
+kanavos-ifc = { path = "../ifc" }
+kanavos-gltf = { path = "../gltf" }
+kanavos-fonts = { path = "../fonts" }
+kanavos-geo = { path = "../geo" }
 # egui's bundled fonts are not on the licence allow-list: default features stay off and fonts come from the
 # system at run time.
 eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "x11", "wayland"] }
@@ -35,3 +42,7 @@ egui = { version = "0.36", default-features = false }
 egui-wgpu = "0.36"
 serde.workspace = true
 serde_json.workspace = true
+# Native file dialogs (MIT). Default features use the desktop portal on Linux instead of GTK.
+rfd = "0.17"
+# PNG encoding for the visual-verification screenshot hook (MIT OR Apache-2.0; already in the tree via egui).
+png = "0.18"
