@@ -113,8 +113,8 @@ pub trait Command {
 ## 6. Files
 
 - **Native `.kanavos`**: a ZIP container with a versioned JSON model (deterministic key order for diffs), binary
-  geometry caches that can always be rebuilt, embedded assets and a manifest. Documented in `docs/format.md`
-  (to write). Readers must accept older schema versions through migrations.
+  geometry caches that can always be rebuilt, embedded assets and a manifest. Documented in
+  [`format.md`](format.md). Readers must accept older schema versions through migrations.
 - **IFC 4.3** import and export is a first-class path, tested against buildingSMART sample files and models exported
   from other BIM tools.
 - **DXF** for survey underlays (τοπογραφικό) and drawing export. **PDF** vector export, PDF/A for archiving.
