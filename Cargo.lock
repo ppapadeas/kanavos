@@ -1556,6 +1556,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanavos-gltf"
+version = "0.0.1"
+dependencies = [
+ "kanavos-drawing",
+ "kanavos-geom",
+ "kanavos-model",
+ "kanavos-solid",
+ "kanavos-units",
+ "kanavos-views",
+ "serde_json",
+]
+
+[[package]]
 name = "kanavos-i18n"
 version = "0.0.1"
 dependencies = [

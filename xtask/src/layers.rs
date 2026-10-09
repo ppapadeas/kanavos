@@ -19,6 +19,7 @@ pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-ifc", 6),
     ("kanavos-dxf", 6),
     ("kanavos-pdf", 6),
+    ("kanavos-gltf", 6),
     ("kanavos-engine", 7),
     ("kanavos-tools", 8),
     ("kanavos-render", 8),

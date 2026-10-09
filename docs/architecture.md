@@ -27,7 +27,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L9  kanavos-ui (egui front end)   kanavos-mcp (MCP adapter)
  L8  kanavos-tools (interactive tools, snapping)   kanavos-render (wgpu)   kanavos-control (JSON-RPC)
  L7  kanavos-engine (session, command bus, undo, scheduling, selection)
- L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf
+ L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf   kanavos-gltf
  L5  kanavos-views (plan/section/elevation/3D derivation, hidden-line removal)   kanavos-schedules   kanavos-rules-gr
  L4  kanavos-elements (walls, slabs, openings, roofs, stairs, spaces …)   kanavos-objects (parametric objects)
  L3  kanavos-model (project document, attributes, relations, IDs)
@@ -58,6 +58,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-ifc` | IFC 4.3 (ISO 16739‑1:2024) import/export over STEP Part 21. |
 | `kanavos-dxf` | DXF import (survey, underlays) and export (drawings). |
 | `kanavos-pdf` | Vector PDF export, PDF/A for archiving. |
+| `kanavos-gltf` | glTF 2.0 binary (`.glb`) export of the 3D model for visualisation tools. |
 | `kanavos-engine` | Open session, command bus, undo/redo, selection, change propagation, background job scheduling and cancellation, autosave. |
 | `kanavos-tools` | Interactive tools that turn input into commands; snapping and inference; typed numeric input. |
 | `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu). |
