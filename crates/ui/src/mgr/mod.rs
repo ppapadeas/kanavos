@@ -74,7 +74,7 @@ impl Managers {
                 Window::BuildUps => (tr(locale, "ui.window.buildups"), [760.0, 520.0]),
                 Window::Storeys => (tr(locale, "ui.window.storeys"), [720.0, 320.0]),
                 Window::Project => (tr(locale, "ui.window.project"), [460.0, 460.0]),
-                Window::Site => (tr(locale, "ui.window.site"), [460.0, 560.0]),
+                Window::Site => (tr(locale, "ui.window.site"), [480.0, 660.0]),
                 Window::Defaults => (tr(locale, "ui.window.defaults"), [460.0, 320.0]),
                 Window::Shortcuts => (tr(locale, "ui.window.shortcuts"), [460.0, 520.0]),
                 Window::About => (tr(locale, "ui.window.about"), [480.0, 380.0]),

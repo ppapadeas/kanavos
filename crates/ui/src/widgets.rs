@@ -103,6 +103,8 @@ pub fn value_field(
         (Some(v), FieldKind::Number { decimals, .. }) => format_number(v, decimals, locale),
         (None, _) => MIXED.to_owned(),
     };
+    // Long values (grid coordinates) widen the field instead of being cut.
+    let width = width.max(display.chars().count() as f32 * 8.5 + 14.0);
     let buffer_id = field_state_id(id);
     let error_id = field_error_id(id);
     let editing: Option<String> = ui.data(|d| d.get_temp::<String>(buffer_id));
@@ -221,7 +223,12 @@ pub fn text_field(
     let editing: Option<String> = ui.data(|d| d.get_temp::<String>(buffer_id));
     let shown = value.unwrap_or(MIXED).to_owned();
     let mut text = editing.unwrap_or_else(|| shown.clone());
-    let response = TextEdit::singleline(&mut text).id(id).desired_width(width).show(ui).response;
+    let response = TextEdit::singleline(&mut text)
+        .id(id)
+        .desired_width(width)
+        .min_size(Vec2::new(width, 0.0))
+        .show(ui)
+        .response;
     if response.gained_focus() && value.is_none() {
         text.clear();
     }

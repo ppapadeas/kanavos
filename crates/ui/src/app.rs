@@ -596,6 +596,20 @@ impl KanavosApp {
                 }
                 "history" => self.inspector.page = Page::History,
                 "palette" => self.palette.show(v),
+                "doc" if v == "new" => {
+                    let locale = self.state.locale;
+                    self.set_document(kanavos_model::starter(), None, None);
+                    self.state.locale = locale;
+                }
+                "edit" => {
+                    // A few named steps for the history page: rename the project, add a storey, undo one.
+                    let mut info = self.state.doc().info().clone();
+                    info.name = format!("{} ·", info.name);
+                    let _ = self.state.run(kanavos_engine::commands::SetProjectInfo { info }.into(), false);
+                    crate::tree::add_storey_above(&mut self.state);
+                    crate::tree::add_storey_below(&mut self.state);
+                    self.state.undo();
+                }
                 "tool" => {
                     if let Some(t) = ToolId::ALL.into_iter().find(|t| t.key() == v) {
                         self.perform(ctx, Action::Tool(t));
@@ -1144,8 +1158,9 @@ fn empty_storey_hint(ui: &mut egui::Ui, rect: egui::Rect, state: &AppState, targ
     }
     let t = Tokens::of(ui);
     let text = tr(state.locale, "ui.empty.storey");
+    let wrap = (rect.width() - 56.0).clamp(120.0, 420.0);
     let galley =
-        ui.painter().layout(text, egui::FontId::proportional(crate::theme::size::BODY), t.text, 420.0);
+        ui.painter().layout(text, egui::FontId::proportional(crate::theme::size::BODY), t.text, wrap);
     let size = galley.size() + egui::vec2(28.0, 20.0);
     let card =
         egui::Rect::from_center_size(egui::pos2(rect.center().x, rect.bottom() - 60.0 - size.y / 2.0), size);

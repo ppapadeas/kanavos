@@ -62,9 +62,10 @@ impl StoreysWindow {
                     let base =
                         UpdateStorey { id: s.id, shift_above: self.shift_above, ..UpdateStorey::default() };
                     ui.horizontal(|ui| {
-                        if s.id == state.active_storey {
-                            icons::inline(ui, Icon::Check, t.accent);
-                        }
+                        // The active storey is marked; other rows keep the same indent so names line up.
+                        let mark =
+                            if s.id == state.active_storey { t.accent } else { egui::Color32::TRANSPARENT };
+                        icons::inline(ui, Icon::Check, mark);
                         if let Some(v) = widgets::text_field(ui, ("storey-name", s.id), Some(&s.name), 150.0)
                             && !v.trim().is_empty()
                         {

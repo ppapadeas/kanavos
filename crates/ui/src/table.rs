@@ -147,7 +147,7 @@ fn draw_table(
     let t = Tokens::of(ui);
     let font = FontId::proportional(crate::theme::size::BODY);
     let row_h = 26.0;
-    let pad = 12.0;
+    let pad = 10.0;
     let painter = ui.painter().clone();
     let text_width = |s: &str| painter.layout_no_wrap(s.to_owned(), font.clone(), t.text).size().x;
     let widths: Vec<f32> = table
@@ -164,69 +164,73 @@ fn draw_table(
     let total_w: f32 = widths.iter().sum();
     let order = sorted_rows(table, sort);
     let mut clicked = None;
-    ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
-        let rows = 1 + table.rows.len() + table.footer.len();
-        let (rect, _) = ui.allocate_exact_size(Vec2::new(total_w, row_h * rows as f32 + 2.0), Sense::hover());
-        let p = ui.painter();
-        // Header.
-        let header = Rect::from_min_size(rect.min, Vec2::new(total_w, row_h));
-        p.rect_filled(header, 0.0, t.panel);
-        let mut x = rect.min.x;
-        for (i, (col, w)) in table.columns.iter().zip(widths.iter()).enumerate() {
-            let cell = Rect::from_min_size(egui::pos2(x, rect.min.y), Vec2::new(*w, row_h));
-            let id = ui.id().with(("table-header", i));
-            let response = ui.interact(cell, id, Sense::click());
-            if response.hovered() {
-                p.rect_filled(cell, 0.0, t.hover);
-            }
-            let arrow = match sort {
-                Some((c, true)) if c == i => " ↑",
-                Some((c, false)) if c == i => " ↓",
-                _ => "",
-            };
-            let text = format!("{}{arrow}", col.header);
-            let (pos, align) = cell_anchor(cell, col.align, pad);
-            p.text(pos, align, text, FontId::proportional(crate::theme::size::BODY), t.text);
-            let header_label = col.header.clone();
-            response.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::WidgetType::Button, true, header_label.clone())
-            });
-            if response.clicked() {
-                clicked = Some(match sort {
-                    Some((c, asc)) if c == i => (i, !asc),
-                    _ => (i, true),
+    ScrollArea::both()
+        .auto_shrink([false, false])
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
+        .show(ui, |ui| {
+            let rows = 1 + table.rows.len() + table.footer.len();
+            let (rect, _) =
+                ui.allocate_exact_size(Vec2::new(total_w, row_h * rows as f32 + 2.0), Sense::hover());
+            let p = ui.painter();
+            // Header.
+            let header = Rect::from_min_size(rect.min, Vec2::new(total_w, row_h));
+            p.rect_filled(header, 0.0, t.panel);
+            let mut x = rect.min.x;
+            for (i, (col, w)) in table.columns.iter().zip(widths.iter()).enumerate() {
+                let cell = Rect::from_min_size(egui::pos2(x, rect.min.y), Vec2::new(*w, row_h));
+                let id = ui.id().with(("table-header", i));
+                let response = ui.interact(cell, id, Sense::click());
+                if response.hovered() {
+                    p.rect_filled(cell, 0.0, t.hover);
+                }
+                let arrow = match sort {
+                    Some((c, true)) if c == i => " ↑",
+                    Some((c, false)) if c == i => " ↓",
+                    _ => "",
+                };
+                let text = format!("{}{arrow}", col.header);
+                let (pos, align) = cell_anchor(cell, col.align, pad);
+                p.text(pos, align, text, FontId::proportional(crate::theme::size::BODY), t.text);
+                let header_label = col.header.clone();
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, header_label.clone())
                 });
+                if response.clicked() {
+                    clicked = Some(match sort {
+                        Some((c, asc)) if c == i => (i, !asc),
+                        _ => (i, true),
+                    });
+                }
+                x += w;
             }
-            x += w;
-        }
-        let mut y = rect.min.y + row_h;
-        p.hline(rect.x_range(), y, Stroke::new(1.0, t.border_strong));
-        // Body.
-        for (n, &ri) in order.iter().enumerate() {
-            let Some(row) = table.rows.get(ri) else { continue };
-            let r = Rect::from_min_size(egui::pos2(rect.min.x, y), Vec2::new(total_w, row_h));
-            if n % 2 == 1 {
-                p.rect_filled(r, 0.0, t.panel);
-            }
-            draw_row(p, table, row, &widths, r, pad, locale, t.text, false);
-            y += row_h;
-        }
-        // Footer (totals).
-        if !table.footer.is_empty() {
+            let mut y = rect.min.y + row_h;
             p.hline(rect.x_range(), y, Stroke::new(1.0, t.border_strong));
-            for row in &table.footer {
+            // Body.
+            for (n, &ri) in order.iter().enumerate() {
+                let Some(row) = table.rows.get(ri) else { continue };
                 let r = Rect::from_min_size(egui::pos2(rect.min.x, y), Vec2::new(total_w, row_h));
-                draw_row(p, table, row, &widths, r, pad, locale, t.text, true);
+                if n % 2 == 1 {
+                    p.rect_filled(r, 0.0, t.panel);
+                }
+                draw_row(p, table, row, &widths, r, pad, locale, t.text, false);
                 y += row_h;
             }
-        }
-        p.rect_stroke(
-            Rect::from_min_max(rect.min, egui::pos2(rect.min.x + total_w, y)),
-            2.0,
-            Stroke::new(1.0, t.border),
-            egui::StrokeKind::Inside,
-        );
-    });
+            // Footer (totals).
+            if !table.footer.is_empty() {
+                p.hline(rect.x_range(), y, Stroke::new(1.0, t.border_strong));
+                for row in &table.footer {
+                    let r = Rect::from_min_size(egui::pos2(rect.min.x, y), Vec2::new(total_w, row_h));
+                    draw_row(p, table, row, &widths, r, pad, locale, t.text, true);
+                    y += row_h;
+                }
+            }
+            p.rect_stroke(
+                Rect::from_min_max(rect.min, egui::pos2(rect.min.x + total_w, y)),
+                2.0,
+                Stroke::new(1.0, t.border),
+                egui::StrokeKind::Inside,
+            );
+        });
     clicked
 }
 

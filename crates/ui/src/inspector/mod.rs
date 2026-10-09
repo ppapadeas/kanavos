@@ -484,22 +484,25 @@ fn nok_panel(ui: &mut Ui, state: &AppState, nok: &NokView<'_>, actions: &mut Vec
             trf(locale, "ui.nok.over", &[("a", &AreaDisplay(-margin, locale).to_string())])
         }
     };
-    meter(
-        ui,
-        &tr(locale, "ui.nok.coverage"),
-        &m.coverage.label(locale),
-        m.coverage.ratio(),
-        &margin_text(m.coverage.margin()),
-        !m.coverage.within_limit(),
-    );
-    meter(
-        ui,
-        &tr(locale, "ui.nok.floor_area"),
-        &m.floor_area.label(locale),
-        m.floor_area.ratio(),
-        &margin_text(m.floor_area.margin()),
-        !m.floor_area.within_limit(),
-    );
+    // Area limits need the plot; without one the box above explains why they are missing.
+    if report.plot_area.is_some() {
+        meter(
+            ui,
+            &tr(locale, "ui.nok.coverage"),
+            &m.coverage.label(locale),
+            m.coverage.ratio(),
+            &margin_text(m.coverage.margin()),
+            !m.coverage.within_limit(),
+        );
+        meter(
+            ui,
+            &tr(locale, "ui.nok.floor_area"),
+            &m.floor_area.label(locale),
+            m.floor_area.ratio(),
+            &margin_text(m.floor_area.margin()),
+            !m.floor_area.within_limit(),
+        );
+    }
     let (used_h, max_h) = report.height;
     let h_ratio = if max_h.as_m() > 0.0 { used_h.as_m() / max_h.as_m() } else { f64::INFINITY };
     let h_margin = max_h - used_h;
