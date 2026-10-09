@@ -3,8 +3,7 @@
 //! Polygons are offset edge by edge; at corners where the offset edges separate a join is inserted (miter,
 //! round, square or bevel), and where they overlap the raw curve passes through the original vertex. The raw
 //! rings are then cleaned with the positive winding rule, which removes the loops created at concave corners
-//! and the parts that collapse when shrinking. This is the classic approach used by polygon clipping libraries
-//! (e.g. A. Johnson's Clipper offsetting, after Chen & McMains, "Polygon Offsetting by Computing Winding
+//! and the parts that collapse when shrinking (X. Chen, S. McMains, "Polygon Offsetting by Computing Winding
 //! Numbers", ASME IDETC 2005).
 
 use crate::GeomError;
