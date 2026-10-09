@@ -28,14 +28,12 @@ fn texts(d: &Drawing) -> Vec<String> {
 #[test]
 fn house_views_render() {
     let h = common::house();
-    let r = common::raster::Raster::new();
-    let out = common::out_dir();
 
     let t = Instant::now();
     let ground =
         plan(&h.doc, h.ground, &PlanOptions { space_perimeter: true, ..PlanOptions::default() }).unwrap();
     eprintln!("ground plan: {} items in {:?}", ground.items.len(), t.elapsed());
-    r.render(&ground, 6.0, &out.join("plan-ground-50.png"));
+    common::save_png(&ground, "plan-ground-50.png");
     assert!(layers(&ground, "wall.cut") > 0);
     assert!(layers(&ground, "column.cut") > 0);
     assert!(layers(&ground, "window.above") > 0, "the high kitchen window is dashed");
@@ -49,20 +47,20 @@ fn house_views_render() {
     assert!(tx.iter().any(|s| s == "Β"), "north arrow");
 
     let first = plan(&h.doc, h.first, &PlanOptions::default()).unwrap();
-    r.render(&first, 6.0, &out.join("plan-first-50.png"));
+    common::save_png(&first, "plan-first-50.png");
     assert!(texts(&first).iter().any(|s| s == "ΚΑΤ"));
     assert!(layers(&first, "roof.above") > 0, "the roof and parapet are dashed");
 
     let small =
         plan(&h.doc, h.ground, &PlanOptions { scale: 100.0, locale: Locale::En, ..PlanOptions::default() })
             .unwrap();
-    r.render(&small, 8.0, &out.join("plan-ground-100.png"));
+    common::save_png(&small, "plan-ground-100.png");
     assert!(texts(&small).iter().any(|s| s == "UP"));
 
     let t = Instant::now();
     let section = view_drawing(&h.doc, h.section, Locale::El).unwrap();
     eprintln!("section: {} items in {:?}", section.items.len(), t.elapsed());
-    r.render(&section, 6.0, &out.join("section-a.png"));
+    common::save_png(&section, "section-a.png");
     assert!(layers(&section, "wall.cut") > 0);
     assert!(layers(&section, "slab.cut") > 0);
     assert!(layers(&section, "stair.cut") > 0);
@@ -73,17 +71,17 @@ fn house_views_render() {
     let t = Instant::now();
     let elevation = view_drawing(&h.doc, h.elevation, Locale::El).unwrap();
     eprintln!("elevation: {} items in {:?}", elevation.items.len(), t.elapsed());
-    r.render(&elevation, 6.0, &out.join("elevation-south.png"));
+    common::save_png(&elevation, "elevation-south.png");
     assert!(layers(&elevation, "window.beyond") > 0, "window frames show in the elevation");
     assert_eq!(layers(&elevation, "wall.cut"), 0);
 
     let t = Instant::now();
     let axo = view_drawing(&h.doc, h.axo, Locale::El).unwrap();
     eprintln!("axonometric: {} items in {:?}", axo.items.len(), t.elapsed());
-    r.render(&axo, 6.0, &out.join("axonometric.png"));
+    common::save_png(&axo, "axonometric.png");
     assert!(layers(&axo, "wall.edge") > 0);
 
     let persp = view_drawing(&h.doc, h.perspective, Locale::El).unwrap();
-    r.render(&persp, 6.0, &out.join("perspective.png"));
+    common::save_png(&persp, "perspective.png");
     assert!(layers(&persp, "wall.edge") > 0);
 }

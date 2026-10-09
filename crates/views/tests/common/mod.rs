@@ -1,4 +1,4 @@
-//! Shared test fixtures: a two-storey house built with the model API, and a rasteriser for visual checks.
+//! Shared test fixtures: a two-storey house built with the model API, and PNG output for visual checks.
 
 #![allow(
     dead_code,
@@ -8,8 +8,6 @@
     clippy::indexing_slicing,
     clippy::too_many_arguments
 )]
-
-pub mod raster;
 
 use std::collections::BTreeMap;
 
@@ -545,4 +543,17 @@ pub fn out_dir() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("target")
     });
     base.join("views-png")
+}
+
+/// Renders a drawing to `target/views-png/<name>` at 150 dpi on paper, for people to look at.
+pub fn save_png(d: &kanavos_drawing::Drawing, name: &str) {
+    let opts = kanavos_raster::RasterOptions {
+        size: kanavos_raster::RasterSize::Dpi(150.0),
+        margin_mm: 12.0,
+        ..kanavos_raster::RasterOptions::default()
+    };
+    let png = kanavos_raster::render_png(d, &opts).expect("render");
+    let dir = out_dir();
+    std::fs::create_dir_all(&dir).expect("output directory");
+    std::fs::write(dir.join(name), png).expect("write png");
 }

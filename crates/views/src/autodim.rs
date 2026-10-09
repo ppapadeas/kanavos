@@ -103,7 +103,11 @@ pub fn auto_dimensions(doc: &Document, storey: Id) -> Vec<Dimension> {
         ([-1.0, 0.0], 1, xmin - mm(FIRST_MM)),
     ];
     for (normal, axis_i, first) in sides {
-        let step = if normal.get(axis_i ^ 1).copied().unwrap_or(0.0) < 0.0 { -mm(SPACING_MM) } else { mm(SPACING_MM) };
+        let step = if normal.get(axis_i ^ 1).copied().unwrap_or(0.0) < 0.0 {
+            -mm(SPACING_MM)
+        } else {
+            mm(SPACING_MM)
+        };
         // Façade points: vertices of edges facing this side, and jambs, that can be seen from outside.
         let mut pts: Vec<[f64; 2]> = Vec::new();
         for (a, b) in &edges {

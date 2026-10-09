@@ -1835,10 +1835,9 @@ dependencies = [
  "kanavos-i18n",
  "kanavos-model",
  "kanavos-objects",
+ "kanavos-raster",
  "kanavos-solid",
  "kanavos-units",
- "tiny-skia",
- "ttf-parser",
 ]
 
 [[package]]
