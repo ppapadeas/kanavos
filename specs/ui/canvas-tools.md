@@ -27,12 +27,17 @@ proposes, and applies what the tool decides — without knowing anything about w
   Presses while `Space` is held, or while panning, go to navigation instead.
 - A double click is sent after the press/release pair.
 - Modifiers travel with every event: `Shift`, `Ctrl` (`Cmd` on macOS), `Alt` (tools use it to switch snapping off).
-- Keys, while the canvas has keyboard focus: `Enter`, `Backspace`, `Tab`, `Delete`, and `F` (flip) while the tool
-  is in the middle of an operation. Shortcuts with `Ctrl` are left to the application.
+- Keys, while the canvas has keyboard focus: `Enter` (with `Shift` in a text box: a new line), `Backspace`, `Tab`,
+  `Delete`, and `F` (flip), `R` (rotate), `M` (mirror) while the tool is in the middle of an operation or the
+  selection tool has a selection — otherwise those letters stay application shortcuts. Shortcuts with `Ctrl` are
+  left to the application. Keys the canvas takes are consumed, and the application can ask beforehand whether
+  the canvas claims a key.
 - `Esc` goes to the tool while it is in the middle of an operation; when the tool is idle, `Esc` returns to the
   selection tool; in the selection tool it clears the selection.
-- Typed input (ux.md §3): a digit, `@`, `#`, `.`, `,` or `(` starts typing; while a typed value is shown, every
-  printable character (units, operators, separators) goes to the tool. Spaces never do.
+- Typed input (ux.md §3): while the tool asks for typed input, or a field holds a typed value, digits, operators
+  (`+ - * / ( ) <`), separators (`. , ;`), `@`, `#` and the unit letters `m` and `c` go to the tool; letters are
+  otherwise application shortcuts. While a text box is open, every printable character goes to it, spaces
+  included.
 - The canvas takes keyboard focus when clicked, or when hovered and nothing else has focus; it keeps `Tab`, the
   arrows and `Esc` for itself while focused.
 
@@ -47,6 +52,16 @@ proposes, and applies what the tool decides — without knowing anything about w
 - **Typed-input fields** are shown as a small box next to the cursor, one row per field (label and value). The
   active field is outlined in the selection colour; typed values are black with a caret, live values grey. The box
   stays inside the canvas and below the snap label.
+- **Handles** of the selection are drawn as small marks in the selection colour — squares for ends and vertices, a
+  circle with a plus where dragging inserts a vertex, a circle with arrows for moving, a bar for an opening's jamb
+  — filled when under the pointer.
+- **Highlight**: what the tool points at (the element under the pointer, or what a click would act on) is drawn in
+  the hover colour and becomes the application's hover element.
+- **Tracking points** the pointer aligns with are marked with small crosses in the inference colour.
+- **Warning**: when the previewed operation cannot be done as it stands, the preview is drawn in the warning
+  colour (red) and the reason is shown in a red label next to the cursor.
+- **Text box**: while the text tool collects text, the text so far is drawn at its printed size and rotation at
+  its anchor, with a caret after the last character and a dashed frame.
 - **Cursor**: arrow, crosshair, move or grab as the tool asks; grab/grabbing while panning.
 - **Prompt**: the tool's prompt is available to the status bar.
 - **Commands** returned by the tool run at once through the application state; several commands from one event
@@ -84,6 +99,8 @@ proposes, and applies what the tool decides — without knowing anything about w
    press, moves and release in that order and the move runs as one command.
 4. Given a sheet with two placed views, when the user drags one by 20 mm, then the sheet is updated once with its
    centre moved by 20 mm.
+5. Given the wall tool, when a different tool is chosen, then the preview, fields, handles, text box and warning
+   are cleared.
 
 ---
 

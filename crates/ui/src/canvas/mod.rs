@@ -35,8 +35,8 @@ use kanavos_geom::Point2;
 use kanavos_i18n::t;
 use kanavos_model::Id;
 use kanavos_tools::{
-    CursorHint, InputField, Key, Modifiers, MouseButton, SnapResult, Tool, ToolContext, ToolEvent, ToolId,
-    make_tool,
+    CursorHint, Handle, InputField, Key, Modifiers, MouseButton, SnapResult, TextEntry, Tool, ToolContext,
+    ToolEvent, ToolId, make_tool,
 };
 use kanavos_units::Locale;
 
@@ -108,7 +108,7 @@ struct OverlayCache {
     zoom: f64,
     anchor: Pt,
     selection: BTreeSet<u64>,
-    hover: Option<u64>,
+    hover: Vec<u64>,
     mesh: Mesh,
 }
 
@@ -141,12 +141,19 @@ pub struct Canvas {
     prompt: String,
     cursor_hint: CursorHint,
     cursor_model: Option<Point2>,
+    handles: Vec<Handle>,
+    highlight: Vec<Id>,
+    text_entry: Option<TextEntry>,
+    warning: Option<String>,
+    tracked: Vec<Point2>,
+    typing: bool,
     // Input state.
     primary_down: bool,
     panning: bool,
     last_move: Option<Pt>,
     clicked_at: Option<Point2>,
     hover_set: bool,
+    pointer_inside: bool,
     // Sheets.
     viewport_selected: Option<usize>,
     viewport_drag: Option<ViewportDrag>,
@@ -192,11 +199,18 @@ impl Canvas {
             prompt: String::new(),
             cursor_hint: CursorHint::Arrow,
             cursor_model: None,
+            handles: Vec::new(),
+            highlight: Vec::new(),
+            text_entry: None,
+            warning: None,
+            tracked: Vec::new(),
+            typing: false,
             primary_down: false,
             panning: false,
             last_move: None,
             clicked_at: None,
             hover_set: false,
+            pointer_inside: false,
             viewport_selected: None,
             viewport_drag: None,
             properties_requested: false,
@@ -225,9 +239,11 @@ impl Canvas {
         &self.prompt
     }
 
-    /// Whether the user is typing a value into the tool (letter keys then belong to the canvas, not to shortcuts).
+    /// Whether the user is typing into the tool — a value (the tool asks for typed input, or a field holds a
+    /// typed value) or text in a text box. Letter keys then belong to the canvas, not to shortcuts (see also
+    /// [`Canvas::claims_key`]).
     pub fn is_typing(&self) -> bool {
-        self.fields.iter().any(|f| f.locked)
+        self.typing || self.text_entry.is_some() || self.fields.iter().any(|f| f.locked)
     }
 
     /// Whether the "properties" item of the context menu was chosen since the last call.
@@ -352,15 +368,7 @@ impl Canvas {
         let started = Instant::now();
         shot::tick(ui.ctx(), Some(&mut *state));
         text::install_bold(ui.ctx());
-        if self.tool_id != state.tool {
-            self.tool.cancel();
-            self.tool = make_tool(state.tool);
-            self.tool_id = state.tool;
-            self.preview = Drawing::default();
-            self.snap = None;
-            self.fields.clear();
-            self.prompt.clear();
-        }
+        self.sync_tool(state);
         self.derive(state);
         let Some(prep) = self.derived.as_ref().map(|d| d.prepared.clone()) else { return };
 
@@ -442,9 +450,18 @@ impl Canvas {
         self.derive(state);
         let Some(prep) = self.derived.as_ref().map(|d| d.prepared.clone()) else { return };
 
-        // Hover (shared with the other views).
+        // Hover (shared with the other views). In plans it is what the tool highlights.
         let pointer = response.hover_pos();
-        if let Some(p) = pointer.filter(|_| response.contains_pointer() && !self.panning) {
+        let in_plan = matches!(self.kind, CanvasKind::Plan { .. });
+        if in_plan {
+            if pointer.is_some() && response.contains_pointer() && !self.panning {
+                state.hover = self.highlight.first().copied();
+                self.hover_set = true;
+            } else if self.hover_set {
+                state.hover = None;
+                self.hover_set = false;
+            }
+        } else if let Some(p) = pointer.filter(|_| response.contains_pointer() && !self.panning) {
             let at = self.view.drawing_at(p);
             let doc = state.doc();
             let hit =
@@ -627,9 +644,15 @@ impl Canvas {
         let Some(base) = &self.base else { return };
         let selection: BTreeSet<u64> =
             state.selection.iter().map(|i| i.0).filter(|s| prep.by_source.contains_key(s)).collect();
-        let hover =
-            state.hover.map(|h| h.0).filter(|h| !selection.contains(h) && prep.by_source.contains_key(h));
-        if selection.is_empty() && hover.is_none() {
+        // Plans highlight what the tool points at; other views the shared hover element.
+        let mut hover: Vec<u64> = match self.kind {
+            CanvasKind::Plan { .. } if self.hover_set => self.highlight.iter().map(|i| i.0).collect(),
+            _ => state.hover.map(|h| h.0).into_iter().collect(),
+        };
+        hover.retain(|h| !selection.contains(h) && prep.by_source.contains_key(h));
+        hover.sort_unstable();
+        hover.dedup();
+        if selection.is_empty() && hover.is_empty() {
             self.overlay = None;
             return;
         }
@@ -644,9 +667,7 @@ impl Canvas {
             let params = TessParams { window: None, pixels_per_point: ppp, ..base.params };
             let mut mesh = Mesh::default();
             let mut b = Builder::new(params, prep.paper_unit());
-            if let Some(h) = hover
-                && let Some(ix) = prep.by_source.get(&h)
-            {
+            for ix in hover.iter().filter_map(|h| prep.by_source.get(h)) {
                 b.add(
                     prep,
                     Some(ix),
@@ -710,7 +731,8 @@ impl Canvas {
         n
     }
 
-    /// The tool's preview drawing, inference guides, snap glyph and label, and typed-input box.
+    /// The tool's preview drawing, inference guides and tracking points, handles, snap glyph and label, warning,
+    /// typed-input box and text box.
     fn paint_tool(&mut self, painter: &egui::Painter, prep: &Prepared, rect: ERect, ppp: f32) {
         if !self.preview.items.is_empty() {
             let mut d = self.preview.clone();
@@ -724,8 +746,17 @@ impl Canvas {
                 window: None,
                 pixels_per_point: ppp,
             };
+            // A preview that cannot be built is drawn in the warning colour.
+            let style = match &self.warning {
+                Some(_) => Style::Highlight {
+                    color: overlay::WARNING,
+                    extra: 0.5,
+                    tint: Color32::from_rgba_premultiplied(48, 12, 6, 48),
+                },
+                None => Style::Normal,
+            };
             let mut mesh = Mesh::default();
-            Builder::new(params, pp.paper_unit()).add(&pp, None, Style::Normal, &mut mesh);
+            Builder::new(params, pp.paper_unit()).add(&pp, None, style, &mut mesh);
             if !mesh.is_empty() {
                 painter.add(egui::Shape::mesh(tess::place(&mesh, self.view.pos(self.view.centre), 1.0)));
             }
@@ -743,20 +774,35 @@ impl Canvas {
                 }
             }
         }
+        let to_screen = |v: &ViewTransform, q: Point2| {
+            let [x, y] = q.xy();
+            v.pos(pt(x, y))
+        };
+        for q in &self.tracked {
+            overlay::tracking_cross(painter, to_screen(&self.view, *q), overlay::INFERENCE);
+        }
+        for h in &self.handles {
+            let p = to_screen(&self.view, h.at);
+            if rect.contains(p) {
+                overlay::handle(painter, p, h.role, h.hot);
+            }
+        }
+        if let Some(entry) = &self.text_entry {
+            let pt_per_mm = self.view.zoom * prep.paper_unit();
+            overlay::text_entry(painter, to_screen(&self.view, entry.at), entry, pt_per_mm);
+        }
         let mut next_y = None;
+        let cursor = self.cursor_model.map(|c| to_screen(&self.view, c));
         if let Some(s) = &self.snap {
             for g in &s.guides {
-                let [ax, ay] = g.start.xy();
-                let [bx, by] = g.end.xy();
                 overlay::dashed(
                     painter,
-                    self.view.pos(pt(ax, ay)),
-                    self.view.pos(pt(bx, by)),
+                    to_screen(&self.view, g.start),
+                    to_screen(&self.view, g.end),
                     overlay::INFERENCE,
                 );
             }
-            let [x, y] = s.point.xy();
-            let p = self.view.pos(pt(x, y));
+            let p = to_screen(&self.view, s.point);
             if rect.contains(p) {
                 overlay::snap_glyph(painter, p, s.hint, overlay::INFERENCE);
                 if !s.label.is_empty() {
@@ -765,45 +811,90 @@ impl Canvas {
                 }
             }
         }
+        if let (Some(w), Some(p)) = (&self.warning, cursor) {
+            let at = pos2(p.x + 14.0, next_y.unwrap_or(p.y + 12.0));
+            let r = overlay::label(painter, at, w, overlay::WARNING);
+            next_y = Some(r.max.y + 4.0);
+        }
         if !self.fields.is_empty()
-            && let Some(c) = self.cursor_model
+            && let Some(p) = cursor
         {
-            let [x, y] = c.xy();
-            let p = self.view.pos(pt(x, y));
             let at = pos2(p.x + 14.0, next_y.unwrap_or(p.y + 12.0));
             overlay::fields_box(painter, at, &self.fields, rect.shrink(4.0));
         }
     }
 
-    /// Feeds pointer and keyboard input to the active tool and applies what it returns.
+    /// Whether the canvas takes a key now rather than leaving it to application shortcuts: every key while a
+    /// text box is open; digits, operators and unit letters while a value is typed; and `F`, `R`, `M` (flip,
+    /// rotate, mirror) while a tool is in the middle of an operation or the selection tool has a selection.
+    pub fn claims_key(&self, key: EKey, state: &AppState) -> bool {
+        if self.text_entry.is_some() {
+            return true;
+        }
+        let typing = self.is_typing()
+            && (matches!(
+                key,
+                EKey::Num0
+                    | EKey::Num1
+                    | EKey::Num2
+                    | EKey::Num3
+                    | EKey::Num4
+                    | EKey::Num5
+                    | EKey::Num6
+                    | EKey::Num7
+                    | EKey::Num8
+                    | EKey::Num9
+                    | EKey::M
+                    | EKey::C
+                    | EKey::Minus
+                    | EKey::Plus
+                    | EKey::Equals
+                    | EKey::Comma
+                    | EKey::Period
+                    | EKey::Semicolon
+                    | EKey::Slash
+                    | EKey::Backspace
+                    | EKey::Enter
+                    | EKey::Tab
+            ));
+        typing || (matches!(key, EKey::F | EKey::R | EKey::M) && self.edit_keys_active(state))
+    }
+
+    /// Whether `F`, `R` and `M` act on the tool (flip, rotate, mirror).
+    fn edit_keys_active(&self, state: &AppState) -> bool {
+        !self.tool.is_idle() || (self.tool_id == ToolId::Select && !state.selection.is_empty())
+    }
+
+    /// Feeds pointer and keyboard input to the active tool, one event at a time, and applies what it returns.
     fn tool_input(&mut self, ui: &egui::Ui, response: &egui::Response, state: &mut AppState, has_keys: bool) {
         let events = ui.input(|i| i.events.clone());
         let mods_of = |m: &egui::Modifiers| Modifiers { shift: m.shift, ctrl: m.command, alt: m.alt };
         let now_mods = ui.input(|i| mods_of(&i.modifiers));
         let over = response.contains_pointer();
         let space = ui.input(|i| i.key_down(EKey::Space));
-        let mut out_events: Vec<ToolEvent> = Vec::new();
         let at_of = |v: &ViewTransform, p: Pos2| {
             let d = v.drawing_at(p);
             Point2::new(d.x, d.y)
         };
-        let mut pending_move: Option<Pos2> = None;
+        let mut pending_move: Option<(Pos2, Modifiers)> = None;
+        let mut sent_move = false;
+        let mut consumed: Vec<(egui::Modifiers, EKey)> = Vec::new();
         for ev in &events {
-            match ev {
-                Event::PointerMoved(p) => {
-                    if over || self.primary_down {
-                        pending_move = Some(*p);
-                    }
+            // Moves are merged: only the last one before another event is sent.
+            if let Event::PointerMoved(p) = ev {
+                if over || self.primary_down {
+                    pending_move = Some((*p, now_mods));
                 }
+                continue;
+            }
+            let mut batch: Vec<ToolEvent> = Vec::new();
+            match ev {
                 Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers, .. } => {
-                    if let Some(m) = pending_move.take() {
-                        out_events
-                            .push(ToolEvent::Move { at: at_of(&self.view, m), mods: mods_of(modifiers) });
-                    }
                     let at = at_of(&self.view, *pos);
                     if *pressed && over && !space && !self.panning {
-                        out_events.push(ToolEvent::Move { at, mods: mods_of(modifiers) });
-                        out_events.push(ToolEvent::Press {
+                        pending_move = None;
+                        batch.push(ToolEvent::Move { at, mods: mods_of(modifiers) });
+                        batch.push(ToolEvent::Press {
                             at,
                             button: MouseButton::Primary,
                             mods: mods_of(modifiers),
@@ -811,7 +902,7 @@ impl Canvas {
                         self.primary_down = true;
                         self.clicked_at = Some(at);
                     } else if !*pressed && self.primary_down {
-                        out_events.push(ToolEvent::Release {
+                        batch.push(ToolEvent::Release {
                             at,
                             button: MouseButton::Primary,
                             mods: mods_of(modifiers),
@@ -824,14 +915,31 @@ impl Canvas {
                         continue;
                     }
                     let mods = mods_of(modifiers);
+                    let plain = !modifiers.command && !modifiers.alt;
                     let k = match key {
                         EKey::Enter => Some(Key::Enter),
                         EKey::Backspace => Some(Key::Backspace),
                         EKey::Tab => Some(Key::Tab),
                         EKey::Delete => Some(Key::Delete),
-                        EKey::F if !modifiers.any() && !self.tool.is_idle() => Some(Key::Flip),
+                        EKey::F if plain && self.text_entry.is_none() && self.edit_keys_active(state) => {
+                            Some(Key::Flip)
+                        }
+                        EKey::R if plain && self.text_entry.is_none() && self.edit_keys_active(state) => {
+                            Some(Key::Rotate)
+                        }
+                        EKey::M
+                            if plain
+                                && self.text_entry.is_none()
+                                && !self.is_typing()
+                                && self.edit_keys_active(state) =>
+                        {
+                            Some(Key::Mirror)
+                        }
                         EKey::Escape => {
-                            if self.tool.is_idle() && state.tool != ToolId::Select {
+                            if self.tool.is_idle()
+                                && self.text_entry.is_none()
+                                && state.tool != ToolId::Select
+                            {
                                 state.tool = ToolId::Select;
                                 None
                             } else {
@@ -841,93 +949,164 @@ impl Canvas {
                         _ => None,
                     };
                     if let Some(k) = k {
-                        out_events.push(ToolEvent::Key { key: k, mods });
+                        consumed.push((*modifiers, *key));
+                        batch.push(ToolEvent::Key { key: k, mods });
                     }
                 }
                 Event::Text(s) if has_keys => {
-                    // Typed input starts with a digit or a coordinate prefix (ux.md §3); while typing, units and
-                    // operators belong to it too.
-                    let typing =
-                        self.is_typing() || out_events.iter().any(|e| matches!(e, ToolEvent::Text(_)));
-                    let accepted: String = s
-                        .chars()
-                        .filter(|c| {
-                            if typing {
-                                !c.is_control() && !c.is_whitespace()
-                            } else {
-                                c.is_ascii_digit() || matches!(c, '@' | '#' | '.' | ',' | '(')
-                            }
-                        })
-                        .collect();
-                    if !accepted.is_empty() && !self.tool.is_idle()
-                        || (!accepted.is_empty() && self.tool_id != ToolId::Select)
-                    {
-                        out_events.push(ToolEvent::Text(accepted));
+                    let accepted: String = if self.text_entry.is_some() {
+                        // The text box takes every printable character, spaces included.
+                        s.chars().filter(|c| !c.is_control()).collect()
+                    } else if self.is_typing() {
+                        // Typed values: digits, operators, separators and unit letters (ux.md §3).
+                        s.chars()
+                            .filter(|c| {
+                                c.is_ascii_digit()
+                                    || matches!(
+                                        c,
+                                        '.' | ','
+                                            | ';'
+                                            | '@'
+                                            | '#'
+                                            | '<'
+                                            | '+'
+                                            | '-'
+                                            | '*'
+                                            | '/'
+                                            | '('
+                                            | ')'
+                                            | 'm'
+                                            | 'c'
+                                    )
+                            })
+                            .collect()
+                    } else {
+                        String::new()
+                    };
+                    if !accepted.is_empty() {
+                        batch.push(ToolEvent::Text(accepted));
                     }
                 }
                 _ => {}
             }
+            if batch.is_empty() {
+                continue;
+            }
+            if let Some((p, mods)) = pending_move.take() {
+                sent_move = true;
+                self.dispatch(ToolEvent::Move { at: at_of(&self.view, p), mods }, state);
+            }
+            for e in batch {
+                sent_move |= matches!(e, ToolEvent::Move { .. });
+                self.dispatch(e, state);
+            }
         }
-        if let Some(m) = pending_move {
-            out_events.push(ToolEvent::Move { at: at_of(&self.view, m), mods: now_mods });
+        if let Some((p, mods)) = pending_move {
+            sent_move = true;
+            self.dispatch(ToolEvent::Move { at: at_of(&self.view, p), mods }, state);
         }
         // The view moved under a still pointer: the model position changed.
         if let Some(p) = response.hover_pos().filter(|_| over)
-            && !out_events.iter().any(|e| matches!(e, ToolEvent::Move { .. }))
+            && !sent_move
         {
             let d = self.view.drawing_at(p);
             if self.last_move.is_none_or(|l| (l.x - d.x).abs() > 1e-12 || (l.y - d.y).abs() > 1e-12) {
-                out_events.push(ToolEvent::Move { at: Point2::new(d.x, d.y), mods: now_mods });
+                self.dispatch(ToolEvent::Move { at: Point2::new(d.x, d.y), mods: now_mods }, state);
+                sent_move = true;
             }
         }
         if response.double_clicked_by(PointerButton::Primary)
             && let Some(p) = response.interact_pointer_pos()
         {
-            out_events.push(ToolEvent::DoubleClick { at: at_of(&self.view, p) });
+            self.dispatch(ToolEvent::DoubleClick { at: at_of(&self.view, p) }, state);
         }
-        if !over && !self.primary_down && self.cursor_model.is_some() && out_events.is_empty() {
+        // The pointer left the canvas: forget where it was.
+        if self.pointer_inside && !over && !self.primary_down && !sent_move {
             self.cursor_model = None;
             self.snap = None;
+            self.highlight.clear();
         }
-        if out_events.is_empty() {
+        self.pointer_inside = over;
+        if !consumed.is_empty() {
+            ui.ctx().input_mut(|i| {
+                for (m, k) in consumed {
+                    i.consume_key(m, k);
+                }
+            });
+        }
+    }
+
+    /// Sends a tool event as if it came from the pointer or keyboard (scripted input: tests, automation,
+    /// demonstrations). Plan canvases only; the active tool follows `state.tool` first.
+    pub fn send(&mut self, ev: ToolEvent, state: &mut AppState) {
+        if !matches!(self.kind, CanvasKind::Plan { .. }) {
             return;
         }
-        let pixel = self.view.unit_per_point();
-        for ev in out_events {
-            if let ToolEvent::Move { at, .. } = &ev {
-                let [x, y] = at.xy();
-                self.last_move = Some(pt(x, y));
-                self.cursor_model = Some(*at);
+        self.sync_tool(state);
+        self.dispatch(ev, state);
+    }
+
+    /// Starts the tool chosen in `state.tool` when it changed.
+    fn sync_tool(&mut self, state: &AppState) {
+        if self.tool_id == state.tool {
+            return;
+        }
+        self.tool.cancel();
+        self.tool = make_tool(state.tool);
+        self.tool_id = state.tool;
+        self.preview = Drawing::default();
+        self.snap = None;
+        self.fields.clear();
+        self.prompt.clear();
+        self.handles.clear();
+        self.highlight.clear();
+        self.text_entry = None;
+        self.warning = None;
+        self.tracked.clear();
+        self.typing = false;
+    }
+
+    /// Sends one event to the tool and applies its output.
+    fn dispatch(&mut self, ev: ToolEvent, state: &mut AppState) {
+        if let ToolEvent::Move { at, .. } = &ev {
+            let [x, y] = at.xy();
+            self.last_move = Some(pt(x, y));
+            self.cursor_model = Some(*at);
+        }
+        let doc = state.doc().clone();
+        let selection = state.selection.clone();
+        let ctx = ToolContext {
+            doc: &doc,
+            storey: state.active_storey,
+            selection: &selection,
+            pixel_size: self.view.unit_per_point(),
+            snap: &state.snap,
+            settings: &state.tool_settings,
+            locale: state.locale,
+        };
+        let is_move = matches!(ev, ToolEvent::Move { .. });
+        let out = self.tool.handle(&ctx, &ev);
+        self.preview = out.preview;
+        if out.snap.is_some() || is_move {
+            if let Some(s) = &out.snap {
+                self.cursor_model = Some(s.point);
             }
-            let doc = state.doc().clone();
-            let selection = state.selection.clone();
-            let ctx = ToolContext {
-                doc: &doc,
-                storey: state.active_storey,
-                selection: &selection,
-                pixel_size: pixel,
-                snap: &state.snap,
-                settings: &state.tool_settings,
-                locale: state.locale,
-            };
-            let is_move = matches!(ev, ToolEvent::Move { .. });
-            let out = self.tool.handle(&ctx, &ev);
-            self.preview = out.preview;
-            if out.snap.is_some() || is_move {
-                if let Some(s) = &out.snap {
-                    self.cursor_model = Some(s.point);
-                }
-                self.snap = out.snap;
-            }
-            self.fields = out.fields;
-            self.prompt = out.prompt;
-            self.cursor_hint = out.cursor;
-            if let Some(sel) = out.selection {
-                state.selection = sel;
-            }
-            if !out.commands.is_empty() {
-                let _ = state.run_all(out.commands, String::new());
-            }
+            self.snap = out.snap;
+        }
+        self.fields = out.fields;
+        self.prompt = out.prompt;
+        self.cursor_hint = out.cursor;
+        self.handles = out.handles;
+        self.highlight = out.highlight;
+        self.text_entry = out.text_entry;
+        self.warning = out.warning;
+        self.tracked = out.tracked;
+        self.typing = out.typing;
+        if let Some(sel) = out.selection {
+            state.selection = sel;
+        }
+        if !out.commands.is_empty() {
+            let _ = state.run_all(out.commands, String::new());
         }
     }
 
@@ -1298,6 +1477,53 @@ mod tests {
         // 1:50 at 80 points per metre: 4 points per paper millimetre.
         assert!((points_per_paper_mm(80.0, DrawingUnits::Metres, 50.0) - 4.0).abs() < 1e-12);
         assert!((points_per_paper_mm(3.0, DrawingUnits::Millimetres, 1.0) - 3.0).abs() < 1e-12);
+    }
+
+    fn house_state() -> (AppState, Id) {
+        let doc = kanavos_model::starter();
+        let storey = doc.storeys().first().map(|s| s.id).unwrap();
+        let view = doc.plan_view_of(storey).map(|v| v.id).unwrap();
+        let mut state = AppState::new(doc);
+        state.active_storey = storey;
+        (state, view)
+    }
+
+    #[test]
+    fn scripted_wall_with_a_typed_length_is_one_command() {
+        let (mut state, view) = house_state();
+        let mut c = Canvas::new(CanvasKind::Plan { view });
+        state.tool = ToolId::Wall;
+        let m = Modifiers::default();
+        let at = |x, y| Point2::new(x, y);
+        c.send(ToolEvent::Press { at: at(0.0, 0.0), button: MouseButton::Primary, mods: m }, &mut state);
+        c.send(ToolEvent::Release { at: at(0.0, 0.0), button: MouseButton::Primary, mods: m }, &mut state);
+        c.send(ToolEvent::Move { at: at(2.0, 0.0), mods: m }, &mut state);
+        assert!(!c.fields.is_empty(), "the wall tool shows its length field");
+        let steps = state.session.version();
+        c.send(ToolEvent::Text("4.5".into()), &mut state);
+        c.send(ToolEvent::Key { key: Key::Enter, mods: m }, &mut state);
+        assert_eq!(state.session.version(), steps + 1);
+        assert_eq!(state.doc().walls_on(state.active_storey).count(), 1);
+        // Escape ends the chain; the tool is idle again.
+        c.send(ToolEvent::Key { key: Key::Escape, mods: m }, &mut state);
+        assert!(c.tool.is_idle());
+    }
+
+    #[test]
+    fn switching_tools_clears_the_feedback() {
+        let (mut state, view) = house_state();
+        let mut c = Canvas::new(CanvasKind::Plan { view });
+        state.tool = ToolId::Wall;
+        let m = Modifiers::default();
+        c.send(
+            ToolEvent::Press { at: Point2::new(0.0, 0.0), button: MouseButton::Primary, mods: m },
+            &mut state,
+        );
+        c.send(ToolEvent::Move { at: Point2::new(3.0, 0.0), mods: m }, &mut state);
+        assert!(!c.preview.items.is_empty());
+        state.tool = ToolId::Select;
+        c.send(ToolEvent::Move { at: Point2::new(3.0, 1.0), mods: m }, &mut state);
+        assert!(c.fields.is_empty() && c.text_entry.is_none());
     }
 
     #[test]

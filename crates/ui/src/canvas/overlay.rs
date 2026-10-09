@@ -3,7 +3,7 @@
 //! inference.
 
 use egui::{Align2, Color32, CornerRadius, CursorIcon, FontId, Pos2, Rect, Stroke, StrokeKind, pos2, vec2};
-use kanavos_tools::{CursorHint, InputField, SnapHint};
+use kanavos_tools::{CursorHint, HandleRole, InputField, SnapHint, TextEntry};
 
 /// Selection colour.
 pub const SELECTION: Color32 = Color32::from_rgb(24, 104, 222);
@@ -13,6 +13,8 @@ pub const SELECTION_TINT: Color32 = Color32::from_rgba_premultiplied(9, 40, 86, 
 pub const HOVER: Color32 = Color32::from_rgba_premultiplied(13, 57, 122, 140);
 /// Inference colour (snap glyphs, guides, labels).
 pub const INFERENCE: Color32 = Color32::from_rgb(0, 140, 105);
+/// Warning colour (an operation that cannot be done as previewed).
+pub const WARNING: Color32 = Color32::from_rgb(200, 48, 32);
 
 /// The egui cursor for a tool's cursor hint.
 pub fn cursor_icon(hint: CursorHint) -> CursorIcon {
@@ -240,4 +242,87 @@ pub fn hint(painter: &egui::Painter, rect: Rect, text: &str) {
         FontId::proportional(15.0),
         Color32::from_gray(120),
     );
+}
+
+/// A small cross marking a point the pointer is aligned with (alignment tracking).
+pub fn tracking_cross(painter: &egui::Painter, p: Pos2, color: Color32) {
+    let s = 4.0;
+    let st = Stroke::new(1.2, color);
+    painter.line_segment([p + vec2(-s, -s), p + vec2(s, s)], st);
+    painter.line_segment([p + vec2(-s, s), p + vec2(s, -s)], st);
+}
+
+/// An editing handle: squares for ends and vertices, a small circle with a plus for inserting a vertex, a
+/// circle for moving, a bar for an opening's jamb. Hot handles (under the pointer) are filled.
+pub fn handle(painter: &egui::Painter, p: Pos2, role: HandleRole, hot: bool) {
+    let fill = if hot { SELECTION } else { Color32::WHITE };
+    let ink = if hot { Color32::WHITE } else { SELECTION };
+    let st = Stroke::new(1.3, SELECTION);
+    match role {
+        HandleRole::End | HandleRole::Vertex => {
+            let r = Rect::from_center_size(p, vec2(8.0, 8.0));
+            painter.rect(r, CornerRadius::ZERO, fill, st, StrokeKind::Middle);
+        }
+        HandleRole::InsertVertex => {
+            painter.circle(p, 4.0, fill, st);
+            painter.line_segment([p + vec2(-2.2, 0.0), p + vec2(2.2, 0.0)], Stroke::new(1.0, ink));
+            painter.line_segment([p + vec2(0.0, -2.2), p + vec2(0.0, 2.2)], Stroke::new(1.0, ink));
+        }
+        HandleRole::Move => {
+            painter.circle(p, 5.5, fill, st);
+            for d in [vec2(1.0, 0.0), vec2(-1.0, 0.0), vec2(0.0, 1.0), vec2(0.0, -1.0)] {
+                painter.line_segment([p + d * 1.5, p + d * 3.8], Stroke::new(1.0, ink));
+            }
+        }
+        HandleRole::Width => {
+            let r = Rect::from_center_size(p, vec2(5.0, 11.0));
+            painter.rect(r, CornerRadius::same(1), fill, st, StrokeKind::Middle);
+        }
+    }
+}
+
+/// The text box of the text tool: the text so far at its printed size (rotated, one line per row), a caret
+/// after the last character and a light frame. `at` is the anchor of the first line's baseline on screen.
+pub fn text_entry(painter: &egui::Painter, at: Pos2, entry: &TextEntry, pt_per_mm: f64) {
+    let cap = (entry.size_mm * pt_per_mm).clamp(6.0, 200.0);
+    let size = (cap / 0.7) as f32;
+    let font = FontId::proportional(size);
+    let angle = if entry.rotation.is_finite() { -(entry.rotation as f32) } else { 0.0 };
+    let rot = egui::emath::Rot2::from_angle(angle);
+    let line_step = (cap * 1.6) as f32;
+    let lines: Vec<&str> = entry.text.split('\n').collect();
+    let mut widest = size * 0.6;
+    let mut last_end = vec2(0.0, 0.0);
+    for (i, line) in lines.iter().enumerate() {
+        let galley = painter.layout_no_wrap((*line).to_owned(), font.clone(), Color32::BLACK);
+        let baseline = galley
+            .rows
+            .first()
+            .map(|r| r.pos.y + r.glyphs.first().map(|g| g.pos.y).unwrap_or(r.size.y * 0.8))
+            .unwrap_or(size * 0.8);
+        let local = vec2(0.0, line_step * i as f32);
+        let origin = at + rot * (local - vec2(0.0, baseline));
+        widest = widest.max(galley.size().x);
+        last_end = local + vec2(galley.size().x, 0.0);
+        painter.add(egui::epaint::TextShape::new(origin, galley, Color32::BLACK).with_angle(angle));
+    }
+    // Caret.
+    let caret_top = at + rot * (last_end + vec2(1.5, -(cap as f32)));
+    let caret_bottom = at + rot * (last_end + vec2(1.5, size * 0.15));
+    painter.line_segment([caret_top, caret_bottom], Stroke::new(1.2, SELECTION));
+    // Frame around the text.
+    let h = line_step * (lines.len().max(1) as f32 - 1.0);
+    let pad = 4.0;
+    let corners = [
+        vec2(-pad, -(cap as f32) - pad),
+        vec2(widest + pad + 3.0, -(cap as f32) - pad),
+        vec2(widest + pad + 3.0, h + size * 0.3 + pad),
+        vec2(-pad, h + size * 0.3 + pad),
+    ]
+    .map(|c| at + rot * c);
+    for k in 0..4 {
+        if let (Some(a), Some(b)) = (corners.get(k), corners.get((k + 1) % 4)) {
+            dashed(painter, *a, *b, SELECTION);
+        }
+    }
 }

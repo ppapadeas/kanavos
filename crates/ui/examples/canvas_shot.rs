@@ -30,6 +30,9 @@ enum Scene {
     Split,
     Bench,
     Bench3d,
+    Draw,
+    Handles,
+    TextBox,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -70,6 +73,9 @@ fn main() -> eframe::Result {
         "split" => Scene::Split,
         "bench" => Scene::Bench,
         "bench3d" => Scene::Bench3d,
+        "draw" => Scene::Draw,
+        "handles" => Scene::Handles,
+        "text" => Scene::TextBox,
         _ => Scene::Plan,
     };
     let houses: usize = std::env::var("KANAVOS_SHOT_HOUSES").ok().and_then(|s| s.parse().ok()).unwrap_or(1);
@@ -128,7 +134,7 @@ fn main() -> eframe::Result {
         _ => Some(Canvas::new(CanvasKind::Plan { view: plan_view })),
     };
     let first_wall = state.doc().walls_on(storey).next().map(|(w, _)| w);
-    if matches!(scene, Scene::Select | Scene::ThreeD(View3d::Select))
+    if matches!(scene, Scene::Select | Scene::Handles | Scene::ThreeD(View3d::Select))
         && let Some(w) = first_wall
     {
         state.selection = [w].into();
@@ -220,6 +226,9 @@ impl eframe::App for Shot {
                     if self.first && self.scene == Scene::Detail {
                         c.look_at([0.6, 0.4], 900.0);
                     }
+                    if self.frame == 4 {
+                        script(self.scene, c, &mut self.state);
+                    }
                     if self.scene == Scene::Bench && self.frame > 5 {
                         // Alternate a slow pan and a zoom in and out about the centre.
                         let t = self.frame as f64 / 60.0;
@@ -260,6 +269,34 @@ impl eframe::App for Shot {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
+    }
+}
+
+/// Drives a tool the way a user would, for the tool scenes.
+fn script(scene: Scene, c: &mut Canvas, state: &mut AppState) {
+    use kanavos_tools::{Modifiers, MouseButton, ToolEvent, ToolId};
+    let m = Modifiers::default();
+    let at = |x: f64, y: f64| Point2::new(x, y);
+    let click = |c: &mut Canvas, state: &mut AppState, p: Point2| {
+        c.send(ToolEvent::Move { at: p, mods: m }, state);
+        c.send(ToolEvent::Press { at: p, button: MouseButton::Primary, mods: m }, state);
+        c.send(ToolEvent::Release { at: p, button: MouseButton::Primary, mods: m }, state);
+    };
+    match scene {
+        Scene::Draw => {
+            state.tool = ToolId::Wall;
+            click(c, state, at(10.0, 8.0));
+            c.send(ToolEvent::Move { at: at(13.02, 8.03), mods: m }, state);
+        }
+        Scene::Handles => {
+            c.send(ToolEvent::Move { at: at(0.02, 6.0), mods: m }, state);
+        }
+        Scene::TextBox => {
+            state.tool = ToolId::Text;
+            click(c, state, at(1.0, 1.0));
+            c.send(ToolEvent::Text("Είσοδος".into()), state);
+        }
+        _ => {}
     }
 }
 
