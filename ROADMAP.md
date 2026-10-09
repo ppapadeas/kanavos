@@ -14,4 +14,7 @@ architect can try on a real project.
 
 **MVP target: about 15–22 months from M0 start.**
 
-Status as of 2026-10-08: M0 not started. Repository scaffold and legal process in place.
+Status as of 2026-10-10: a first end-to-end version covers much of M0–M3 in breadth (model, junctions, plans,
+sections and elevations with hidden-line removal, ΝΟΚ meters and permit sheets, PDF/DXF/IFC/glTF, control protocol
+and MCP). It needs depth before a pilot: clean-room review of the specs, usability tests with practising architects,
+the benchmark task (docs/ux.md §8), and the performance budgets measured by `cargo xtask bench`.
