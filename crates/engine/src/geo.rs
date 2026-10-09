@@ -613,7 +613,14 @@ pub fn exterior_dimensions(
             }
         }
     }
-    let corners: Vec<Vec2> = outline.vertices.iter().map(|p| v(*p)).collect();
+    // Outline edges with their outward normals (the outline is counter-clockwise: outside is on the right).
+    let edges: Vec<(Vec2, Vec2, Vec2)> = outline
+        .edges()
+        .filter_map(|e| {
+            let (a, b) = (v(e.start), v(e.end));
+            (b - a).normalized().map(|d| (a, b, Vec2::new(d.y, -d.x)))
+        })
+        .collect();
     // (outward normal, measured axis, line coordinate of the first chain, direction)
     let sides = [
         (Vec2::new(0.0, -1.0), 0usize, y0 - opts.offset, Angle::ZERO),
@@ -624,7 +631,9 @@ pub fn exterior_dimensions(
     let coord = |p: Vec2, axis: usize| if axis == 0 { p.x } else { p.y };
     let mut out = Vec::new();
     for (normal, axis, line, direction) in sides {
-        let mut pts: Vec<Vec2> = corners.clone();
+        // Corners seen from this side: the ends of the edges that face it.
+        let mut pts: Vec<Vec2> =
+            edges.iter().filter(|(_, _, n)| n.dot(normal) > 0.7).flat_map(|(a, b, _)| [*a, *b]).collect();
         pts.extend(jambs.iter().filter(|(_, n)| n.dot(normal) > 0.7).map(|(p, _)| *p));
         // One point per measured position: the one nearest this side.
         pts.sort_by(|a, b| {
