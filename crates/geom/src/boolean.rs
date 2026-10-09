@@ -1,8 +1,10 @@
 //! Boolean operations on sets of polygons with holes: union, intersection, difference and exclusive or.
 //!
-//! The work is done by the `i_overlay` crate (MIT OR Apache-2.0), which snaps coordinates to an integer grid
-//! fitted to the input's bounding box (about 2⁻²⁹ of its extent, i.e. below a micrometre for buildings) and is
-//! robust against coincident edges, touching vertices and self-intersections. Input orientation does not matter:
+//! The work is done by the `i_overlay` crate (MIT OR Apache-2.0) on an integer grid, which makes it robust
+//! against coincident edges, touching vertices and self-intersections. Kanavos uses one fixed, project-wide grid
+//! of 2⁻²⁷ m (about 7.5 nm) centred on the origin, with 64-bit integers, so that results of separate operations
+//! that share a boundary (two pieces of a wall cut at the same line) land on exactly the same coordinates and
+//! later unions close without hairline gaps. Input orientation does not matter:
 //! every polygon is normalised (outer ring counter-clockwise, holes clockwise) and filled with the non-zero
 //! rule, so overlapping polygons within one operand are merged.
 //!
@@ -10,9 +12,12 @@
 //! [`MIN_AREA`] removed.
 
 use i_overlay::core::fill_rule::FillRule;
+use i_overlay::core::overlay::ShapeType;
 use i_overlay::core::overlay_rule::OverlayRule;
 use i_overlay::core::solver::Solver;
 use i_overlay::float::overlay::{FloatOverlay, OverlayOptions};
+use i_overlay::i_float::adapter::FloatPointAdapter;
+use i_overlay::i_float::float::rect::FloatRect;
 
 use crate::GeomError;
 use crate::clip::HalfPlane;
@@ -23,7 +28,9 @@ use crate::polygon::{Polygon2, PolygonWithHoles};
 pub const MIN_AREA: f64 = 1e-10;
 
 /// Largest coordinate magnitude accepted (metres). Far beyond any project; guards the integer conversion.
-const MAX_COORD: f64 = 1e12;
+const MAX_COORD: f64 = 1e7;
+/// Grid points per metre (a power of two, so snapping near the origin is exact).
+const GRID_SCALE: f64 = 134_217_728.0; // 2^27
 
 /// A Boolean operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -86,10 +93,19 @@ fn from_shapes(shapes: Vec<Vec<Contour>>) -> Vec<PolygonWithHoles> {
     out
 }
 
-fn options() -> OverlayOptions<f64, i32> {
-    let mut o = OverlayOptions::<f64, i32>::default();
+fn options() -> OverlayOptions<f64, i64> {
+    let mut o = OverlayOptions::<f64, i64>::default();
     o.min_output_area = MIN_AREA;
     o
+}
+
+/// An empty overlay on the fixed project-wide grid. Inputs must lie within ±[`MAX_COORD`] (checked by the callers).
+fn new_overlay(capacity: usize) -> Result<FloatOverlay<[f64; 2], i64>, GeomError> {
+    let rect = FloatRect::new(-MAX_COORD, MAX_COORD, -MAX_COORD, MAX_COORD)
+        .map_err(|e| GeomError::Invalid(format!("Boolean grid: {e:?}")))?;
+    let adapter = FloatPointAdapter::<[f64; 2], i64>::try_with_scale_conservative(rect, GRID_SCALE)
+        .map_err(|e| GeomError::Invalid(format!("Boolean grid: {e:?}")))?;
+    Ok(FloatOverlay::new_custom(adapter, options(), Solver::default(), capacity))
 }
 
 fn run(
@@ -102,13 +118,16 @@ fn run(
     if s.is_empty() && c.is_empty() {
         return Ok(Vec::new());
     }
-    let mut overlay = FloatOverlay::with_subj_and_clip_custom(&s, &c, options(), Solver::default());
+    let capacity = s.iter().chain(c.iter()).flatten().map(Vec::len).sum();
+    let mut overlay = new_overlay(capacity)?
+        .unsafe_add_source(&s, ShapeType::Subject)
+        .unsafe_add_source(&c, ShapeType::Clip);
     Ok(from_shapes(overlay.overlay(rule, FillRule::NonZero)))
 }
 
 /// Applies a Boolean operation to two sets of polygons.
 ///
-/// Failure modes: non-finite coordinates or coordinates beyond 10¹² m give [`GeomError::Invalid`]. Degenerate
+/// Failure modes: non-finite coordinates or coordinates beyond 10⁷ m from the origin give [`GeomError::Invalid`]. Degenerate
 /// rings (fewer than three vertices) are ignored.
 pub fn boolean(
     subject: &[PolygonWithHoles],
@@ -139,7 +158,8 @@ pub fn union_all(polys: &[PolygonWithHoles]) -> Result<Vec<PolygonWithHoles>, Ge
     if s.is_empty() {
         return Ok(Vec::new());
     }
-    let mut overlay = FloatOverlay::with_subj_custom(&s, options(), Solver::default());
+    let capacity = s.iter().flatten().map(Vec::len).sum();
+    let mut overlay = new_overlay(capacity)?.unsafe_add_source(&s, ShapeType::Subject);
     Ok(from_shapes(overlay.overlay(OverlayRule::Subject, FillRule::NonZero)))
 }
 
@@ -189,7 +209,8 @@ pub fn resolve_positive(rings: &[Polygon2]) -> Result<Vec<PolygonWithHoles>, Geo
     if contours.is_empty() {
         return Ok(Vec::new());
     }
-    let mut overlay = FloatOverlay::with_subj_custom(&contours, options(), Solver::default());
+    let capacity = contours.iter().map(Vec::len).sum();
+    let mut overlay = new_overlay(capacity)?.unsafe_add_source(&contours, ShapeType::Subject);
     Ok(from_shapes(overlay.overlay(OverlayRule::Subject, FillRule::Positive)))
 }
 

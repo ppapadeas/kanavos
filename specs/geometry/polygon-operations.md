@@ -30,9 +30,11 @@ corners that are normal in buildings.
 - Operations: union, intersection, difference (subject minus clip) and exclusive or; self-union of one set.
 - Output: polygons with holes, outer rings counter-clockwise, holes clockwise, collinear vertices removed, contours
   smaller than 10⁻¹⁰ m² removed.
-- Coordinates are snapped to an integer grid fitted to the bounding box of the operands (about 2⁻²⁹ of its
-  extent); for a 100 m building that is below 0.2 µm, far below the project tolerance of 0.1 mm.
-- Non-finite coordinates or coordinates beyond 10¹² m are rejected with an error; nothing panics.
+- Coordinates are snapped to one fixed integer grid of 2⁻²⁷ m (about 7.5 nm) centred on the project origin, far
+  below the project tolerance of 0.1 mm. Because the grid is the same for every operation, pieces cut in separate
+  operations along the same line share exact coordinates and their union closes without hairline gaps.
+- Non-finite coordinates or coordinates more than 10⁷ m from the origin are rejected with an error; nothing
+  panics.
 
 ### Offsets
 
