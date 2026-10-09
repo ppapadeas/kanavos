@@ -35,23 +35,49 @@ objects.void.lined	Άνοιγμα με επένδυση λαμπάδων	Opening
 # Furniture
 objects.furniture.bed_single	Μονό κρεβάτι	Single bed
 objects.furniture.bed_double	Διπλό κρεβάτι	Double bed
+objects.furniture.cot	Βρεφική κούνια	Cot
+objects.furniture.nightstand	Κομοδίνο	Nightstand
 objects.furniture.wardrobe	Ντουλάπα	Wardrobe
+objects.furniture.chest_of_drawers	Συρταριέρα	Chest of drawers
+objects.furniture.sofa_2	Διθέσιος καναπές	Two-seat sofa
 objects.furniture.sofa	Τριθέσιος καναπές	Three-seat sofa
+objects.furniture.sofa_corner	Γωνιακός καναπές	Corner sofa
+objects.furniture.armchair	Πολυθρόνα	Armchair
+objects.furniture.coffee_table	Τραπεζάκι σαλονιού	Coffee table
 objects.furniture.table	Τραπέζι φαγητού με καρέκλες	Dining table with chairs
+objects.furniture.table_round	Στρογγυλό τραπέζι με καρέκλες	Round table with chairs
 objects.furniture.chair	Καρέκλα	Chair
+objects.furniture.desk	Γραφείο	Desk
+objects.furniture.office_chair	Καρέκλα γραφείου	Office chair
+objects.furniture.bookcase	Βιβλιοθήκη	Bookcase
+objects.furniture.tv_unit	Έπιπλο τηλεόρασης	TV unit
+objects.furniture.garden_table	Τραπέζι κήπου με ομπρέλα	Garden table with parasol
 # Kitchen
 objects.kitchen.counter	Ντουλάπια βάσης με πάγκο εργασίας	Base units with worktop
+objects.kitchen.wall_cabinets	Ντουλάπια τοίχου	Wall cabinets
 objects.kitchen.sink	Νεροχύτης	Kitchen sink
+objects.kitchen.sink_double	Νεροχύτης με δύο γούρνες	Double-bowl kitchen sink
 objects.kitchen.hob	Εστίες μαγειρέματος	Hob
+objects.kitchen.cooker	Κουζίνα με φούρνο	Cooker with oven
+objects.kitchen.oven	Φούρνος σε ντουλάπι-στήλη	Built-in oven in a tall unit
 objects.kitchen.fridge	Ψυγειοκαταψύκτης	Fridge-freezer
+objects.kitchen.dishwasher	Πλυντήριο πιάτων	Dishwasher
+objects.kitchen.island	Νησίδα κουζίνας	Kitchen island
 # Bathroom
 objects.sanitary.wc	Λεκάνη WC δαπέδου με καζανάκι	Floor-standing WC with cistern
+objects.sanitary.wc_wall	Κρεμαστή λεκάνη WC	Wall-hung WC
+objects.sanitary.bidet	Μπιντές	Bidet
 objects.sanitary.basin	Νιπτήρας	Washbasin
+objects.sanitary.vanity	Νιπτήρας με έπιπλο	Vanity unit with basin
 objects.sanitary.bath	Μπανιέρα	Bathtub
 objects.sanitary.shower	Ντουζιέρα	Shower tray
+objects.sanitary.shower_screen	Διαχωριστικό ντουζιέρας	Shower screen
 # Equipment
+objects.equipment.washing_machine	Πλυντήριο ρούχων	Washing machine
+objects.equipment.water_heater	Ηλεκτρικός θερμοσίφωνας	Electric water heater
 # Outdoor
 objects.vegetation.tree	Δέντρο	Tree
+objects.vegetation.shrub	Θάμνος	Shrub
 objects.vehicle.car	Αυτοκίνητο	Car
 # Parameters
 objects.param.width	Πλάτος	Width
@@ -82,3 +108,20 @@ objects.param.transom	Ύψος φεγγίτη	Top light height
 objects.param.mullions	Αριθμός ορθοστατών	Number of mullions
 objects.param.lintel	Ένδειξη πρεκιού στην κάτοψη	Show the lintel in plan
 objects.param.lining	Πάχος επένδυσης λαμπάδων	Reveal lining thickness
+objects.param.doors	Αριθμός φύλλων ντουλάπας	Number of doors
+objects.param.drawers	Αριθμός συρταριών	Number of drawers
+objects.param.seats	Αριθμός θέσεων	Number of seats
+objects.param.seat_depth	Βάθος καθίσματος	Seat depth
+objects.param.chairs	Αριθμός καρεκλών	Number of chairs
+objects.param.shelves	Αριθμός ραφιών	Number of shelves
+objects.param.parasol	Ομπρέλα	Parasol
+objects.param.module	Πλάτος ντουλαπιού	Cabinet width
+objects.param.mount	Ύψος τοποθέτησης	Mounting height
+objects.param.bowls	Αριθμός γουρνών	Number of bowls
+objects.param.drainer	Στραγγιστήρι	Drainer
+objects.param.burners	Αριθμός εστιών	Number of burners
+objects.param.overhang	Προεξοχή πάγκου	Worktop overhang
+objects.param.stools	Αριθμός σκαμπό	Number of stools
+objects.param.pedestal	Κολόνα νιπτήρα	Pedestal
+objects.param.door	Ανοιγόμενο φύλλο	Hinged door
+objects.param.trunk	Ύψος κορμού	Trunk height

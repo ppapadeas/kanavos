@@ -387,11 +387,16 @@ fn small_scales_draw_simpler_symbols() {
             simpler += 1;
         }
     }
-    assert!(simpler > openings().count() / 2);
+    assert!(simpler > catalogue().len() / 2);
 }
 
 #[test]
 fn parameters_change_the_geometry() {
+    let def = find("furniture.table").unwrap();
+    let mut obj = object(def);
+    let six = object_symbol(&obj).len();
+    obj.params.insert("chairs".into(), 0.0);
+    assert!(object_symbol(&obj).len() < six);
     let def = find("window.sliding").unwrap();
     let mut o = opening(def, false, false);
     let two = opening_symbol(&ctx(&o)).len();

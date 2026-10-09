@@ -2,7 +2,7 @@
 
 use kanavos_drawing::{Affine, Drawing, Fill, Item, LinePattern, Rgba, Shape, Stroke, pt, weights};
 
-use crate::shape::P2;
+use crate::shape::{P2, ellipse_pts, rrect_pts};
 
 /// Pens used by symbols, following ISO 128 line weights.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +55,11 @@ impl Sym {
         Sym { items: Vec::new(), layer, scale }
     }
 
+    /// An empty symbol with the same scale and layer.
+    pub(crate) fn sibling(&self) -> Sym {
+        Sym { items: Vec::new(), layer: self.layer, scale: self.scale }
+    }
+
     /// Sets the layer of the following items.
     pub(crate) fn layer(&mut self, layer: &'static str) {
         self.layer = layer;
@@ -97,10 +102,31 @@ impl Sym {
         }
     }
 
+    /// A rectangle with rounded corners.
+    pub(crate) fn rrect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, r: f64, pen: Pen) {
+        if (x1 - x0).abs() > 1e-6 && (y1 - y0).abs() > 1e-6 {
+            self.poly(&rrect_pts(x0, y0, x1, y1, r), true, pen);
+        }
+    }
+
+    /// A circle.
+    pub(crate) fn circle(&mut self, c: P2, r: f64, pen: Pen) {
+        if finite(c) && r.is_finite() && r > 1e-6 {
+            self.push(Shape::Circle { centre: pt(c.0, c.1), radius: r }, Some(pen.stroke()), None);
+        }
+    }
+
     /// A circular arc from `start` sweeping `sweep` radians (counter-clockwise positive).
     pub(crate) fn arc(&mut self, c: P2, r: f64, start: f64, sweep: f64, pen: Pen) {
         if finite(c) && r.is_finite() && r > 1e-6 && start.is_finite() && sweep.is_finite() {
             self.push(Shape::Arc { centre: pt(c.0, c.1), radius: r, start, sweep }, Some(pen.stroke()), None);
+        }
+    }
+
+    /// An ellipse, as a closed polyline.
+    pub(crate) fn ellipse(&mut self, c: P2, rx: f64, ry: f64, pen: Pen) {
+        if rx > 1e-6 && ry > 1e-6 {
+            self.poly(&ellipse_pts(c, rx, ry), true, pen);
         }
     }
 
@@ -126,6 +152,12 @@ impl Sym {
         self.solid(&[b, (base.0 - uy * half, base.1 + ux * half), (base.0 + uy * half, base.1 - ux * half)]);
     }
 
+    /// Appends another symbol's items mapped through `m` (rotation, translation, mirroring).
+    pub(crate) fn append_mapped(&mut self, other: Sym, m: &Affine) {
+        let d = Drawing { items: other.items, ..Drawing::model(self.scale) };
+        self.items.extend(d.transformed(m).items);
+    }
+
     /// The items.
     pub(crate) fn into_items(self) -> Vec<Item> {
         self.items
@@ -136,4 +168,12 @@ impl Sym {
         let d = Drawing { items: self.items, ..Drawing::model(self.scale) };
         d.transformed(m).items
     }
+}
+
+/// A rotation by `angle` radians followed by a translation.
+pub(crate) fn placement(x: f64, y: f64, angle: f64) -> Affine {
+    let mut m = Affine::rotation(angle);
+    m.tx = x;
+    m.ty = y;
+    m
 }

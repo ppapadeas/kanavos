@@ -323,28 +323,35 @@ pub(crate) fn build() -> Vec<ObjectDef> {
             "OPENING",
             vec![param!("lining", Length, 0.025, 0.01, 0.08), param!("lintel", Toggle, 1.0, 0.0, 1.0)]
         ),
-        // Free objects (drawn as boxes until their definitions land).
-        object!(
-            "furniture.bed_double",
-            Furniture,
-            (1.6, 2.0, 0.45),
-            FrontCentre,
-            "IfcFurniture",
-            "BED",
-            vec![]
-        ),
+        // Bedroom.
         object!(
             "furniture.bed_single",
             Furniture,
-            (0.9, 2.0, 0.45),
+            (0.9, 2.0, 0.5),
             FrontCentre,
             "IfcFurniture",
             "BED",
             vec![]
         ),
-        object!("furniture.table", Furniture, (1.6, 0.9, 0.75), FrontCentre, "IfcFurniture", "TABLE", vec![]),
-        object!("furniture.chair", Furniture, (0.45, 0.5, 0.9), FrontCentre, "IfcFurniture", "CHAIR", vec![]),
-        object!("furniture.sofa", Furniture, (2.2, 0.9, 0.8), FrontCentre, "IfcFurniture", "SOFA", vec![]),
+        object!(
+            "furniture.bed_double",
+            Furniture,
+            (1.6, 2.0, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "BED",
+            vec![]
+        ),
+        object!("furniture.cot", Furniture, (0.7, 1.3, 0.9), FrontCentre, "IfcFurniture", "BED", vec![]),
+        object!(
+            "furniture.nightstand",
+            Furniture,
+            (0.45, 0.4, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![]
+        ),
         object!(
             "furniture.wardrobe",
             Furniture,
@@ -352,44 +359,120 @@ pub(crate) fn build() -> Vec<ObjectDef> {
             FrontCentre,
             "IfcFurniture",
             "NOTDEFINED",
+            vec![param!("doors", Count, 2.0, 1.0, 8.0)]
+        ),
+        object!(
+            "furniture.chest_of_drawers",
+            Furniture,
+            (1.0, 0.5, 0.85),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("drawers", Count, 4.0, 2.0, 8.0)]
+        ),
+        // Living and dining.
+        object!(
+            "furniture.sofa_2",
+            Furniture,
+            (1.7, 0.9, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seats", Count, 2.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.sofa",
+            Furniture,
+            (2.2, 0.9, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seats", Count, 3.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.sofa_corner",
+            Furniture,
+            (2.6, 2.0, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seat_depth", Length, 0.9, 0.6, 1.2), param!("seats", Count, 3.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.armchair",
+            Furniture,
+            (0.85, 0.85, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "CHAIR",
             vec![]
         ),
         object!(
-            "sanitary.wc",
-            Sanitary,
-            (0.38, 0.65, 0.4),
-            FrontCentre,
-            "IfcSanitaryTerminal",
-            "TOILETPAN",
+            "furniture.coffee_table",
+            Furniture,
+            (1.1, 0.6, 0.42),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
             vec![]
         ),
         object!(
-            "sanitary.basin",
-            Sanitary,
-            (0.6, 0.45, 0.85),
-            FrontCentre,
-            "IfcSanitaryTerminal",
-            "WASHHANDBASIN",
+            "furniture.table",
+            Furniture,
+            (1.6, 0.9, 0.75),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 6.0, 0.0, 12.0)]
+        ),
+        object!(
+            "furniture.table_round",
+            Furniture,
+            (1.1, 1.1, 0.75),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 4.0, 0.0, 8.0)]
+        ),
+        object!("furniture.chair", Furniture, (0.45, 0.5, 0.9), FrontCentre, "IfcFurniture", "CHAIR", vec![]),
+        object!("furniture.desk", Furniture, (1.4, 0.7, 0.75), FrontCentre, "IfcFurniture", "DESK", vec![]),
+        object!(
+            "furniture.office_chair",
+            Furniture,
+            (0.62, 0.62, 1.0),
+            Centre,
+            "IfcFurniture",
+            "CHAIR",
             vec![]
         ),
         object!(
-            "sanitary.shower",
-            Sanitary,
-            (0.9, 0.9, 0.05),
+            "furniture.bookcase",
+            Furniture,
+            (1.0, 0.35, 2.0),
             FrontCentre,
-            "IfcSanitaryTerminal",
-            "SHOWER",
+            "IfcFurniture",
+            "SHELF",
+            vec![param!("shelves", Count, 5.0, 1.0, 10.0)]
+        ),
+        object!(
+            "furniture.tv_unit",
+            Furniture,
+            (1.8, 0.45, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
             vec![]
         ),
         object!(
-            "sanitary.bath",
-            Sanitary,
-            (1.7, 0.75, 0.55),
-            FrontCentre,
-            "IfcSanitaryTerminal",
-            "BATH",
-            vec![]
+            "furniture.garden_table",
+            Furniture,
+            (1.4, 0.8, 0.74),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 4.0, 0.0, 8.0), param!("parasol", Toggle, 1.0, 0.0, 1.0)]
         ),
+        // Kitchen.
         object!(
             "kitchen.counter",
             Kitchen,
@@ -397,13 +480,57 @@ pub(crate) fn build() -> Vec<ObjectDef> {
             FrontCentre,
             "IfcFurniture",
             "NOTDEFINED",
-            vec![]
+            vec![param!("module", Length, 0.6, 0.3, 1.2), handle()]
         ),
-        object!("kitchen.sink", Kitchen, (0.8, 0.6, 0.9), FrontCentre, "IfcSanitaryTerminal", "SINK", vec![]),
+        object!(
+            "kitchen.wall_cabinets",
+            Kitchen,
+            (2.4, 0.35, 0.7),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("mount", Length, 1.45, 0.3, 2.4), param!("module", Length, 0.6, 0.3, 1.2), handle()]
+        ),
+        object!(
+            "kitchen.sink",
+            Kitchen,
+            (0.8, 0.6, 0.9),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SINK",
+            vec![param!("bowls", Count, 1.0, 1.0, 2.0), param!("drainer", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        object!(
+            "kitchen.sink_double",
+            Kitchen,
+            (1.2, 0.6, 0.9),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SINK",
+            vec![param!("bowls", Count, 2.0, 1.0, 2.0), param!("drainer", Toggle, 1.0, 0.0, 1.0)]
+        ),
         object!(
             "kitchen.hob",
             Kitchen,
             (0.6, 0.6, 0.9),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "ELECTRICCOOKER",
+            vec![param!("burners", Count, 4.0, 1.0, 6.0)]
+        ),
+        object!(
+            "kitchen.cooker",
+            Kitchen,
+            (0.6, 0.6, 0.85),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "ELECTRICCOOKER",
+            vec![param!("burners", Count, 4.0, 1.0, 6.0)]
+        ),
+        object!(
+            "kitchen.oven",
+            Kitchen,
+            (0.6, 0.6, 2.1),
             FrontCentre,
             "IfcElectricAppliance",
             "ELECTRICCOOKER",
@@ -419,10 +546,130 @@ pub(crate) fn build() -> Vec<ObjectDef> {
             vec![]
         ),
         object!(
+            "kitchen.dishwasher",
+            Kitchen,
+            (0.6, 0.6, 0.9),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "DISHWASHER",
+            vec![]
+        ),
+        object!(
+            "kitchen.island",
+            Kitchen,
+            (1.8, 0.9, 0.9),
+            Centre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("overhang", Length, 0.3, 0.0, 0.5), param!("stools", Count, 3.0, 0.0, 6.0)]
+        ),
+        // Bathroom.
+        object!(
+            "sanitary.wc",
+            Sanitary,
+            (0.38, 0.68, 0.8),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "TOILETPAN",
+            vec![]
+        ),
+        object!(
+            "sanitary.wc_wall",
+            Sanitary,
+            (0.36, 0.54, 0.4),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "TOILETPAN",
+            vec![]
+        ),
+        object!(
+            "sanitary.bidet",
+            Sanitary,
+            (0.36, 0.54, 0.4),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "BIDET",
+            vec![]
+        ),
+        object!(
+            "sanitary.basin",
+            Sanitary,
+            (0.6, 0.45, 0.85),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "WASHHANDBASIN",
+            vec![param!("pedestal", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        object!(
+            "sanitary.vanity",
+            Sanitary,
+            (0.8, 0.5, 0.85),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "WASHHANDBASIN",
+            vec![]
+        ),
+        object!(
+            "sanitary.bath",
+            Sanitary,
+            (1.7, 0.75, 0.55),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "BATH",
+            vec![]
+        ),
+        object!(
+            "sanitary.shower",
+            Sanitary,
+            (0.9, 0.9, 0.05),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SHOWER",
+            vec![]
+        ),
+        object!(
+            "sanitary.shower_screen",
+            Sanitary,
+            (0.9, 0.03, 1.95),
+            FrontCentre,
+            "IfcBuildingElementProxy",
+            "NOTDEFINED",
+            vec![param!("door", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        // Equipment.
+        object!(
+            "equipment.washing_machine",
+            Equipment,
+            (0.6, 0.6, 0.85),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "WASHINGMACHINE",
+            vec![]
+        ),
+        object!(
+            "equipment.water_heater",
+            Equipment,
+            (0.45, 0.47, 0.8),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "FREESTANDINGWATERHEATER",
+            vec![param!("mount", Length, 1.4, 0.3, 2.4)]
+        ),
+        // Outdoor.
+        object!(
             "vegetation.tree",
             Vegetation,
             (4.0, 4.0, 6.0),
-            FrontCentre,
+            Centre,
+            "IfcGeographicElement",
+            "VEGETATION",
+            vec![param!("trunk", Length, 2.0, 0.3, 10.0)]
+        ),
+        object!(
+            "vegetation.shrub",
+            Vegetation,
+            (1.2, 1.2, 1.0),
+            Centre,
             "IfcGeographicElement",
             "VEGETATION",
             vec![]
@@ -431,7 +678,7 @@ pub(crate) fn build() -> Vec<ObjectDef> {
             "vehicle.car",
             Vehicle,
             (1.8, 4.5, 1.5),
-            FrontCentre,
+            Centre,
             "IfcBuildingElementProxy",
             "NOTDEFINED",
             vec![]

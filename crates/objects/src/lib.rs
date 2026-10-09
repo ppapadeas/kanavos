@@ -29,9 +29,13 @@
 //! furniture at 0.18 mm and details at 0.13 mm. [`opening_symbol_at`] and [`object_symbol_at`] take the drawing
 //! scale: at 1:50 and larger symbols show full detail, at smaller scales they are simplified.
 
+mod bathroom;
 mod catalogue;
 mod doors;
+mod furniture;
 mod host;
+mod kitchen;
+mod outdoor;
 mod params;
 mod parts;
 mod shape;
@@ -385,6 +389,22 @@ impl Bx {
             Origin::Centre => Bx { x0: -w / 2.0, y0: -d / 2.0, x1: w / 2.0, y1: d / 2.0, h },
         }
     }
+    /// Width.
+    pub(crate) fn w(&self) -> f64 {
+        self.x1 - self.x0
+    }
+    /// Depth.
+    pub(crate) fn d(&self) -> f64 {
+        self.y1 - self.y0
+    }
+    /// Centre x.
+    pub(crate) fn cx(&self) -> f64 {
+        (self.x0 + self.x1) / 2.0
+    }
+    /// Centre y.
+    pub(crate) fn cy(&self) -> f64 {
+        (self.y0 + self.y1) / 2.0
+    }
 }
 
 /// Plan symbol of a free object at 1:50, in local coordinates (before its placement is applied), on layers
@@ -396,20 +416,43 @@ pub fn object_symbol(obj: &Object) -> Vec<Item> {
 /// Plan symbol of a free object for a drawing at scale 1:`scale`, in local coordinates. Parts above the cut
 /// plane (wall cabinets, a water heater, a parasol) are dashed on `object.symbol.above`.
 pub fn object_symbol_at(obj: &Object, scale: f64) -> Vec<Item> {
-    let b = Bx::of(obj, object_def(obj));
+    let def = object_def(obj);
+    let b = Bx::of(obj, def);
     let mut sym = Sym::new("object.symbol", scale);
-    // Free objects are drawn as their box with a cross for now.
-    sym.rect(b.x0, b.y0, b.x1, b.y1, Pen::Fine);
-    sym.line((b.x0, b.y0), (b.x1, b.y1), Pen::Detail);
-    sym.line((b.x0, b.y1), (b.x1, b.y0), Pen::Detail);
+    let drawn = def.is_some_and(|def| {
+        let p = P::new(def, &obj.params);
+        furniture::symbol(def.id, &mut sym, &b, &p)
+            || kitchen::symbol(def.id, &mut sym, &b, &p)
+            || bathroom::symbol(def.id, &mut sym, &b, &p)
+            || outdoor::symbol(def.id, &mut sym, &b, &p)
+    });
+    if !drawn {
+        // Unknown definition: its box with a cross.
+        sym.rect(b.x0, b.y0, b.x1, b.y1, Pen::Fine);
+        sym.line((b.x0, b.y0), (b.x1, b.y1), Pen::Detail);
+        sym.line((b.x0, b.y1), (b.x1, b.y0), Pen::Detail);
+    }
     sym.into_items()
 }
 
 /// 3D parts of a free object in local coordinates.
 pub fn object_parts(obj: &Object) -> Vec<Part> {
-    let b = Bx::of(obj, object_def(obj));
+    let def = object_def(obj);
+    let b = Bx::of(obj, def);
     let mut parts = Parts::new();
-    parts.add(cuboid(Point3::new(b.x0, b.y0, 0.0), Point3::new(b.x1, b.y1, b.h)), Rgba::rgb(200, 195, 185));
+    let built = def.is_some_and(|def| {
+        let p = P::new(def, &obj.params);
+        furniture::parts(def.id, &mut parts, &b, &p)
+            || kitchen::parts(def.id, &mut parts, &b, &p)
+            || bathroom::parts(def.id, &mut parts, &b, &p)
+            || outdoor::parts(def.id, &mut parts, &b, &p)
+    });
+    if !built {
+        parts.add(
+            cuboid(Point3::new(b.x0, b.y0, 0.0), Point3::new(b.x1, b.y1, b.h)),
+            Rgba::rgb(200, 195, 185),
+        );
+    }
     parts.into_parts()
 }
 
