@@ -162,6 +162,24 @@ fn storey_cut_outline_joins_walls() {
 }
 
 #[test]
+fn corner_drawn_to_the_other_wall_face_still_closes() {
+    // Snapped to the reference end point.
+    let mut f = fx();
+    f.ext_wall((0.0, 0.0), (10.0, 0.0));
+    f.ext_wall((10.0, 0.0), (10.0, 8.0));
+    let exact = area(&union_all(&outlines(&f)).unwrap());
+    // The second wall starts 10 cm off, inside the first wall's band at its end.
+    let mut g = fx();
+    let a = g.ext_wall((0.0, 0.0), (10.0, 0.0));
+    g.ext_wall((10.0, 0.1), (10.0, 8.0));
+    let u = union_all(&outlines(&g)).unwrap();
+    assert_eq!(u.len(), 1);
+    assert_eq!(u[0].outer.len(), 6, "{:?}", u[0].outer);
+    assert!(close(area(&u), exact, 1e-6), "{} vs {exact}", area(&u));
+    assert_eq!(wall_layout(&g.doc, a).unwrap().joins[0].kind, JunctionKind::Corner);
+}
+
+#[test]
 fn arc_tighter_than_the_wall_is_refused() {
     let mut f = fx();
     let a = f.arc_wall((0.0, 0.0), (0.2, 0.0), 1.0); // radius 0.1 m, wall 0.31 m thick

@@ -21,7 +21,9 @@ themselves.
 
 ### Detection (per storey, walls whose height ranges overlap)
 
-- **Node**: wall ends within 2 mm of each other.
+- **Node**: wall ends within 2 mm of each other, or a wall end inside another wall's band within half that wall's
+  thickness of its end (a corner drawn to the other wall's face or outer corner), unless the two walls run in
+  nearly the same direction.
 - **Tee**: a wall end inside another wall's band (between its faces, within its length, 2 mm tolerance), not at one
   of that wall's ends.
 - **Cross**: the reference lines of two walls cross at points inside both walls (more than 2 mm from their ends).
@@ -93,6 +95,8 @@ themselves.
 7. A closed ring of four exterior walls: one outline of 10.31 × 8.31 m with one hole of 9.69 × 7.69 m.
 8. A storey with seven walls: storey-wide and single-wall layouts are identical.
 9. A straight wall meeting an arc wall: no overlap between their outlines.
+10. An L whose second wall starts 10 cm off the first wall's end point, inside its band: the same outline as the
+    snapped L.
 
 ## Open questions
 

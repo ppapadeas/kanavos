@@ -917,6 +917,29 @@ pub(crate) fn resolve(walls: &[WallInfo]) -> (Vec<WallRules>, Vec<Junction>) {
                 }
             }
         }
+        // An end inside the other wall's band right at that wall's end (within half its thickness) meets that end:
+        // a corner drawn to the other wall's face or corner rather than to its reference end point.
+        for (a, b) in [(i, j), (j, i)] {
+            let (Some(wa), Some(wb)) = (walls.get(a), walls.get(b)) else { continue };
+            for (ea, e) in [(2 * a, End::Start), (2 * a + 1, End::End)] {
+                let p = wa.end_point(e);
+                if !wb.contains(p, tol) {
+                    continue;
+                }
+                let (u, _) = wb.project(p);
+                let reach = wb.thickness / 2.0 + tol;
+                let (ub, eb) = if u <= reach {
+                    (0.0, 2 * b)
+                } else if u >= wb.len - reach {
+                    (wb.len, 2 * b + 1)
+                } else {
+                    continue;
+                };
+                if wa.outgoing(e).cross(wb.tangent(ub)).abs() > OVERLAP.sin() {
+                    dsu.union(ea, eb);
+                }
+            }
+        }
     }
     let mut clusters: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for k in 0..ends.len() {

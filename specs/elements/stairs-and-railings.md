@@ -62,8 +62,8 @@ Each check carries its value, limit and source; messages exist in Greek and Engl
 - Posts (40 mm square) at every path point and at most the post spacing apart; a top rail (50 × 40 mm) swept along
   the path with mitred corners; infill of vertical bars (16 mm, 100 mm clear gap, on a bottom rail), glass panels
   between posts, or a solid panel.
-- Plan: a thin band along the path when the cut plane passes through the railing, otherwise its two edge lines
-  below or dashed above.
+- Plan: its two edge lines, seen when the railing stands below the cut plane and dashed when it is entirely
+  above; a solid panel crossed by the cut plane is a cut band instead.
 - Checks (article 13): height ≥ 1.00 m; a solid guard ≤ 1.20 m high. Bar gaps are generated at 0.10 m, below the
   0.15 m limit of §3.
 
@@ -82,6 +82,7 @@ Each check carries its value, limit and source; messages exist in Greek and Engl
 6. 0.17 / 0.28 / 1.00 m: no remarks. 0.204 / 0.22 / 0.80 m: riser and going warnings and a width note; messages
    show "0,20" in Greek and "0.20" in English. 22 risers over 3.80 m straight: rise-between-landings warning.
 7. Railings with bars, glass and solid infill have solids and no remarks at 1.00 m; at 0.90 m a height warning.
+   Cut at 0.50 m, bars and glass give their edge lines, a solid panel a cut band.
 
 ## Open questions
 
