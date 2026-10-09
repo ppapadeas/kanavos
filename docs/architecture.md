@@ -45,7 +45,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-fonts` | Discovery of an installed Greek-capable sans-serif font (fonts are not bundled), glyph outlines and advance widths, and a built-in single-stroke lettering font so text output never fails. |
 | `kanavos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
-| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
+| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. Output helpers: hatch expansion, dashing, text layout, page placement and SVG export. |
 | `kanavos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |
 | `kanavos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
 | `kanavos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |

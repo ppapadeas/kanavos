@@ -8,6 +8,25 @@
 //! Sizes that must look the same on paper whatever the scale — stroke weights, dash lengths, hatch spacing and
 //! text heights — are always in **paper millimetres**. For a model-space drawing at scale 1:`scale`, one paper
 //! millimetre is `scale / 1000` metres in drawing coordinates (see [`Drawing::paper_mm`]).
+//!
+//! Output helpers shared by every exporter and renderer:
+//!
+//! - [`geometry`]: arcs and circles flattened to polylines, fill rings, exact bounds;
+//! - [`hatch`]: hatch patterns expanded into clipped line segments;
+//! - [`dash`]: line patterns applied to polylines, continuous around corners;
+//! - [`text`]: text measured and laid out with real font metrics ([`fonts`]);
+//! - [`page`]: placing a drawing on a page in paper millimetres;
+//! - [`svg`]: standalone SVG export.
+
+pub mod dash;
+pub mod geometry;
+pub mod hatch;
+pub mod page;
+pub mod svg;
+pub mod text;
+
+/// Fonts used for text layout (re-exported so downstream crates share one version).
+pub use kanavos_fonts as fonts;
 
 use std::f64::consts::TAU;
 
