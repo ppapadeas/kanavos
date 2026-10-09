@@ -7,15 +7,39 @@
 //! - [`Point2`] carries typed [`Length`] coordinates because it lives in the document. Vector maths uses
 //!   [`Vec2`] (raw metres) for speed and readability.
 //! - 3D coordinates ([`Point3`], [`Vec3`]) are raw metres with Z up.
-//! - Every predicate that can be affected by rounding takes a [`Tolerance`].
+//! - Every predicate that can be affected by rounding takes a [`Tolerance`] or is exact ([`orient2d`]).
+//!
+//! Operations:
+//! - Boolean operations on sets of polygons with holes ([`boolean`], [`union_all`] …).
+//! - Offsets of polygons and polylines with miter, round, square or bevel joins ([`offset_polygons`],
+//!   [`offset_polyline`], [`stroke_polyline`]).
+//! - Segment, line and circle intersections ([`segment_intersection`], [`line_circle`], [`circle_circle`]).
+//! - Half-plane clipping ([`HalfPlane`], [`clip_convex`], [`clip_by_half_plane`]) and convex hulls.
 
+mod adjacency;
+mod boolean;
+mod clip;
 mod d2;
 mod d3;
+mod hull;
+mod intersect;
+mod offset;
 mod polygon;
+mod predicates;
 
+pub use adjacency::{SharedEdge, shared_boundaries};
+pub use boolean::{
+    BooleanOp, MIN_AREA, bbox_of, boolean, clip_by_half_plane, difference, intersection, resolve_positive,
+    split_by_half_plane, total_area, union, union_all, xor,
+};
+pub use clip::{HalfPlane, clip_convex, clip_convex_all};
 pub use d2::{Arc2, Bbox2, Line2, Point2, Segment2, Transform2, Vec2};
 pub use d3::{Bbox3, Plane, Point3, Vec3};
+pub use hull::convex_hull;
+pub use intersect::{SegmentIntersection, circle_circle, line_circle, segment_intersection};
+pub use offset::{CapStyle, JoinStyle, offset_polygon, offset_polygons, offset_polyline, stroke_polyline};
 pub use polygon::{Containment, Polygon2, PolygonWithHoles};
+pub use predicates::{cross3, orient2d};
 
 pub use kanavos_units::{Angle, Area, Length, Tolerance};
 
