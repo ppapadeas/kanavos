@@ -1,11 +1,32 @@
 # key	el	en
+sheets.tb.discipline	Αρχιτεκτονική μελέτη	Architectural design
 sheets.tb.project	Έργο	Project
 sheets.tb.location	Θέση	Location
 sheets.tb.owner	Ιδιοκτήτης	Owner
 sheets.tb.designer	Μελετητής	Designer
+sheets.tb.signature	Υπογραφή – σφραγίδα μελετητή	Designer's signature and stamp
 sheets.tb.drawing	Σχέδιο	Drawing
-sheets.tb.number	Αρ. σχεδίου / Ημερομηνία	Sheet no. / Date
+sheets.tb.scale	Κλίμακα	Scale
+sheets.tb.date	Ημερομηνία	Date
+sheets.tb.revision	Αναθεώρηση	Revision
+sheets.tb.number	Αρ. σχεδίου	Sheet no.
+sheets.tb.as_shown	Ως ενδείκνυται	As shown
+sheets.scale	Κλίμακα	Scale
+sheets.view_unavailable	Η όψη αυτή δεν μπορεί ακόμη να σχεδιαστεί	This view cannot be drawn yet
 sheets.coverage	Διάγραμμα κάλυψης	Coverage diagram
+sheets.coverage_sheet	Τοπογραφικό – διάγραμμα κάλυψης	Site plan and coverage diagram
 sheets.sections	Τομές	Sections
 sheets.elevations	Όψεις	Elevations
 sheets.areas	Πίνακας εμβαδών	Area table
+sheets.tables	Πίνακες	Tables
+sheets.three_d	Τρισδιάστατη απεικόνιση	3D view
+sheets.view.site_plan	Τοπογραφικό διάγραμμα	Site plan
+sheets.view.section	Τομή {m}-{m}	Section {m}-{m}
+sheets.elev.n	Όψη βόρεια	North elevation
+sheets.elev.ne	Όψη βορειοανατολική	North-east elevation
+sheets.elev.e	Όψη ανατολική	East elevation
+sheets.elev.se	Όψη νοτιοανατολική	South-east elevation
+sheets.elev.s	Όψη νότια	South elevation
+sheets.elev.sw	Όψη νοτιοδυτική	South-west elevation
+sheets.elev.w	Όψη δυτική	West elevation
+sheets.elev.nw	Όψη βορειοδυτική	North-west elevation
