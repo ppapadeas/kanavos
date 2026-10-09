@@ -79,7 +79,7 @@ fn random_plan(rng: &mut Lcg) -> common::Fx {
             _ => f.basic_wall(p, q, 0.1 + rng.next() * 0.15, 3.0),
         };
         if rng.next() < 0.5 {
-            let len = ((q.0 - p.0) as f64).abs() + ((q.1 - p.1) as f64).abs();
+            let len: f64 = (q.0 - p.0).abs() + (q.1 - p.1).abs();
             f.opening(id, OpeningKind::Door, len / 2.0, 0.8, 0.0, 2.1);
         }
     }
