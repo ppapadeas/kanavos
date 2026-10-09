@@ -7,6 +7,7 @@ reviewer: pending
 sources:
   - docs/ux.md §3 (drawing is direct)
   - SPEC-tools-001, SPEC-tools-002
+  - specs/objects/doors.md, specs/objects/windows.md (opening orientation in the object library)
   - General drafting practice (contributors' own professional knowledge)
 ---
 
@@ -32,8 +33,10 @@ length), kept inside the wall. It then snaps, in order, to:
 
 The snap label names the rule and the resulting distance, and the preview draws that distance along the wall.
 
-**Side and hand.** The side of the wall the pointer is on sets the side a door swings to (for windows, the side of
-the outer face). The flip key swaps the hinge jamb.
+**Side and hand.** The side of the wall the pointer is on sets the side a door swings to, and for windows the side of
+the outer face. In the model a door opens towards the wall's left face and a window's outer face is the wall's right
+face unless the opening is flipped, so the tool flips a door when the pointer is on the right side and a window when
+the pointer is on the left side. The flip key swaps the hinge jamb.
 
 **Size and style.** Width and height from the settings per kind (door, window, void); Tab to the width field to type
 another width. Windows sit at the set sill height; doors and voids at the wall's base.
@@ -54,8 +57,10 @@ wall is drawn in the warning colour with the reason, and a click does nothing.
 2. The pointer near (3, −0.05) centres the door and swings it to the right side; near the end it sits flush.
 3. Typing 0.5 and a width of 1.6 near the end places a 1.6 m window 0.5 m from the end, at the sill height.
 4. A second door overlapping the first is refused with an explanation; Flip swaps the hinge jamb.
-5. A void wider than its 0.8 m wall is refused.
-6. In a half-circle wall of radius 2, the pointer at the arc's middle places the opening at π metres.
+5. A window placed with the pointer on the wall's right side is not flipped (outer face right); on the left side it
+   is flipped.
+6. A void wider than its 0.8 m wall is refused.
+7. In a half-circle wall of radius 2, the pointer at the arc's middle places the opening at π metres.
 
 ## Open questions
 

@@ -3,7 +3,8 @@
 //! Hover a wall: the opening previews in it, centred on the pointer. Its position snaps, in this order, to a
 //! typed distance, the wall's centre, flush with the nearest wall end, and otherwise to steps (5 cm by default)
 //! of the distance from the nearest wall end to the opening's near jamb. The side of the wall the pointer is on
-//! sets the side a door swings to (for windows: the side of the outer face); the flip key swaps the hinge jamb.
+//! sets the side a door swings to (for windows: the side of the outer face, which is the wall's right face unless
+//! `flip_side` is set); the flip key swaps the hinge jamb.
 //! Typing a number sets the distance from the nearest wall end to the near jamb; Tab moves to the width.
 
 use kanavos_engine::commands::CreateElement;
@@ -86,7 +87,9 @@ impl OpeningTool {
             width,
             height,
             sill,
-            flip_side: !spot.left,
+            // Door leaves open towards the left face unless flipped, and a window's outer face is the right face
+            // unless flipped: the pointer's side picks the swing side for doors and the outer face for windows.
+            flip_side: if self.kind == OpeningKind::Window { spot.left } else { !spot.left },
             flip_hand: self.flip_hand,
             params: Default::default(),
         }

@@ -168,6 +168,19 @@ fn typed_distance_from_the_nearest_end_and_width() {
     assert!(near_m(o.width.as_m(), 1.6));
     assert!(near_m(o.offset.as_m(), 6.0 - 0.5 - 0.8), "{}", o.offset.as_m());
     assert!(near_m(o.sill.as_m(), 0.9));
+    // The pointer was on the wall's left side: that side becomes the outer face, which for windows is the right
+    // face unless flipped.
+    assert!(o.flip_side);
+}
+
+#[test]
+fn the_pointer_side_sets_a_windows_outer_face() {
+    let mut h = Harness::new(ToolId::Window).with_snapping();
+    h.add_wall((0.0, 0.0), (6.0, 0.0));
+    h.click(2.0, -0.1);
+    assert!(!opening(&h, 0).flip_side, "outer face on the right face: the default");
+    h.click(4.5, 0.1);
+    assert!(opening(&h, 1).flip_side);
 }
 
 #[test]

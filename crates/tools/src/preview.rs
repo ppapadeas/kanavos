@@ -130,7 +130,7 @@ pub(crate) fn ghost_of(ctx: &ToolContext<'_>, src: &Document, ids: &BTreeSet<Id>
 
 fn render(doc: &Document, storey: Id, show: &BTreeSet<u64>, ctx: &ToolContext<'_>, color: Rgba) -> Drawing {
     let scale = plan_scale(ctx.doc, storey);
-    let opts = PlanOptions { scale, locale: ctx.locale, hidden_layers: BTreeSet::new(), space_fill: true };
+    let opts = PlanOptions { scale, locale: ctx.locale, space_fill: true, ..PlanOptions::default() };
     let mut out = Drawing::model(scale);
     let Ok(d) = kanavos_views::plan(doc, storey, &opts) else { return out };
     for mut item in d.items {

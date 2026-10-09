@@ -1361,10 +1361,7 @@ fn extent(
             }
         }
         ElementKind::Object(o) => {
-            let def = kanavos_objects::find(&o.definition);
-            let w = kanavos_objects::param(def, &o.params, "width", def.map(|d| d.width).unwrap_or(1.0));
-            let dd = kanavos_objects::param(def, &o.params, "depth", def.map(|d| d.depth).unwrap_or(1.0));
-            for q in object_corners(o, w, dd) {
+            for q in object_corners(o) {
                 grow(q);
             }
         }
@@ -1401,13 +1398,25 @@ fn extent(
     b
 }
 
-/// Corners of a free object's plan rectangle in world coordinates.
-pub(crate) fn object_corners(o: &kanavos_model::Object, w: f64, d: f64) -> [Point2; 4] {
+/// Corners of the box around a free object's plan symbol, in world coordinates.
+///
+/// The box comes from the symbol the object library draws, so it follows the definition's insertion point
+/// (front centre for objects against a wall, centre for free-standing ones) and covers parts beyond the nominal
+/// size, such as chairs around a table or the swing of a door.
+pub(crate) fn object_corners(o: &kanavos_model::Object) -> [Point2; 4] {
+    let local = kanavos_drawing::Drawing {
+        items: kanavos_objects::object_symbol(o),
+        ..kanavos_drawing::Drawing::model(50.0)
+    };
+    let (x0, y0, x1, y1) = match local.bounds() {
+        Some(r) => (r.min.x, r.min.y, r.max.x, r.max.y),
+        None => (-0.5, 0.0, 0.5, 1.0),
+    };
     let u = Vec2::from_angle(o.rotation);
     let v = u.perp();
     let m = if o.mirrored { -1.0 } else { 1.0 };
     let place = |x: f64, y: f64| o.position + u * (x * m) + v * y;
-    [place(-w / 2.0, 0.0), place(w / 2.0, 0.0), place(w / 2.0, d), place(-w / 2.0, d)]
+    [place(x0, y0), place(x1, y0), place(x1, y1), place(x0, y1)]
 }
 
 #[cfg(test)]

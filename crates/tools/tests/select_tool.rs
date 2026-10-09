@@ -255,6 +255,29 @@ fn outline_vertices_drag_and_edge_midpoints_insert() {
 }
 
 #[test]
+fn objects_are_picked_inside_their_symbol() {
+    let mut h = Harness::new(ToolId::Select);
+    let obj = kanavos_model::Object {
+        definition: "furniture.table".into(),
+        position: p(5.0, 5.0),
+        rotation: kanavos_geom::Angle::deg(90.0),
+        mirrored: false,
+        elevation: Length::ZERO,
+        params: Default::default(),
+    };
+    let d = kanavos_drawing::Drawing {
+        items: kanavos_objects::object_symbol(&obj),
+        ..kanavos_drawing::Drawing::model(50.0)
+    };
+    let r = d.bounds().unwrap();
+    let id = h.add(ElementKind::Object(obj));
+    // The middle of the symbol's box, turned by 90° about the insertion point.
+    let (cx, cy) = ((r.min.x + r.max.x) / 2.0, (r.min.y + r.max.y) / 2.0);
+    h.click(5.0 - cy, 5.0 + cx);
+    assert!(h.selection.contains(&id));
+}
+
+#[test]
 fn point_handles_move_columns() {
     let mut h = Harness::new(ToolId::Select);
     let c = h.add(ElementKind::Column(kanavos_model::Column {

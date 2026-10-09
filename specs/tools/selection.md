@@ -35,7 +35,9 @@ selection. Clicking one element of a multiple selection, without dragging, selec
   jamb).
 - Slabs, roofs, spaces, fills, polylines and railings: every vertex (drag) and every edge midpoint (drag to insert a
   vertex; a roof's new edge keeps the slope of the edge it splits).
-- Columns, objects, stairs, text, level marks, space labels: their position. Beams, grid lines and lines: both ends.
+- Columns, objects, stairs, text, level marks, space labels: their position. Objects are picked anywhere inside
+  the box around the plan symbol the object library draws for them (which follows the definition's insertion point
+  and includes parts such as chairs or door swings). Beams, grid lines and lines: both ends.
   Circles: centre and radius. Arcs: ends and middle. Dimensions: the line and each measured point.
 
 Dragging a handle snaps (ignoring the elements being changed); a typed length sets the distance from the fixed end
