@@ -1,19 +1,67 @@
 # key	el	en
-tools.select.prompt	Επιλέξτε στοιχεία· σύρετε για μετακίνηση, Delete για διαγραφή	Select elements; drag to move, Delete to remove
-tools.wall.start	Κάντε κλικ στην αρχή του τοίχου	Click the start of the wall
-tools.wall.next	Κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	Click the next point or type a length; Enter to finish
+tools.select	Επιλογή	Select
+tools.wall	Τοίχος	Wall
+
 tools.field.length	Μήκος	Length
 tools.field.angle	Γωνία	Angle
+
 tools.snap.free	ελεύθερο	free
 tools.snap.endpoint	άκρο	endpoint
 tools.snap.midpoint	μέσο	midpoint
 tools.snap.corner	γωνία	corner
 tools.snap.centre	κέντρο	centre
 tools.snap.intersection	τομή	intersection
-tools.snap.on_edge	πάνω στην ακμή	on edge
+tools.snap.on_edge	ακμή	edge
 tools.snap.perpendicular	κάθετη	perpendicular
 tools.snap.extension	προέκταση	extension
-tools.snap.angle	γωνία κλειδωμένη	angle lock
+tools.snap.angle	γωνία	angle
 tools.snap.grid	κάναβος	grid
-tools.select	Επιλογή	Select
-tools.wall	Τοίχος	Wall
+tools.snap.parallel	παράλληλη	parallel
+tools.snap.alignment	ευθυγράμμιση	alignment
+tools.snap.face	παρειά	face
+tools.snap.centreline	άξονας	centreline
+tools.snap.layer_boundary	όριο στρώσης	layer boundary
+tools.snap.insertion	σημείο εισαγωγής	insertion point
+tools.snap.locked	κλειδωμένη κατεύθυνση	locked direction
+
+tools.ref.wall.of	τοίχου {n}	of wall {n}
+tools.ref.wall.to	στον τοίχο {n}	to wall {n}
+tools.ref.slab.of	πλάκας {n}	of slab {n}
+tools.ref.slab.to	στην πλάκα {n}	to slab {n}
+tools.ref.column.of	υποστυλώματος {n}	of column {n}
+tools.ref.column.to	στο υποστύλωμα {n}	to column {n}
+tools.ref.beam.of	δοκού {n}	of beam {n}
+tools.ref.beam.to	στη δοκό {n}	to beam {n}
+tools.ref.door.of	πόρτας {n}	of door {n}
+tools.ref.door.to	στην πόρτα {n}	to door {n}
+tools.ref.window.of	παραθύρου {n}	of window {n}
+tools.ref.window.to	στο παράθυρο {n}	to window {n}
+tools.ref.opening.of	ανοίγματος {n}	of opening {n}
+tools.ref.opening.to	στο άνοιγμα {n}	to opening {n}
+tools.ref.stair.of	σκάλας {n}	of stair {n}
+tools.ref.stair.to	στη σκάλα {n}	to stair {n}
+tools.ref.roof.of	στέγης {n}	of roof {n}
+tools.ref.roof.to	στη στέγη {n}	to roof {n}
+tools.ref.railing.of	κιγκλιδώματος {n}	of railing {n}
+tools.ref.railing.to	στο κιγκλίδωμα {n}	to railing {n}
+tools.ref.space.of	χώρου {n}	of space {n}
+tools.ref.space.to	στον χώρο {n}	to space {n}
+tools.ref.object.of	αντικειμένου {n}	of object {n}
+tools.ref.object.to	στο αντικείμενο {n}	to object {n}
+tools.ref.dimension.of	διάστασης {n}	of dimension {n}
+tools.ref.dimension.to	στη διάσταση {n}	to dimension {n}
+tools.ref.text.of	κειμένου {n}	of text {n}
+tools.ref.text.to	στο κείμενο {n}	to text {n}
+tools.ref.level.of	στάθμης {n}	of level mark {n}
+tools.ref.level.to	στη στάθμη {n}	to level mark {n}
+tools.ref.drafting.of	γραμμής {n}	of line {n}
+tools.ref.drafting.to	στη γραμμή {n}	to line {n}
+tools.ref.grid.of	άξονα κανάβου {n}	of grid line {n}
+tools.ref.grid.to	στον άξονα κανάβου {n}	to grid line {n}
+tools.ref.underlay.of	υποβάθρου {n}	of underlay {n}
+tools.ref.underlay.to	στο υπόβαθρο {n}	to underlay {n}
+
+tools.select.prompt	Επιλέξτε στοιχεία· σύρετε για μετακίνηση, Delete για διαγραφή	Select elements; drag to move, Delete to remove
+
+tools.wall.start	Κάντε κλικ στην αρχή του τοίχου	Click the start of the wall
+tools.wall.next	Κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	Click the next point or type a length; Enter to finish

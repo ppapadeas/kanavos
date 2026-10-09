@@ -25,7 +25,7 @@ pub use settings::{
     BeamSettings, ColumnSettings, OpeningSettings, RailingSettings, RoofKind, RoofSettings, SlabSettings,
     SpaceSettings, StairSettings, TextSettings, ToolSettings, WallSettings,
 };
-pub use snap::{SnapHint, SnapResult, SnapSettings, Snapper};
+pub use snap::{SnapHint, SnapQuery, SnapResult, SnapSettings, Snapper};
 pub use wall::WallTool;
 
 /// Every tool.
@@ -339,16 +339,15 @@ pub fn make_tool(id: ToolId) -> Box<dyn Tool> {
 }
 
 /// Elements on a storey under a point, nearest first. `radius` is the pick tolerance in metres.
+///
+/// Small things win over the spaces, slabs and roofs they sit in; openings win over their walls. Uses the shared
+/// spatial index, so it is cheap enough to call on every pointer move.
 pub fn hit_test(doc: &Document, storey: Id, at: Point2, radius: f64) -> Vec<Id> {
+    let index = Snapper::cached(doc, storey);
     let tol = doc.tolerance();
     let mut hits: Vec<(f64, u8, Id)> = Vec::new();
-    for e in doc.elements() {
-        let on_storey =
-            e.storey == Some(storey) || (e.storey.is_none() && matches!(e.kind, ElementKind::Grid(_)));
-        if !on_storey {
-            continue;
-        }
-        // Prefer small things over the spaces and slabs they sit in.
+    for id in index.elements_near(at, radius) {
+        let Some(e) = doc.element(id) else { continue };
         let rank = match e.kind {
             ElementKind::Opening(_) => 0,
             ElementKind::Space(_) => 4,
@@ -356,32 +355,54 @@ pub fn hit_test(doc: &Document, storey: Id, at: Point2, radius: f64) -> Vec<Id> 
             ElementKind::Underlay(_) => 5,
             _ => 1,
         };
-        if let ElementKind::Opening(_) = e.kind
-            && let Ok(pl) = kanavos_elements::opening_placement(doc, e.id)
-        {
-            let d = (at - pl.centre).length();
-            if d <= pl.width.as_m() / 2.0 + radius {
-                hits.push((d, rank, e.id));
+        let d = match &e.kind {
+            ElementKind::Opening(_) => kanavos_elements::opening_placement(doc, id).ok().and_then(|pl| {
+                let v = at - pl.centre;
+                let along = v.dot(pl.along).abs() - pl.width.as_m() / 2.0;
+                let across = v.dot(pl.across);
+                let inside_across = across <= pl.left_face.max(pl.right_face) + radius
+                    && across >= pl.left_face.min(pl.right_face) - radius;
+                (along <= radius && inside_across).then_some(along.max(0.0))
+            }),
+            ElementKind::Text(_) | ElementKind::Level(_) | ElementKind::Object(_) => {
+                index.element_box(id).filter(|b| b.contains(at)).map(|_| 0.0)
             }
-            continue;
-        }
-        if let Ok(Some(fp)) = kanavos_elements::footprint(doc, e.id)
-            && fp.contains(at, &tol)
-        {
-            hits.push((0.0, rank, e.id));
-            continue;
-        }
-        let g = kanavos_elements::snap_geometry(doc, e.id);
-        let d = g
-            .segments
-            .iter()
-            .map(|s| s.distance_to(at).as_m())
-            .chain(g.points.iter().map(|(q, _)| q.distance(at).as_m()))
-            .fold(f64::INFINITY, f64::min);
-        if d <= radius {
-            hits.push((d, rank, e.id));
+            _ => {
+                if index.outline(id).is_some_and(|o| o.contains(at, &tol)) {
+                    Some(0.0)
+                } else {
+                    index.distance_to(id, at).filter(|d| *d <= radius).or_else(|| match &e.kind {
+                        ElementKind::Dimension(dim) => dimension_distance(dim, at).filter(|d| *d <= radius),
+                        ElementKind::Grid(_) => {
+                            index.element_box(id).filter(|b| b.contains(at)).map(|_| radius)
+                        }
+                        _ => None,
+                    })
+                }
+            }
+        };
+        if let Some(d) = d {
+            hits.push((d, rank, id));
         }
     }
-    hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.total_cmp(&b.0)));
+    hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.total_cmp(&b.0)).then(a.2.cmp(&b.2)));
     hits.into_iter().map(|(_, _, id)| id).collect()
+}
+
+/// Distance from a point to a dimension's line and extension lines.
+fn dimension_distance(d: &kanavos_model::Dimension, at: Point2) -> Option<f64> {
+    let u = kanavos_geom::Vec2::from_angle(d.direction);
+    let proj = |q: Point2| d.line_point + u * (q - d.line_point).dot(u);
+    let ts: Vec<f64> = d.points.iter().map(|q| (*q - d.line_point).dot(u)).collect();
+    let lo = ts.iter().copied().fold(f64::INFINITY, f64::min);
+    let hi = ts.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    if !lo.is_finite() || !hi.is_finite() {
+        return None;
+    }
+    let line = kanavos_geom::Segment2::new(d.line_point + u * lo, d.line_point + u * hi);
+    let mut best = line.distance_to(at).as_m();
+    for q in &d.points {
+        best = best.min(kanavos_geom::Segment2::new(*q, proj(*q)).distance_to(at).as_m());
+    }
+    Some(best)
 }
