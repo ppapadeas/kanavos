@@ -182,6 +182,20 @@ fn section_box_selection_and_ghosting() {
     let img = r.render_to_image(&g.device, &g.queue, &params).unwrap();
     write_png(&img, "house_section_selected.png");
 
+    // Close to the cut: walls show a flat cut colour outlined by cut lines.
+    let mut close = params.clone();
+    close.camera = OrbitCamera::looking_at(world(1.5, 0.6, 1.2), StandardView::IsoSouthWest, 4.0);
+    close.camera.pitch = 0.9;
+    let img = r.render_to_image(&g.device, &g.queue, &close).unwrap();
+    write_png(&img, "house_section_close_up.png");
+    let cut_px = screen(&close, world(0.6, 0.125, 1.5));
+    let cut_colour = params.style.cut_color;
+    let seen = img.pixel(cut_px[0] as u32, cut_px[1] as u32).unwrap();
+    assert!(
+        close_rgb(seen, [cut_colour.r, cut_colour.g, cut_colour.b, 255], 40),
+        "cut face of the south wall shows the cut colour, got {seen:?}"
+    );
+
     // Selection colour appears somewhere (thick teal edges and tint).
     let sel = params.style.selection_color;
     let teal = img

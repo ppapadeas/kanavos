@@ -18,6 +18,7 @@ const FLAG_EDGES: u32 = 1u;
 const FLAG_SILHOUETTES: u32 = 2u;
 
 const EDGE_SMOOTH: u32 = 1u;
+const EDGE_CUT: u32 = 2u;
 
 const MODE_OPAQUE: u32 = 0u;
 const MODE_GHOST: u32 = 1u;
@@ -34,10 +35,15 @@ fn state_of(slot: u32) -> u32 {
 }
 
 fn is_clipped(p: vec3<f32>) -> bool {
+    return is_clipped_by(p, 0.0);
+}
+
+// Clip test with a tolerance (metres) that keeps points lying on a plane, such as cut outlines.
+fn is_clipped_by(p: vec3<f32>, tolerance: f32) -> bool {
     let n = min(frame.counts.x, 6u);
     for (var i = 0u; i < n; i = i + 1u) {
         let pl = frame.clip[i];
-        if dot(pl.xyz, p) + pl.w < 0.0 {
+        if dot(pl.xyz, p) + pl.w < -tolerance {
             return true;
         }
     }
@@ -309,6 +315,7 @@ struct EdgeOut {
     @location(0) world: vec3<f32>,
     @location(1) color: vec4<f32>,
     @location(2) @interpolate(linear) along: f32,
+    @location(3) @interpolate(flat) cut: u32,
 };
 
 // Moves a point slightly towards the viewer so that lines win the depth test against their own faces.
@@ -334,7 +341,13 @@ fn edge_vertex(vi: u32, e: EdgeIn, occluded_pass: bool) -> EdgeOut {
     }
     // Selected and hovered objects always show their outline, whatever the display settings.
     let emphasised = selected || hovered;
-    if e.kind == EDGE_SMOOTH {
+    let cut = e.kind == EDGE_CUT;
+    if cut {
+        // Cut outlines are uploaded only while clipping and always shown then.
+        if occluded_pass {
+            return out;
+        }
+    } else if e.kind == EDGE_SMOOTH {
         if (frame.counts.y & FLAG_SILHOUETTES) == 0u && !emphasised {
             return out;
         }
@@ -391,7 +404,7 @@ fn edge_vertex(vi: u32, e: EdgeIn, occluded_pass: bool) -> EdgeOut {
     var width = frame.edge_params.x;
     if selected {
         width = width * 1.8;
-    } else if hovered {
+    } else if hovered || cut {
         width = width * 1.5;
     }
     let half_w = 0.5 * width;
@@ -406,6 +419,8 @@ fn edge_vertex(vi: u32, e: EdgeIn, occluded_pass: bool) -> EdgeOut {
         color = vec4<f32>(frame.hover_color.rgb, 1.0);
     } else if ghost {
         color = vec4<f32>(color.rgb, color.a * min(1.0, frame.light_params.z * 2.0));
+    } else if cut {
+        color = vec4<f32>(color.rgb, 1.0);
     }
     if occluded_pass {
         color = vec4<f32>(frame.select_color.rgb, 0.7);
@@ -414,6 +429,7 @@ fn edge_vertex(vi: u32, e: EdgeIn, occluded_pass: bool) -> EdgeOut {
     out.world = mix(w0, w1, t);
     out.color = color;
     out.along = t * len;
+    out.cut = select(0u, 1u, cut);
     return out;
 }
 
@@ -429,7 +445,8 @@ fn vs_edge_occluded(@builtin(vertex_index) vi: u32, e: EdgeIn) -> EdgeOut {
 
 @fragment
 fn fs_edge(in: EdgeOut) -> @location(0) vec4<f32> {
-    if is_clipped(in.world) {
+    // Cut outlines lie on a clip plane; a millimetre of tolerance keeps rounding from breaking them up.
+    if is_clipped_by(in.world, select(0.0, 0.001, in.cut == 1u)) {
         discard;
     }
     return in.color;

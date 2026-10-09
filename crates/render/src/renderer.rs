@@ -14,8 +14,9 @@ use crate::gpu::{
 use crate::headless::{Image, read_rgba8};
 use crate::math::Mat4;
 use crate::pick::{PickResult, PickTicket, Picker, pick_window};
+use crate::prep::cut_segments;
 use crate::scene::{Scene, SceneMesh};
-use crate::store::Store;
+use crate::store::{GrowBuffer, Store};
 use crate::view::{MAX_CLIP_PLANES, ViewParams, linear_rgba, plane_to_render_space};
 
 /// Fixed settings chosen when the renderer is created.
@@ -95,8 +96,20 @@ struct FrameSetup {
     forward: [f32; 3],
     /// Shadow-map cache key, when shadows are on.
     shadow_key: Option<u64>,
+    /// Cut-line cache key, when clip planes are active.
+    cut_key: Option<u64>,
+    /// Active clip planes in render space.
+    clip_planes: Vec<[f32; 4]>,
     /// Whether ambient occlusion runs.
     ao: bool,
+}
+
+/// Outlines along the clip planes, recomputed when the planes, the geometry or the visibility change.
+#[derive(Debug, Default)]
+struct CutLines {
+    key: Option<u64>,
+    buffer: Option<GrowBuffer>,
+    count: u32,
 }
 
 /// GPU renderer for a 3D viewport.
@@ -122,6 +135,7 @@ pub struct Renderer {
     targets: Option<Targets>,
     generation: u64,
     shadow_key: Option<u64>,
+    cut_lines: CutLines,
     store: Store,
     origin: Point3,
     selection: HashSet<u64>,
@@ -283,6 +297,7 @@ impl Renderer {
             targets: None,
             generation: 0,
             shadow_key: None,
+            cut_lines: CutLines::default(),
             store: Store::default(),
             origin: Point3::ORIGIN,
             selection: HashSet::new(),
@@ -738,14 +753,61 @@ impl Renderer {
             }
             hash_words(words)
         });
+        let clip_planes: Vec<[f32; 4]> = clip.iter().take(clip_count as usize).copied().collect();
+        let cut_key = (!clip_planes.is_empty()).then(|| {
+            let mut words = vec![self.store.revision, self.visibility_revision];
+            words.extend(clip_planes.iter().flatten().map(|v| u64::from(v.to_bits())));
+            hash_words(words)
+        });
         FrameSetup {
             uniforms,
             view_proj,
             eye: [eye.x as f32, eye.y as f32, eye.z as f32],
             forward: f32x3(basis.forward),
             shadow_key,
+            cut_key,
+            clip_planes,
             ao,
         }
+    }
+
+    /// Recomputes the outlines along the clip planes when they are out of date. Only objects whose bounds
+    /// straddle a plane are examined.
+    fn update_cut_lines(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, setup: &FrameSetup) {
+        if setup.cut_key.is_none() || setup.cut_key == self.cut_lines.key {
+            return;
+        }
+        self.cut_lines.key = setup.cut_key;
+        let mut lines = Vec::new();
+        for (id, record) in &self.store.objects {
+            if !self.visible(*id, record.category) || self.ghosted.contains(id) {
+                continue;
+            }
+            let Some((lo, hi)) = record.bounds else { continue };
+            for plane in &setup.clip_planes {
+                let [nx, ny, nz, d] = *plane;
+                // Signed distances of the box extremes along the plane normal.
+                let pick = |n: f32, l: f32, h: f32| if n >= 0.0 { (n * l, n * h) } else { (n * h, n * l) };
+                let (ax, bx) = pick(nx, lo[0], hi[0]);
+                let (ay, by) = pick(ny, lo[1], hi[1]);
+                let (az, bz) = pick(nz, lo[2], hi[2]);
+                if ax + ay + az + d > 0.0 || bx + by + bz + d < 0.0 {
+                    continue;
+                }
+                for part in record.parts.iter().filter(|p| !p.transparent) {
+                    cut_segments(part, *plane, record.slot, &mut lines);
+                }
+            }
+        }
+        GrowBuffer::write(
+            &mut self.cut_lines.buffer,
+            device,
+            queue,
+            "kanavos cut lines",
+            wgpu::BufferUsages::VERTEX,
+            bytemuck::cast_slice(&lines),
+        );
+        self.cut_lines.count = lines.len() as u32;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -779,6 +841,7 @@ impl Renderer {
         self.ensure_targets(device, size);
         let setup = self.frame_setup(params, size);
         queue.write_buffer(&self.frame_buffer, 0, bytemuck::bytes_of(&setup.uniforms));
+        self.update_cut_lines(device, queue, &setup);
 
         let mut stats = RenderStats {
             objects: self.store.objects.len(),
@@ -886,6 +949,16 @@ impl Renderer {
             if params.style.edges || params.style.silhouettes || highlight {
                 pass.set_pipeline(&self.pipelines.edges);
                 stats.draw_calls += self.draw_edges(&mut pass, &setup.view_proj);
+            }
+            // Outlines of the cut, while clipping.
+            if setup.cut_key.is_some()
+                && let Some(cb) = &self.cut_lines.buffer
+                && self.cut_lines.count > 0
+            {
+                pass.set_pipeline(&self.pipelines.edges);
+                pass.set_vertex_buffer(0, cb.buffer.slice(..cb.len));
+                pass.draw(0..6, 0..self.cut_lines.count);
+                stats.draw_calls += 1;
             }
             if params.style.show_hidden_selection && !self.selection.is_empty() {
                 pass.set_pipeline(&self.pipelines.edges_occluded);

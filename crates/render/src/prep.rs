@@ -16,6 +16,8 @@ pub(crate) const WELD_QUANTUM: f64 = 1e-4;
 pub(crate) const EDGE_FEATURE: u32 = 0;
 /// Edge between faces meeting at less than the crease angle: drawn only where it is on the silhouette.
 pub(crate) const EDGE_SMOOTH: u32 = 1;
+/// Outline where a clip plane cuts a mesh: drawn while clipping, a little heavier than feature edges.
+pub(crate) const EDGE_CUT: u32 = 2;
 
 /// One surface vertex as uploaded to the GPU (28 bytes).
 #[repr(C)]
@@ -380,6 +382,47 @@ fn build_smoothed(
     (vertices, indices)
 }
 
+/// Appends the segments where a part's triangles cross a plane (`n·p + d = 0`, render space) as cut edges.
+///
+/// Tolerance: vertices within 1e-6 m of the plane count as on it; triangles that only touch the plane or lie in
+/// it produce no segment.
+pub(crate) fn cut_segments(part: &PreparedPart, plane: [f32; 4], slot: u32, out: &mut Vec<EdgeInstance>) {
+    const EPS: f64 = 1e-6;
+    let [nx, ny, nz, d] = plane.map(f64::from);
+    let n8 = snorm8([nx, ny, nz]);
+    let dist = |p: [f32; 3]| nx * f64::from(p[0]) + ny * f64::from(p[1]) + nz * f64::from(p[2]) + d;
+    for tri in part.indices.chunks_exact(3) {
+        let &[a, b, c] = tri else { continue };
+        let (Some(va), Some(vb), Some(vc)) =
+            (part.vertices.get(a as usize), part.vertices.get(b as usize), part.vertices.get(c as usize))
+        else {
+            continue;
+        };
+        let corners = [va.position, vb.position, vc.position];
+        let ds = corners.map(dist);
+        let above = ds.iter().any(|&x| x > EPS);
+        let below = ds.iter().any(|&x| x < -EPS);
+        if !(above && below) {
+            continue;
+        }
+        let mut points: Vec<[f32; 3]> = Vec::with_capacity(3);
+        for i in 0..3 {
+            let (p, q) = (corners.get(i).copied(), corners.get((i + 1) % 3).copied());
+            let (dp, dq) = (ds.get(i).copied(), ds.get((i + 1) % 3).copied());
+            let (Some(p), Some(q), Some(dp), Some(dq)) = (p, q, dp, dq) else { continue };
+            if dp.abs() <= EPS {
+                points.push(p);
+            } else if (dp > EPS && dq < -EPS) || (dp < -EPS && dq > EPS) {
+                let t = (dp / (dp - dq)) as f32;
+                points.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t]);
+            }
+        }
+        if let &[p0, p1] = points.as_slice() {
+            out.push(EdgeInstance { p0, p1, n0: n8, n1: n8, slot, kind: EDGE_CUT });
+        }
+    }
+}
+
 /// 64-bit FNV-1a style hash over 32-bit words; used to detect unchanged objects in `set_scene`.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct WordHash(u64);
@@ -562,6 +605,31 @@ mod tests {
         let p = prepare_mesh(&m, 0, cos_deg(20.0));
         // Shared fold edge is a feature edge (45° fold) counted once; four boundary edges.
         assert_eq!(p.edges.len(), 5);
+    }
+
+    #[test]
+    fn cut_segments_follow_the_section_contour() {
+        let m = scene_mesh(&cuboid(Point3::ORIGIN, Point3::new(1.0, 2.0, 3.0)), Rgba::WHITE);
+        let p = prepare_mesh(&m, 4, cos_deg(20.0));
+        let mut cut = Vec::new();
+        // Horizontal plane at z = 1.25, keeping the part below (normal pointing down).
+        cut_segments(&p, [0.0, 0.0, -1.0, 1.25], 4, &mut cut);
+        assert_eq!(cut.len(), 8, "two triangles per side face");
+        let length: f32 = cut
+            .iter()
+            .map(|e| {
+                ((e.p1[0] - e.p0[0]).powi(2) + (e.p1[1] - e.p0[1]).powi(2) + (e.p1[2] - e.p0[2]).powi(2))
+                    .sqrt()
+            })
+            .sum();
+        assert!((length - 6.0).abs() < 1e-5, "perimeter of the 1 × 2 section, got {length}");
+        assert!(cut.iter().all(|e| e.kind == EDGE_CUT && e.slot == 4));
+        assert!(cut.iter().all(|e| (e.p0[2] - 1.25).abs() < 1e-6 && (e.p1[2] - 1.25).abs() < 1e-6));
+        // A plane through a face or beside the box cuts nothing.
+        let mut none = Vec::new();
+        cut_segments(&p, [0.0, 0.0, 1.0, 0.0], 4, &mut none);
+        cut_segments(&p, [1.0, 0.0, 0.0, -5.0], 4, &mut none);
+        assert!(none.is_empty());
     }
 
     #[test]

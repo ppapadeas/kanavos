@@ -54,7 +54,7 @@ pub(crate) struct GrowBuffer {
 }
 
 impl GrowBuffer {
-    fn write(
+    pub(crate) fn write(
         slot: &mut Option<GrowBuffer>,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

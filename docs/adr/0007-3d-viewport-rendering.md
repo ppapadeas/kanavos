@@ -40,7 +40,9 @@ image (with egui: `egui_wgpu::Renderer::register_native_texture`). The crate has
   hit in the window wins, which makes thin objects easy to pick, and the depth gives the world point for
   orbit-about-cursor and zoom-to-cursor.
 - **Section box.** Up to six clip planes are tested in the fragment shaders. Back faces of closed solids are drawn
-  in a flat cut colour, so cut walls read as solid without computing cap polygons.
+  in a flat cut colour, so cut walls read as solid without computing cap polygons, and the contour of the cut is
+  outlined with lines computed from triangle–plane intersections (only for objects whose bounds straddle a plane,
+  and only when the planes, the geometry or the visibility change).
 - **Robustness.** Pipelines are created inside a validation error scope: when the scene shaders are rejected the
   renderer returns an error the interface can show; when only ambient occlusion is unsupported it is switched off.
 
