@@ -1,31 +1,51 @@
 //! Interactive tools, snapping and inference, typed input.
 //!
-//! Layer L8. See `docs/architecture.md` and `docs/ux.md` §3.
+//! Layer L8. See `docs/architecture.md`, `docs/ux.md` §3 and the behaviour specs in `specs/tools/`.
 //!
 //! A tool is a small state machine. The canvas feeds it [`ToolEvent`]s in model coordinates; the tool answers with
-//! a [`ToolOutput`]: preview geometry, commands to run, the snap it used, a prompt for the status bar and typed
-//! input fields to show next to the cursor. Tools never change the document themselves (ADR-0005).
+//! a [`ToolOutput`]: preview geometry, commands to run, the snap it used, a prompt for the status bar, typed
+//! input fields to show next to the cursor, handles of the selection and a text box when it needs text. Tools
+//! never change the document themselves (ADR-0005): everything they do is a command.
+//!
+//! Snapping uses a spatial index shared by all tools ([`Snapper::cached`]), so pointer moves stay fast on large
+//! storeys.
 
+mod common;
 pub mod input;
+mod measure;
+mod opening;
+mod outline;
+mod path;
+mod place;
+mod preview;
 mod select;
 mod settings;
 pub mod snap;
 mod wall;
+
+mod annotate;
 
 use std::collections::BTreeSet;
 
 use kanavos_drawing::Drawing;
 use kanavos_engine::AnyCommand;
 use kanavos_geom::Point2;
-use kanavos_model::{Document, ElementKind, Id};
+use kanavos_model::{Document, ElementKind, Id, OpeningKind};
 use kanavos_units::Locale;
 
+pub use annotate::{DimensionTool, LevelTool, MarkerTool, TextTool};
+pub use measure::MeasureTool;
+pub use opening::OpeningTool;
+pub use outline::OutlineTool;
+pub use path::{CurveTool, PathTool};
+pub use place::{PlaceTool, StairTool};
 pub use select::SelectTool;
 pub use settings::{
-    BeamSettings, ColumnSettings, OpeningSettings, RailingSettings, RoofKind, RoofSettings, SlabSettings,
-    SpaceSettings, StairSettings, TextSettings, ToolSettings, WallSettings,
+    BeamSettings, ColumnSettings, DimensionOrientation, DimensionSettings, GridSettings, LevelSettings,
+    ObjectPlacement, OpeningSettings, OutlineMode, RailingSettings, RoofKind, RoofSettings, SectionSettings,
+    SlabSettings, SpaceSettings, StairSettings, TextSettings, ToolSettings, WallMode, WallSettings,
 };
-pub use snap::{SnapHint, SnapResult, SnapSettings, Snapper};
+pub use snap::{SnapHint, SnapQuery, SnapResult, SnapSettings, Snapper};
 pub use wall::WallTool;
 
 /// Every tool.
@@ -194,7 +214,7 @@ pub struct Modifiers {
 /// Keys tools react to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
-    /// Commit typed input or finish a chain.
+    /// Commit typed input or finish a chain (with Shift in the text box: a new line).
     Enter,
     /// Back out one step.
     Escape,
@@ -204,8 +224,12 @@ pub enum Key {
     Tab,
     /// Delete the selection.
     Delete,
-    /// Flip side (e.g. door swing, wall reference side).
+    /// Flip side (door swing hand, wall reference side, roof slope edge, dimension orientation, object mirror).
     Flip,
+    /// Rotate: turns an object or column being placed by 90°; starts rotating the selection in the select tool.
+    Rotate,
+    /// Mirror the selection about an axis (select tool).
+    Mirror,
 }
 
 /// Input delivered to a tool. Positions are model coordinates (metres), not yet snapped.
@@ -248,7 +272,7 @@ pub enum ToolEvent {
         /// Modifiers.
         mods: Modifiers,
     },
-    /// Characters typed while the canvas has focus (numbers go to typed input).
+    /// Characters typed while the canvas has focus (numbers go to typed input, text to the text box).
     Text(String),
 }
 
@@ -279,12 +303,56 @@ pub enum CursorHint {
     Grab,
 }
 
+/// What dragging a handle does; the canvas picks the handle's glyph from it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HandleRole {
+    /// The end of a wall, beam, line or grid line (stretches it; connected wall ends follow).
+    End,
+    /// A vertex of an outline or path.
+    Vertex,
+    /// The midpoint of an outline edge: dragging inserts a new vertex there.
+    InsertVertex,
+    /// Moves the element (a column, object, text, level mark, stair, dimension line, opening along its wall, or
+    /// a wall sideways).
+    Move,
+    /// A jamb of a door, window or void: changes the width, keeping the other jamb in place.
+    Width,
+}
+
+/// An on-canvas handle of a selected element.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Handle {
+    /// Position in model coordinates.
+    pub at: Point2,
+    /// What dragging it does.
+    pub role: HandleRole,
+    /// The element it edits.
+    pub element: Id,
+    /// Under the pointer (draw it highlighted).
+    pub hot: bool,
+}
+
+/// A text box the canvas shows while the text tool collects text. Typed characters arrive as
+/// [`ToolEvent::Text`]; Enter commits, Shift+Enter starts a new line, Escape cancels.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextEntry {
+    /// Anchor of the first line's baseline, model coordinates.
+    pub at: Point2,
+    /// Text typed so far (lines separated by `\n`).
+    pub text: String,
+    /// Text height on paper, millimetres.
+    pub size_mm: f64,
+    /// Rotation, radians counter-clockwise.
+    pub rotation: f64,
+}
+
 /// What a tool returns for each event.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ToolOutput {
-    /// Rubber-band and ghost geometry in model metres.
+    /// Rubber-band and ghost geometry in model metres, at the plan's scale (text and symbols sized for it).
     pub preview: Drawing,
-    /// Commands to run now (in order; the canvas runs them as one undo step when there are several).
+    /// Commands to run now. Several commands that form one operation arrive as a single labelled `batch`, so
+    /// each operation is one undo step.
     pub commands: Vec<AnyCommand>,
     /// A new selection, when the tool changes it.
     pub selection: Option<BTreeSet<Id>>,
@@ -298,6 +366,19 @@ pub struct ToolOutput {
     pub finished: bool,
     /// Cursor shape.
     pub cursor: CursorHint,
+    /// Handles of the selection (select tool).
+    pub handles: Vec<Handle>,
+    /// Elements to pre-highlight (the element under the pointer, or what a click would act on).
+    pub highlight: Vec<Id>,
+    /// A text box to show (text tool).
+    pub text_entry: Option<TextEntry>,
+    /// Why the previewed operation cannot be done as it stands (e.g. an opening wider than its wall). The
+    /// preview is drawn in the warning colour and a click does nothing until the problem goes away.
+    pub warning: Option<String>,
+    /// Recently hovered points the pointer aligns with (draw a small cross on each).
+    pub tracked: Vec<Point2>,
+    /// The tool takes typed characters now: route character keys to [`ToolEvent::Text`] instead of shortcuts.
+    pub typing: bool,
 }
 
 /// Everything a tool may read.
@@ -330,25 +411,41 @@ pub trait Tool {
     fn is_idle(&self) -> bool;
 }
 
-/// Creates a tool. Tools not implemented yet fall back to selection.
+/// Creates a tool.
 pub fn make_tool(id: ToolId) -> Box<dyn Tool> {
     match id {
+        ToolId::Select => Box::new(SelectTool::default()),
         ToolId::Wall => Box::new(WallTool::default()),
-        _ => Box::new(SelectTool::default()),
+        ToolId::Slab | ToolId::Roof | ToolId::Space | ToolId::Fill | ToolId::Plot => {
+            Box::new(OutlineTool::new(id))
+        }
+        ToolId::Column | ToolId::Object => Box::new(PlaceTool::new(id)),
+        ToolId::Beam | ToolId::Line | ToolId::Polyline | ToolId::Railing | ToolId::Grid => {
+            Box::new(PathTool::new(id))
+        }
+        ToolId::Door => Box::new(OpeningTool::new(OpeningKind::Door)),
+        ToolId::Window => Box::new(OpeningTool::new(OpeningKind::Window)),
+        ToolId::Void => Box::new(OpeningTool::new(OpeningKind::Void)),
+        ToolId::Stair => Box::new(StairTool::default()),
+        ToolId::Arc | ToolId::Circle => Box::new(CurveTool::new(id)),
+        ToolId::Dimension => Box::new(DimensionTool::default()),
+        ToolId::Text => Box::new(TextTool::default()),
+        ToolId::Level => Box::new(LevelTool::default()),
+        ToolId::Section | ToolId::Elevation => Box::new(MarkerTool::new(id)),
+        ToolId::Measure => Box::new(MeasureTool::default()),
     }
 }
 
 /// Elements on a storey under a point, nearest first. `radius` is the pick tolerance in metres.
+///
+/// Small things win over the spaces, slabs and roofs they sit in; openings win over their walls. Uses the shared
+/// spatial index, so it is cheap enough to call on every pointer move.
 pub fn hit_test(doc: &Document, storey: Id, at: Point2, radius: f64) -> Vec<Id> {
+    let index = Snapper::cached(doc, storey);
     let tol = doc.tolerance();
     let mut hits: Vec<(f64, u8, Id)> = Vec::new();
-    for e in doc.elements() {
-        let on_storey =
-            e.storey == Some(storey) || (e.storey.is_none() && matches!(e.kind, ElementKind::Grid(_)));
-        if !on_storey {
-            continue;
-        }
-        // Prefer small things over the spaces and slabs they sit in.
+    for id in index.elements_near(at, radius) {
+        let Some(e) = doc.element(id) else { continue };
         let rank = match e.kind {
             ElementKind::Opening(_) => 0,
             ElementKind::Space(_) => 4,
@@ -356,32 +453,54 @@ pub fn hit_test(doc: &Document, storey: Id, at: Point2, radius: f64) -> Vec<Id> 
             ElementKind::Underlay(_) => 5,
             _ => 1,
         };
-        if let ElementKind::Opening(_) = e.kind
-            && let Ok(pl) = kanavos_elements::opening_placement(doc, e.id)
-        {
-            let d = (at - pl.centre).length();
-            if d <= pl.width.as_m() / 2.0 + radius {
-                hits.push((d, rank, e.id));
+        let d = match &e.kind {
+            ElementKind::Opening(_) => kanavos_elements::opening_placement(doc, id).ok().and_then(|pl| {
+                let v = at - pl.centre;
+                let along = v.dot(pl.along).abs() - pl.width.as_m() / 2.0;
+                let across = v.dot(pl.across);
+                let inside_across = across <= pl.left_face.max(pl.right_face) + radius
+                    && across >= pl.left_face.min(pl.right_face) - radius;
+                (along <= radius && inside_across).then_some(along.max(0.0))
+            }),
+            ElementKind::Text(_) | ElementKind::Level(_) | ElementKind::Object(_) => {
+                index.element_box(id).filter(|b| b.contains(at)).map(|_| 0.0)
             }
-            continue;
-        }
-        if let Ok(Some(fp)) = kanavos_elements::footprint(doc, e.id)
-            && fp.contains(at, &tol)
-        {
-            hits.push((0.0, rank, e.id));
-            continue;
-        }
-        let g = kanavos_elements::snap_geometry(doc, e.id);
-        let d = g
-            .segments
-            .iter()
-            .map(|s| s.distance_to(at).as_m())
-            .chain(g.points.iter().map(|(q, _)| q.distance(at).as_m()))
-            .fold(f64::INFINITY, f64::min);
-        if d <= radius {
-            hits.push((d, rank, e.id));
+            _ => {
+                if index.outline(id).is_some_and(|o| o.contains(at, &tol)) {
+                    Some(0.0)
+                } else {
+                    index.distance_to(id, at).filter(|d| *d <= radius).or_else(|| match &e.kind {
+                        ElementKind::Dimension(dim) => dimension_distance(dim, at).filter(|d| *d <= radius),
+                        ElementKind::Grid(_) => {
+                            index.element_box(id).filter(|b| b.contains(at)).map(|_| radius)
+                        }
+                        _ => None,
+                    })
+                }
+            }
+        };
+        if let Some(d) = d {
+            hits.push((d, rank, id));
         }
     }
-    hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.total_cmp(&b.0)));
+    hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.total_cmp(&b.0)).then(a.2.cmp(&b.2)));
     hits.into_iter().map(|(_, _, id)| id).collect()
+}
+
+/// Distance from a point to a dimension's line and extension lines.
+fn dimension_distance(d: &kanavos_model::Dimension, at: Point2) -> Option<f64> {
+    let u = kanavos_geom::Vec2::from_angle(d.direction);
+    let proj = |q: Point2| d.line_point + u * (q - d.line_point).dot(u);
+    let ts: Vec<f64> = d.points.iter().map(|q| (*q - d.line_point).dot(u)).collect();
+    let lo = ts.iter().copied().fold(f64::INFINITY, f64::min);
+    let hi = ts.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    if !lo.is_finite() || !hi.is_finite() {
+        return None;
+    }
+    let line = kanavos_geom::Segment2::new(d.line_point + u * lo, d.line_point + u * hi);
+    let mut best = line.distance_to(at).as_m();
+    for q in &d.points {
+        best = best.min(kanavos_geom::Segment2::new(*q, proj(*q)).distance_to(at).as_m());
+    }
+    Some(best)
 }

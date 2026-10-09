@@ -51,7 +51,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-raster` | Antialiased rendering of drawings to RGBA images and PNG for previews and thumbnails. |
 | `kanavos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
 | `kanavos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |
-| `kanavos-objects` | Parametric object system for doors, windows, furniture and fixtures, in a sandboxed language (ADR‑0006). |
+| `kanavos-objects` | Parametric object library for doors, windows, voids, furniture and fixtures: built-in Rust definitions now, a sandboxed authoring language later (ADR‑0006). |
 | `kanavos-views` | Derives views: plan cut at a storey's cut plane, projection above/below, sections and elevations with hidden-line removal, 3D tessellation; output is `kanavos-drawing`. |
 | `kanavos-schedules` | Quantities and tables (doors, windows, areas, materials). |
 | `kanavos-rules-gr` | ΝΟΚ (ν. 4067/2012) calculations: κάλυψη, δόμηση, όγκος, εξαιρούμενοι χώροι; διάγραμμα κάλυψης; permit sheet-set presets. |
