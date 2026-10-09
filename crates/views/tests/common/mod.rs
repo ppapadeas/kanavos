@@ -557,3 +557,34 @@ pub fn save_png(d: &kanavos_drawing::Drawing, name: &str) {
     std::fs::create_dir_all(&dir).expect("output directory");
     std::fs::write(dir.join(name), png).expect("write png");
 }
+
+/// A larger model: `n` copies of the fixture house's building elements, side by side along X every 14 m (the
+/// first copy is the original). Views and annotation are kept from the original.
+pub fn houses(n: usize) -> House {
+    let h = house();
+    let mut b = Builder::new(h.doc.clone());
+    let originals: Vec<Element> = h
+        .doc
+        .elements()
+        .filter(|e| e.category().is_building_part() || matches!(e.kind, ElementKind::Space(_)))
+        .cloned()
+        .collect();
+    for k in 1..n {
+        let t = kanavos_geom::Transform2::translation(kanavos_geom::Vec2::new(14.0 * k as f64, 0.0));
+        let mut map: BTreeMap<Id, Id> = BTreeMap::new();
+        for e in &originals {
+            let id = b.id();
+            map.insert(e.id, id);
+        }
+        for e in &originals {
+            let mut c = e.clone();
+            c.id = map[&e.id];
+            c.kind = e.kind.transformed(&t);
+            if let ElementKind::Opening(o) = &mut c.kind {
+                o.host = map[&o.host];
+            }
+            b.doc = b.doc.with_element(c);
+        }
+    }
+    House { doc: b.doc, ..h }
+}
