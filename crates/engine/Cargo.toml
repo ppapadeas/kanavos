@@ -23,6 +23,7 @@ kanavos-format = { path = "../format" }
 kanavos-units = { path = "../units" }
 kanavos-geom = { path = "../geom" }
 kanavos-i18n = { path = "../i18n" }
+kanavos-drawing = { path = "../drawing" }
 serde.workspace = true
 # Exact float round trips: command logs and saved documents must replay bit for bit.
 serde_json = { workspace = true, features = ["float_roundtrip"] }

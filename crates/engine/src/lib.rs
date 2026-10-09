@@ -7,10 +7,14 @@
 //! replayed ([`Session::replay`]) or exported as a command log ([`Session::log_jsonl`]) and attached to a bug
 //! report.
 //!
-//! [`geo`] holds the plan geometry derived from walls (rooms, outlines, dimension chains) that commands need.
+//! Other modules:
+//! - [`io`] and [`export`]: the single place where file formats and exporters are connected.
+//! - [`geo`]: plan geometry derived from walls (rooms, outlines, dimension chains) that commands need.
 
 pub mod commands;
+pub mod export;
 pub mod geo;
+pub mod io;
 mod labels;
 pub mod log;
 
