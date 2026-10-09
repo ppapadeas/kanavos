@@ -34,5 +34,7 @@ egui = { version = "0.36", default-features = false }
 egui-wgpu = "0.36"
 serde.workspace = true
 serde_json.workspace = true
+# Native file dialogs (MIT). Default features use the desktop portal on Linux instead of GTK.
+rfd = "0.17"
 # PNG encoding for the visual-verification screenshot hook (MIT OR Apache-2.0; already in the tree via egui).
 png = "0.18"
