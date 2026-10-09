@@ -881,14 +881,15 @@ mod tests {
     }
 
     #[test]
-    fn local_room_detection_finds_the_drawn_rooms() {
+    fn room_detection_finds_the_drawn_rooms() {
         let doc = sample_house().unwrap();
         let ground = doc.storeys()[0].id;
         let rooms = crate::geo::detect_all_spaces(&doc, ground).unwrap();
         // Living, kitchen, dining, stairwell, shower room, hall, storage: the porch is outside.
         assert_eq!(rooms.len(), 7, "{rooms:?}");
+        // The clear area between wall faces, less the corners of the concrete columns that reach into the room.
         let largest = rooms[0].area().as_m2();
-        assert!((largest - 6.125 * 5.425).abs() < 1e-3, "{largest}");
+        assert!(largest < 6.125 * 5.425 && largest > 6.125 * 5.425 - 0.1, "{largest}");
         let first = doc.storeys()[1].id;
         // The corridor and the stairwell form one room when detected; the balcony has no walls.
         assert_eq!(crate::geo::detect_all_spaces(&doc, first).unwrap().len(), 8);

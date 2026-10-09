@@ -1,29 +1,15 @@
-//! Plan geometry derived from walls: room boundaries, building outlines and exterior dimension chains.
+//! Plan geometry derived from walls for commands: room boundaries, building outlines and exterior dimension
+//! chains.
 //!
-//! **Adapter.** Commands get this geometry only through the functions in this module. They are simple local
-//! implementations until `kanavos-elements` and `kanavos-views` provide their own (`detect_all_spaces`,
-//! `outline_from_walls`, `storey_footprint`, `auto_dimensions`); switching is a change to the bodies of
-//! [`detect_space`], [`detect_all_spaces`], [`outline_from_walls`] and [`exterior_dimensions`] only.
+//! Rooms and outlines come from `kanavos-elements` ([`detect_space`], [`detect_all_spaces`],
+//! [`outline_from_walls`] delegate to its junction-aware implementations, so they follow the same wall faces
+//! as plans and 3D). Exterior dimension chains are computed here from the outline and the openings.
 //!
-//! Method (written for this project from textbook planar-graph techniques):
-//! 1. The reference lines of the walls on a storey form a planar graph. A wall end that stops inside another
-//!    wall's thickness (a partition drawn to the inner face of an exterior wall) is extended onto that wall's
-//!    reference line, as a junction would join them.
-//! 2. Segments are split where they cross or touch, ends within 1 mm are merged, and dangling branches are
-//!    pruned, so only closed cells remain.
-//! 3. Cells are traced with the face on the left of every half-edge: bounded cells run counter-clockwise, the
-//!    outside of each building runs clockwise.
-//! 4. A cell offset inwards by the distance from each wall's reference line to its face on the cell side is a
-//!    room boundary. The outside ring offset outwards to the outer (or core) faces is the building outline.
-//!
-//! Tolerances: points closer than 1 mm are the same graph vertex; cells and rooms smaller than 0.2 m² are
-//! ignored. Failure modes: no walls on the storey, no closed cell, or a point inside a wall. Free-standing
-//! columns inside rooms are not subtracted, and curved walls are followed by chords of at most 2 mm deviation.
-
-use std::collections::{BTreeMap, BTreeSet};
+//! Tolerances: rooms and outlines smaller than 0.2 m² are ignored. Failure modes: no walls on the storey, no
+//! closed room around a point, or a point inside a wall.
 
 use kanavos_geom::{Angle, Containment, Point2, Polygon2, PolygonWithHoles, Vec2};
-use kanavos_model::{Dimension, Document, ElementKind, Id, Wall};
+use kanavos_model::{Dimension, Document, ElementKind, Id};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -45,332 +31,12 @@ pub enum OutlineFace {
     Core,
 }
 
-/// Offsets of two faces from a reference line, positive to the left.
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Sides {
-    left: f64,
-    right: f64,
-}
-
-/// A straight piece of a wall's reference line.
-#[derive(Debug, Clone, Copy)]
-struct Piece {
-    a: Vec2,
-    b: Vec2,
-    faces: Sides,
-    core: Sides,
-}
-
-impl Piece {
-    fn thickness(&self) -> f64 {
-        self.faces.left - self.faces.right
-    }
-}
-
 fn v(p: Point2) -> Vec2 {
     p.to_vec()
 }
 
 fn pt(p: Vec2) -> Point2 {
     Point2::new(p.x, p.y)
-}
-
-fn sides_of(doc: &Document, w: &Wall) -> Option<(Sides, Sides)> {
-    let layers = doc.structure_layers(&w.structure)?;
-    let thickness: f64 = layers.iter().map(|l| l.thickness.as_m()).sum();
-    let (left, right) = w.face_offsets(kanavos_units::Length::m(thickness));
-    let mut d = left;
-    let mut core: Option<Sides> = None;
-    for l in &layers {
-        let next = d - l.thickness.as_m();
-        if l.core {
-            core = Some(match core {
-                None => Sides { left: d, right: next },
-                Some(c) => Sides { left: c.left, right: next },
-            });
-        }
-        d = next;
-    }
-    let faces = Sides { left, right };
-    Some((faces, core.unwrap_or(faces)))
-}
-
-/// Straight pieces of every wall on a storey (curved walls as chords).
-fn pieces(doc: &Document, storey: Id) -> Vec<Piece> {
-    let mut out = Vec::new();
-    for (_, w) in doc.walls_on(storey) {
-        let Some((faces, core)) = sides_of(doc, w) else { continue };
-        let points: Vec<Vec2> = match w.arc() {
-            Some(arc) => arc.tessellate(0.002, 8).into_iter().map(v).collect(),
-            None => vec![v(w.start), v(w.end)],
-        };
-        for pair in points.windows(2) {
-            if let [a, b] = pair
-                && (*b - *a).length() > MERGE
-            {
-                out.push(Piece { a: *a, b: *b, faces, core });
-            }
-        }
-    }
-    out
-}
-
-/// Extends wall ends that stop inside another wall onto that wall's reference line.
-fn extend_into_bands(pieces: &mut [Piece]) {
-    let snapshot: Vec<Piece> = pieces.to_vec();
-    for (i, p) in pieces.iter_mut().enumerate() {
-        for end in [false, true] {
-            let q = if end { p.b } else { p.a };
-            let on_a_line =
-                snapshot.iter().enumerate().any(|(j, o)| j != i && distance_to_segment(q, o) < MERGE);
-            if on_a_line {
-                continue;
-            }
-            let mut best: Option<(f64, Vec2)> = None;
-            for (j, o) in snapshot.iter().enumerate() {
-                if j == i {
-                    continue;
-                }
-                let d = o.b - o.a;
-                let len2 = d.length_squared();
-                if len2 <= 0.0 {
-                    continue;
-                }
-                let t = (q - o.a).dot(d) / len2;
-                let len = len2.sqrt();
-                if t < -MERGE / len || t > 1.0 + MERGE / len {
-                    continue;
-                }
-                let s = d.cross(q - o.a) / len;
-                if s <= o.faces.left + MERGE && s >= o.faces.right - MERGE {
-                    let proj = o.a + d * t.clamp(0.0, 1.0);
-                    if best.is_none_or(|(bd, _)| s.abs() < bd) {
-                        best = Some((s.abs(), proj));
-                    }
-                }
-            }
-            if let Some((_, proj)) = best {
-                // Only extend along the piece's own direction, never fold it back.
-                let dir = p.b - p.a;
-                let moved = if end { proj - p.a } else { p.b - proj };
-                if moved.dot(dir) > 0.0 {
-                    if end {
-                        p.b = proj;
-                    } else {
-                        p.a = proj;
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn distance_to_segment(q: Vec2, p: &Piece) -> f64 {
-    let d = p.b - p.a;
-    let len2 = d.length_squared();
-    if len2 <= 0.0 {
-        return (q - p.a).length();
-    }
-    let t = ((q - p.a).dot(d) / len2).clamp(0.0, 1.0);
-    (q - (p.a + d * t)).length()
-}
-
-/// An undirected graph edge: the piece it came from and whether the piece runs from the lower to the higher
-/// vertex index.
-#[derive(Debug, Clone, Copy)]
-struct EdgeInfo {
-    piece: usize,
-    forward: bool,
-}
-
-struct Graph {
-    points: Vec<Vec2>,
-    pieces: Vec<Piece>,
-    edges: BTreeMap<(usize, usize), EdgeInfo>,
-}
-
-fn vertex(points: &mut Vec<Vec2>, p: Vec2) -> usize {
-    if let Some(i) = points.iter().position(|q| (*q - p).length() < MERGE) {
-        return i;
-    }
-    points.push(p);
-    points.len() - 1
-}
-
-impl Graph {
-    fn build(mut pieces: Vec<Piece>) -> Graph {
-        extend_into_bands(&mut pieces);
-        let n = pieces.len();
-        let mut splits: Vec<Vec<f64>> = vec![vec![0.0, 1.0]; n];
-        for i in 0..n {
-            for j in (i + 1)..n {
-                let (Some(p), Some(q)) = (pieces.get(i), pieces.get(j)) else { continue };
-                let (dp, dq) = (p.b - p.a, q.b - q.a);
-                let (lp, lq) = (dp.length(), dq.length());
-                if lp <= 0.0 || lq <= 0.0 {
-                    continue;
-                }
-                let cross = dp.cross(dq);
-                if cross.abs() <= 1e-9 * lp * lq {
-                    // Parallel: if collinear, split each at the other's ends.
-                    if (dp.cross(q.a - p.a) / lp).abs() < MERGE {
-                        for (target, other, d, l, idx) in [(p, q, dp, lp, i), (q, p, dq, lq, j)] {
-                            for e in [other.a, other.b] {
-                                let t = (e - target.a).dot(d) / (l * l);
-                                if t > MERGE / l
-                                    && t < 1.0 - MERGE / l
-                                    && let Some(s) = splits.get_mut(idx)
-                                {
-                                    s.push(t);
-                                }
-                            }
-                        }
-                    }
-                    continue;
-                }
-                let w = q.a - p.a;
-                let t = w.cross(dq) / cross;
-                let u = w.cross(dp) / cross;
-                let (et, eu) = (MERGE / lp, MERGE / lq);
-                if t >= -et && t <= 1.0 + et && u >= -eu && u <= 1.0 + eu {
-                    if let Some(s) = splits.get_mut(i) {
-                        s.push(t.clamp(0.0, 1.0));
-                    }
-                    if let Some(s) = splits.get_mut(j) {
-                        s.push(u.clamp(0.0, 1.0));
-                    }
-                }
-            }
-        }
-        let mut points = Vec::new();
-        let mut edges: BTreeMap<(usize, usize), EdgeInfo> = BTreeMap::new();
-        for (idx, (p, ts)) in pieces.iter().zip(splits.iter_mut()).enumerate() {
-            ts.sort_by(f64::total_cmp);
-            let d = p.b - p.a;
-            for pair in ts.windows(2) {
-                let [t0, t1] = pair else { continue };
-                let a = vertex(&mut points, p.a + d * *t0);
-                let b = vertex(&mut points, p.a + d * *t1);
-                if a == b {
-                    continue;
-                }
-                let key = (a.min(b), a.max(b));
-                let info = EdgeInfo { piece: idx, forward: a < b };
-                match edges.get(&key) {
-                    Some(old)
-                        if pieces.get(old.piece).map(Piece::thickness).unwrap_or(0.0) >= p.thickness() => {}
-                    _ => {
-                        edges.insert(key, info);
-                    }
-                }
-            }
-        }
-        let mut g = Graph { points, pieces, edges };
-        g.prune();
-        g
-    }
-
-    /// Removes dangling branches (vertices with one edge), repeatedly.
-    fn prune(&mut self) {
-        loop {
-            let mut degree: BTreeMap<usize, usize> = BTreeMap::new();
-            for (a, b) in self.edges.keys() {
-                *degree.entry(*a).or_default() += 1;
-                *degree.entry(*b).or_default() += 1;
-            }
-            let before = self.edges.len();
-            self.edges.retain(|(a, b), _| {
-                degree.get(a).copied().unwrap_or(0) > 1 && degree.get(b).copied().unwrap_or(0) > 1
-            });
-            if self.edges.len() == before {
-                break;
-            }
-        }
-    }
-
-    fn point(&self, i: usize) -> Vec2 {
-        self.points.get(i).copied().unwrap_or(Vec2::ZERO)
-    }
-
-    /// Distance from the reference line to the wall face (or core face) on the left of the half-edge `a → b`.
-    fn left_distance(&self, a: usize, b: usize, core: bool) -> f64 {
-        let Some(info) = self.edges.get(&(a.min(b), a.max(b))) else { return 0.0 };
-        let Some(p) = self.pieces.get(info.piece) else { return 0.0 };
-        let same = (a < b) == info.forward;
-        let s = if core { p.core } else { p.faces };
-        if same { s.left } else { -s.right }
-    }
-
-    /// Closed cycles with the face on the left of every half-edge.
-    fn cycles(&self) -> Vec<Vec<usize>> {
-        let mut adj: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-        for (a, b) in self.edges.keys() {
-            adj.entry(*a).or_default().push(*b);
-            adj.entry(*b).or_default().push(*a);
-        }
-        for (u, list) in adj.iter_mut() {
-            let c = self.point(*u);
-            list.sort_by(|x, y| {
-                let ax = (self.point(*x) - c).angle().as_rad();
-                let ay = (self.point(*y) - c).angle().as_rad();
-                ax.total_cmp(&ay)
-            });
-        }
-        let mut seen: BTreeSet<(usize, usize)> = BTreeSet::new();
-        let mut out = Vec::new();
-        let limit = self.edges.len() * 2 + 2;
-        for (a, b) in self.edges.keys() {
-            for start in [(*a, *b), (*b, *a)] {
-                if seen.contains(&start) {
-                    continue;
-                }
-                let mut cycle = Vec::new();
-                let mut he = start;
-                let mut closed = false;
-                for _ in 0..limit {
-                    if !seen.insert(he) {
-                        closed = he == start;
-                        break;
-                    }
-                    cycle.push(he.0);
-                    let (u, w) = he;
-                    let Some(list) = adj.get(&w) else { break };
-                    let Some(i) = list.iter().position(|x| *x == u) else { break };
-                    let k = list.len();
-                    let Some(next) = list.get((i + k - 1) % k) else { break };
-                    he = (w, *next);
-                }
-                if closed && cycle.len() >= 3 {
-                    out.push(cycle);
-                }
-            }
-        }
-        out
-    }
-
-    fn signed_area(&self, cycle: &[usize]) -> f64 {
-        let n = cycle.len();
-        let mut s = 0.0;
-        for (i, a) in cycle.iter().enumerate() {
-            let b = cycle.get((i + 1) % n).copied().unwrap_or(*a);
-            let (p, q) = (self.point(*a), self.point(b));
-            s += p.x * q.y - q.x * p.y;
-        }
-        s / 2.0
-    }
-
-    /// The cycle offset to the left of each edge by the wall face distance.
-    fn offset_cycle(&self, cycle: &[usize], core: bool) -> Option<Polygon2> {
-        let n = cycle.len();
-        let mut ring = Vec::with_capacity(n);
-        let mut dists = Vec::with_capacity(n);
-        for (i, a) in cycle.iter().enumerate() {
-            let b = *cycle.get((i + 1) % n)?;
-            ring.push(self.point(*a));
-            dists.push(self.left_distance(*a, b, core));
-        }
-        offset_ring(&ring, &dists).map(|r| Polygon2::new(r.into_iter().map(pt).collect()))
-    }
 }
 
 /// Offsets a closed ring: edge `i` (from vertex `i` to `i + 1`) moves to its left by `dists[i]`. Corners are
@@ -484,83 +150,53 @@ pub fn interior_point(poly: &Polygon2) -> Option<Point2> {
     None
 }
 
-fn clean(poly: Polygon2, doc: &Document) -> Option<Polygon2> {
-    let p = poly.simplified(&doc.tolerance());
-    (p.signed_area() > MIN_AREA && p.is_valid(&doc.tolerance())).then_some(p)
-}
-
 fn no_walls(storey: Id) -> CommandError {
     CommandError::InvalidArgument { field: "storey", reason: format!("storey {storey} has no closed walls") }
 }
 
-/// Room boundaries (inside faces of the enclosing walls) of every closed cell on a storey, largest first.
+/// Maps an element geometry error to a command error, keeping the failing field.
+fn geometry_error(e: kanavos_elements::GeometryError) -> CommandError {
+    match e {
+        kanavos_elements::GeometryError::Invalid { field, reason, .. } => {
+            CommandError::InvalidArgument { field, reason }
+        }
+        kanavos_elements::GeometryError::NotFound(id) => CommandError::NotFound(id),
+        other => CommandError::Geometry(other.to_string()),
+    }
+}
+
+/// Room boundaries (inside faces of the enclosing walls, columns as holes) of every closed cell on a storey,
+/// largest first. Delegates to `kanavos_elements::detect_all_spaces`, which follows junction-clean walls.
 pub fn detect_all_spaces(doc: &Document, storey: Id) -> Result<Vec<PolygonWithHoles>, CommandError> {
     doc.storey(storey).ok_or(CommandError::NotFound(storey))?;
-    let g = Graph::build(pieces(doc, storey));
-    let mut rooms: Vec<Polygon2> = g
-        .cycles()
-        .iter()
-        .filter(|c| g.signed_area(c) > MIN_AREA)
-        .filter_map(|c| g.offset_cycle(c, false))
-        .filter_map(|p| clean(p, doc))
-        .collect();
-    rooms.sort_by(|a, b| b.signed_area().total_cmp(&a.signed_area()));
-    Ok(rooms.into_iter().map(PolygonWithHoles::from).collect())
+    let mut rooms = kanavos_elements::detect_all_spaces(doc, storey).map_err(geometry_error)?;
+    rooms.retain(|r| r.area().as_m2() > MIN_AREA);
+    rooms.sort_by(|a, b| b.area().total_cmp(&a.area()));
+    Ok(rooms)
 }
 
 /// The room boundary around `point` on a storey. Fails when the point is not inside a closed cell or lies inside
 /// a wall.
 pub fn detect_space(doc: &Document, storey: Id, point: Point2) -> Result<PolygonWithHoles, CommandError> {
-    // Prefer the element rules once they implement detection.
-    match kanavos_elements::detect_space(doc, storey, point) {
-        Ok(b) => return Ok(b),
-        Err(kanavos_elements::GeometryError::Unsupported(_)) => {}
-        Err(e) => return Err(CommandError::Geometry(e.to_string())),
-    }
     doc.storey(storey).ok_or(CommandError::NotFound(storey))?;
-    let tol = doc.tolerance();
-    let g = Graph::build(pieces(doc, storey));
-    let mut best: Option<(f64, Polygon2)> = None;
-    for c in g.cycles() {
-        let area = g.signed_area(&c);
-        if area <= MIN_AREA {
-            continue;
-        }
-        let cell = Polygon2::new(c.iter().map(|i| pt(g.point(*i))).collect());
-        if !cell.contains(point, &tol) {
-            continue;
-        }
-        if best.as_ref().is_none_or(|(a, _)| area < *a)
-            && let Some(room) = g.offset_cycle(&c, false).and_then(|p| clean(p, doc))
-        {
-            best = Some((area, room));
-        }
-    }
-    let Some((_, room)) = best else {
-        return Err(CommandError::InvalidArgument {
-            field: "point",
-            reason: "is not inside a room closed by walls".into(),
-        });
-    };
-    if !room.contains(point, &tol) {
-        return Err(CommandError::InvalidArgument { field: "point", reason: "is inside a wall".into() });
-    }
-    Ok(room.into())
+    kanavos_elements::detect_space(doc, storey, point).map_err(geometry_error)
 }
 
 /// The outline of the walls on a storey at their outer (or core) faces, counter-clockwise. With several separate
 /// buildings, the largest one.
 pub fn outline_from_walls(doc: &Document, storey: Id, face: OutlineFace) -> Result<Polygon2, CommandError> {
     doc.storey(storey).ok_or(CommandError::NotFound(storey))?;
-    let g = Graph::build(pieces(doc, storey));
-    let outer = g
-        .cycles()
+    let face = match face {
+        OutlineFace::Outer => kanavos_elements::OutlineFace::Outer,
+        OutlineFace::Core => kanavos_elements::OutlineFace::Core,
+    };
+    kanavos_elements::outline_from_walls(doc, storey, face)
+        .map_err(geometry_error)?
         .into_iter()
-        .filter(|c| g.signed_area(c) < -MIN_AREA)
-        .min_by(|a, b| g.signed_area(a).total_cmp(&g.signed_area(b)))
-        .ok_or_else(|| no_walls(storey))?;
-    let ring = g.offset_cycle(&outer, face == OutlineFace::Core).ok_or_else(|| no_walls(storey))?;
-    clean(ring.to_ccw(), doc).ok_or_else(|| no_walls(storey))
+        .filter(|p| p.area().as_m2() > MIN_AREA)
+        .max_by(|a, b| a.area().total_cmp(&b.area()))
+        .map(|p| p.to_ccw())
+        .ok_or_else(|| no_walls(storey))
 }
 
 /// Options for [`exterior_dimensions`].
@@ -671,7 +307,7 @@ mod tests {
     use super::*;
     use crate::Session;
     use crate::commands::CreateElement;
-    use kanavos_model::{ReferenceLine, Structure, starter};
+    use kanavos_model::{ReferenceLine, Structure, Wall, starter};
     use kanavos_units::Length;
 
     fn wall(

@@ -114,15 +114,25 @@ impl Command for SlabFromWalls {
             if !h.is_valid(&tol) {
                 return Err(invalid("holes", "each hole needs at least three points enclosing an area"));
             }
-            if !h.vertices.iter().all(|p| outer.contains(*p, &tol)) {
+            if !h.vertices.iter().any(|p| outer.contains(*p, &tol)) {
                 return Err(invalid("holes", "must lie inside the slab outline"));
             }
-            holes.push(h.to_cw());
+            holes.push(PolygonWithHoles::from(h.clone()));
         }
+        // Holes are subtracted, so a stair well that reaches a wall face becomes a notch in the outline.
+        let region = if holes.is_empty() {
+            PolygonWithHoles::from(outer)
+        } else {
+            kanavos_geom::difference(&[PolygonWithHoles::from(outer)], &holes)
+                .map_err(|e| CommandError::Geometry(e.to_string()))?
+                .into_iter()
+                .max_by(|a, b| a.area().total_cmp(&b.area()))
+                .ok_or_else(|| invalid("holes", "leave no slab"))?
+        };
         let mut c = CreateElement::on(
             self.storey,
             ElementKind::Slab(Slab {
-                outline: PolygonWithHoles { outer, holes },
+                outline: region,
                 structure: Structure::Layered { build_up },
                 top_offset: self.top_offset,
             }),
