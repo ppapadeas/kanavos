@@ -167,6 +167,13 @@ pub fn outline_from_walls(
             }
         }
     }
+    // Columns belong to the structure: they cut the lower-priority wall cores they stand in, so without them the
+    // core ring breaks at every column.
+    for e in doc.elements_on(storey) {
+        if let ElementKind::Column(c) = &e.kind {
+            parts.push(column_profile(c).into());
+        }
+    }
     let u = union_all(&parts).map_err(|e| geom_err(storey, e))?;
     let tol = Tolerance::default();
     let outers: Vec<Polygon2> = u.iter().map(|p| p.outer.clone()).collect();

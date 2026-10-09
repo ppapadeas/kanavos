@@ -210,3 +210,21 @@ fn footprint_with_a_slab_keeps_light_wells() {
     let fp = storey_footprint(&doc, f.ground).unwrap();
     assert!(close(area(&fp), 10.31 * 8.31 - 1.0, 1e-6), "{}", area(&fp));
 }
+
+#[test]
+fn core_outline_stays_closed_with_columns_in_the_walls() {
+    // Concrete columns cut the brick core of the walls they stand in; the core outline must still be one ring
+    // around the whole building, not the pieces of core between columns.
+    let mut f = fx();
+    let ring = [(0.0, 0.0), (10.0, 0.0), (10.0, 8.0), (0.0, 8.0)];
+    for i in 0..4 {
+        f.ext_wall(ring[i], ring[(i + 1) % 4]);
+    }
+    for at in [(0.0, 0.0), (10.0, 0.0), (10.0, 8.0), (0.0, 8.0), (5.0, 0.0), (5.0, 8.0)] {
+        f.column(at, 0.3);
+    }
+    let core = outline_from_walls(&f.doc, f.ground, OutlineFace::Core).unwrap();
+    assert_eq!(core.len(), 1, "one closed core outline");
+    let a = core[0].area().as_m2();
+    assert!(a > 9.69 * 7.69 && a < 10.31 * 8.31, "core outline area {a}");
+}
