@@ -1260,11 +1260,64 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 fn parse_args<T: serde::de::DeserializeOwned>(args: serde_json::Value) -> Result<T, ParseError> {
-    serde_path_to_error::deserialize(args).map_err(|e| {
-        let inner = e.path().to_string();
-        let path = if inner == "." { "args".to_owned() } else { format!("args.{inner}") };
-        ParseError { path, message: e.into_inner().to_string() }
-    })
+    use serde_path_to_error::Segment;
+    let e = match serde_path_to_error::deserialize::<_, T>(&args) {
+        Ok(v) => return Ok(v),
+        Err(e) => e,
+    };
+    let mut path = e.path().to_string();
+    let mut message = e.inner().to_string();
+    // Element kinds are tagged by a `type` field, which hides the failing field from the path: read the kind's
+    // own data again to find it.
+    let mut at = Some(&args);
+    for seg in e.path().iter() {
+        at = match seg {
+            Segment::Map { key } => at.and_then(|v| v.get(key)),
+            Segment::Seq { index } => at.and_then(|v| v.get(*index)),
+            _ => None,
+        };
+    }
+    if let Some((inner, msg)) = at.and_then(refine_kind) {
+        if inner != "." {
+            path = if path == "." { inner } else { format!("{path}.{inner}") };
+        }
+        message = msg;
+    }
+    let path = if path == "." { "args".to_owned() } else { format!("args.{path}") };
+    Err(ParseError { path, message })
+}
+
+/// The path and message of the error inside an element kind's data, if the value is one.
+fn refine_kind(v: &serde_json::Value) -> Option<(String, String)> {
+    fn deep<T: serde::de::DeserializeOwned>(v: &serde_json::Value) -> Option<(String, String)> {
+        serde_path_to_error::deserialize::<_, T>(v)
+            .err()
+            .map(|e| (e.path().to_string(), e.inner().to_string()))
+    }
+    use kanavos_model as m;
+    let ty = v.get("type")?.as_str()?;
+    let mut obj = v.as_object()?.clone();
+    obj.remove("type");
+    let inner = serde_json::Value::Object(obj);
+    match ty {
+        "wall" => deep::<m::Wall>(&inner),
+        "slab" => deep::<m::Slab>(&inner),
+        "column" => deep::<m::Column>(&inner),
+        "beam" => deep::<m::Beam>(&inner),
+        "opening" => deep::<m::Opening>(&inner),
+        "stair" => deep::<m::Stair>(&inner),
+        "roof" => deep::<m::Roof>(&inner),
+        "railing" => deep::<m::Railing>(&inner),
+        "space" => deep::<m::Space>(&inner),
+        "object" => deep::<m::Object>(&inner),
+        "dimension" => deep::<m::Dimension>(&inner),
+        "text" => deep::<m::TextNote>(&inner),
+        "level" => deep::<m::LevelMark>(&inner),
+        "drafting" => deep::<m::Drafting>(&inner),
+        "grid" => deep::<m::GridLine>(&inner),
+        "underlay" => deep::<m::Underlay>(&inner),
+        _ => None,
+    }
 }
 
 macro_rules! any_command {
