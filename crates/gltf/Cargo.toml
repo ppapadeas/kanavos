@@ -1,0 +1,23 @@
+[package]
+name = "kanavos-gltf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "glTF 2.0 (binary .glb) export of the 3D model."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kanavos-views = { path = "../views" }
+kanavos-model = { path = "../model" }
+kanavos-solid = { path = "../solid" }
+kanavos-geom = { path = "../geom" }
+kanavos-drawing = { path = "../drawing" }
+serde_json.workspace = true
+
+[dev-dependencies]
+kanavos-units = { path = "../units" }

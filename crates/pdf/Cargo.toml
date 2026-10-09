@@ -13,3 +13,4 @@ workspace = true
 
 [dependencies]
 kanavos-drawing = { path = "../drawing" }
+miniz_oxide = "0.8"
