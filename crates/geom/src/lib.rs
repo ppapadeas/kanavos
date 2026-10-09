@@ -15,9 +15,11 @@
 //!   [`offset_polyline`], [`stroke_polyline`]).
 //! - Segment, line and circle intersections ([`segment_intersection`], [`line_circle`], [`circle_circle`]).
 //! - Half-plane clipping ([`HalfPlane`], [`clip_convex`], [`clip_by_half_plane`]) and convex hulls.
+//! - Faces of a planar arrangement of segments ([`arrangement_faces`]).
 //! - The weighted straight skeleton ([`weighted_straight_skeleton`]), the basis of hip and valley roofs.
 
 mod adjacency;
+mod arrangement;
 mod boolean;
 mod clip;
 mod d2;
@@ -30,6 +32,7 @@ mod predicates;
 mod skeleton;
 
 pub use adjacency::{SharedEdge, shared_boundaries};
+pub use arrangement::arrangement_faces;
 pub use boolean::{
     BooleanOp, MIN_AREA, bbox_of, boolean, clip_by_half_plane, difference, intersection, resolve_positive,
     split_by_half_plane, total_area, union, union_all, xor,

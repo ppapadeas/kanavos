@@ -54,6 +54,9 @@ corners that are normal in buildings.
 - Convex hull (monotone chain, exact predicate, collinear points dropped).
 - Shared boundaries between regions: collinear overlapping edges of different regions, used for ridge, hip and
   valley lines between roof planes.
+- Faces of a planar arrangement of segments: the segments are split at crossings and overlap ends, joined into a
+  planar graph and every closed region is returned, with enclosed components as holes; dangling segments close
+  nothing.
 
 ## Edge cases
 
@@ -72,6 +75,8 @@ corners that are normal in buildings.
    miter joins 36; shrunk by 2.5 it vanishes.
 5. Given an L-shaped polygon grown by 0.5 with miter joins, the result has six vertices and the exact area.
 6. Given a U-shaped polygon clipped by a horizontal half-plane through both arms, two pieces result.
+7. Two horizontal and two vertical overshooting lines give one 6 m² cell; a rectangle split by a middle line with a
+   dangling stub gives two faces of 8 m² in total; a square drawn inside another becomes its hole.
 
 ## Open questions
 
