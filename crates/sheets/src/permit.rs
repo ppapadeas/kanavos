@@ -27,6 +27,8 @@ pub struct PermitViews {
     pub sections: Vec<Id>,
     /// Elevations, by orientation (north, east, south, west order of the façade normals).
     pub elevations: Vec<Id>,
+    /// An indicative 3D view (ΚΧΠ 325 §3 η'), when one exists and can be drawn as lines.
+    pub three_d: Option<Id>,
     /// Area table and schedules.
     pub tables: Vec<Id>,
 }
@@ -241,6 +243,13 @@ pub fn ensure_permit_views(doc: &Document, locale: Locale) -> (Document, PermitV
         }
     }
 
+    // An indicative 3D view, only once views can draw it as lines (no placeholder in a permit set).
+    out.three_d = doc
+        .views()
+        .filter(|v| matches!(v.kind, ViewKind::ThreeD { .. }))
+        .map(|v| v.id)
+        .find(|v| crate::render_view(&doc, *v, locale).is_ok());
+
     // Tables: area table first, then door, window and space schedules.
     let area = find_view(&doc, |k| matches!(k, ViewKind::AreaTable)).unwrap_or_else(|| {
         add_view(&mut doc, t(locale, "sheets.areas").into_owned(), ViewKind::AreaTable, 100)
@@ -323,6 +332,9 @@ pub fn permit_set(doc: &Document, locale: Locale) -> Result<Document, SheetError
     }
     if !views.elevations.is_empty() {
         groups.push((t(locale, "sheets.elevations").into_owned(), views.elevations.clone()));
+    }
+    if let Some(v) = views.three_d {
+        groups.push((t(locale, "sheets.three_d").into_owned(), vec![v]));
     }
     if !views.tables.is_empty() {
         groups.push((t(locale, "sheets.tables").into_owned(), views.tables.clone()));

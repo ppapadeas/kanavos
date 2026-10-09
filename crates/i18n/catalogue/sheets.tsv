@@ -19,6 +19,7 @@ sheets.sections	Τομές	Sections
 sheets.elevations	Όψεις	Elevations
 sheets.areas	Πίνακας εμβαδών	Area table
 sheets.tables	Πίνακες	Tables
+sheets.three_d	Τρισδιάστατη απεικόνιση	3D view
 sheets.view.site_plan	Τοπογραφικό διάγραμμα	Site plan
 sheets.view.section	Τομή {m}-{m}	Section {m}-{m}
 sheets.elev.n	Όψη βόρεια	North elevation

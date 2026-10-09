@@ -58,17 +58,28 @@ fn permit_views_are_created_once() {
 
 #[test]
 fn sheets_follow_the_permit_order_with_numbers() {
-    let doc = permit_set(&house(), Locale::El).unwrap();
+    let house = house();
+    // The indicative 3D sheet appears once 3D views can be drawn as lines.
+    let three_d = house
+        .views()
+        .filter(|v| matches!(v.kind, ViewKind::ThreeD { .. }))
+        .any(|v| kanavos_sheets::render_view(&house, v.id, Locale::El).is_ok());
+    let n = if three_d { 7 } else { 6 };
+    let doc = permit_set(&house, Locale::El).unwrap();
     let sheets = doc.sheets();
-    let numbers: Vec<&str> = sheets.iter().map(|s| s.number.as_str()).collect();
-    assert_eq!(numbers, ["Α-01", "Α-02", "Α-03", "Α-04", "Α-05", "Α-06"]);
+    let numbers: Vec<String> = sheets.iter().map(|s| s.number.clone()).collect();
+    let expected: Vec<String> = (1..=n).map(|i| format!("Α-{i:02}")).collect();
+    assert_eq!(numbers, expected);
     let kinds: Vec<Vec<ViewKind>> = sheets.iter().map(|s| view_kinds(&doc, s)).collect();
     assert!(matches!(kinds[0][..], [ViewKind::SitePlan, ViewKind::CoverageDiagram]));
     assert!(matches!(kinds[1][..], [ViewKind::Plan { .. }]));
     assert!(matches!(kinds[2][..], [ViewKind::Plan { .. }]));
     assert!(kinds[3].iter().all(|k| matches!(k, ViewKind::Section { .. })) && kinds[3].len() == 2);
     assert!(kinds[4].iter().all(|k| matches!(k, ViewKind::Elevation { .. })) && kinds[4].len() == 4);
-    assert!(matches!(kinds[5][0], ViewKind::AreaTable));
+    if three_d {
+        assert!(matches!(kinds[5][..], [ViewKind::ThreeD { .. }]));
+    }
+    assert!(matches!(kinds[n - 1][0], ViewKind::AreaTable));
     assert_eq!(sheets[1].name, "Κάτοψη ισογείου");
     // Sheets are A-series and at most A1 for a house.
     for s in &sheets {
@@ -81,7 +92,7 @@ fn sheets_follow_the_permit_order_with_numbers() {
     }
     // A second run adds a new set numbered after the first.
     let again = permit_set(&doc, Locale::El).unwrap();
-    assert_eq!(again.sheets().last().unwrap().number, "Α-12");
+    assert_eq!(again.sheets().last().unwrap().number, format!("Α-{:02}", 2 * n));
 }
 
 fn overlaps(a: &Rect, b: &Rect) -> bool {

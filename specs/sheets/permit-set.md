@@ -40,7 +40,8 @@ Without a building footprint no section or elevation is created.
 
 ### Sheets
 
-Groups, in order: site plan with coverage diagram; one sheet per plan; sections; elevations; tables. Each group
+Groups, in order: site plan with coverage diagram; one sheet per plan; sections; elevations; an indicative 3D
+view (ΚΧΠ 325 §3 η'), only when the 3D view can be drawn as lines; tables. Each group
 takes as many consecutive views as fit on an A1 sheet (a larger view gets its own sheet), and each sheet the
 smallest paper that holds it (sheets.md). Sheets are numbered `Α-01`, `Α-02`, … after the highest existing
 `Α-` number; groups split over several sheets are named "… (1/2)". Every sheet has a title block.

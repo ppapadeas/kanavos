@@ -128,10 +128,16 @@ pub fn render_view(doc: &Document, view: Id, locale: Locale) -> Result<Drawing, 
             kanavos_views::filter_layers(&mut d, &v.hidden_layers);
             d
         }
-        ViewKind::AreaTable => stack_tables(
-            &[kanavos_rules_gr::terms_table(doc, locale), kanavos_rules_gr::area_table(doc, locale)],
-            locale,
-        ),
+        ViewKind::AreaTable => {
+            let report = kanavos_rules_gr::nok_report(doc);
+            stack_tables(
+                &[
+                    kanavos_rules_gr::terms_table_of(doc, &report, locale),
+                    kanavos_rules_gr::area_table_of(doc, &report, locale),
+                ],
+                locale,
+            )
+        }
         ViewKind::Schedule { schedule } => {
             stack_tables(&[kanavos_schedules::schedule(doc, *schedule, locale)], locale)
         }
