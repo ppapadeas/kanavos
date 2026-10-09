@@ -1,9 +1,21 @@
 # key	el	en
 tools.select	Επιλογή	Select
 tools.wall	Τοίχος	Wall
+tools.slab	Πλάκα	Slab
+tools.roof	Στέγη	Roof
+tools.space	Χώρος	Space
+tools.fill	Γέμισμα	Fill
+tools.measure	Μέτρηση	Measure
+tools.plot	Οικόπεδο	Plot
 
+tools.field.point	Θέση	Position
 tools.field.length	Μήκος	Length
 tools.field.angle	Γωνία	Angle
+tools.field.offset	Μετατόπιση	Offset
+tools.field.dx	Δx	Δx
+tools.field.dy	Δy	Δy
+tools.field.rise	Βέλος	Rise
+tools.input.unreadable	Η πληκτρολόγηση δεν αναγνωρίζεται (π.χ. 3,20 ή 320cm ή @2<90)	Typed input not recognised (e.g. 3.20, 320cm or @2<90)
 
 tools.snap.free	ελεύθερο	free
 tools.snap.endpoint	άκρο	endpoint
@@ -65,3 +77,31 @@ tools.select.prompt	Επιλέξτε στοιχεία· σύρετε για με
 
 tools.wall.start	Κάντε κλικ στην αρχή του τοίχου	Click the start of the wall
 tools.wall.next	Κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	Click the next point or type a length; Enter to finish
+tools.wall.close	Κλικ για κλείσιμο της αλυσίδας τοίχων	Click to close the chain of walls
+tools.wall.rect_start	Κάντε κλικ στην πρώτη γωνία των τοίχων	Click the first corner of the walls
+tools.wall.rect_end	Κάντε κλικ στην απέναντι γωνία ή πληκτρολογήστε Δx και Δy	Click the opposite corner or type Δx and Δy
+tools.wall.arc_end	Κάντε κλικ στο τέλος του καμπύλου τοίχου	Click the end of the curved wall
+tools.wall.arc_through	Κάντε κλικ σε σημείο του τόξου ή πληκτρολογήστε το βέλος	Click a point on the arc or type its rise
+tools.wall.arc_too_deep	Το τόξο ξεπερνά το ημικύκλιο· χωρίστε το σε δύο τοίχους	The arc is more than a half circle; split it into two walls
+tools.wall.no_structure	Δεν υπάρχει υλικό ή διαστρωμάτωση για τον τοίχο	There is no material or build-up for the wall
+
+tools.outline.start	{what}: κάντε κλικ στην πρώτη κορυφή του περιγράμματος ή πληκτρολογήστε συντεταγμένες	{what}: click the first vertex of the outline or type coordinates
+tools.outline.next	{what}: κάντε κλικ στην επόμενη κορυφή ή πληκτρολογήστε μήκος	{what}: click the next vertex or type a length
+tools.outline.next_or_close	{what}: επόμενη κορυφή· κλικ στην πρώτη κορυφή, διπλό κλικ ή Enter για κλείσιμο	{what}: next vertex; click the first vertex, double-click or press Enter to close
+tools.outline.rect_start	{what}: κάντε κλικ στην πρώτη γωνία του ορθογωνίου	{what}: click the first corner of the rectangle
+tools.outline.rect_end	{what}: κάντε κλικ στην απέναντι γωνία ή πληκτρολογήστε Δx και Δy	{what}: click the opposite corner or type Δx and Δy
+tools.outline.pick	{what}: κάντε κλικ μέσα σε χώρο που κλείνεται από τοίχους	{what}: click inside an area enclosed by walls
+tools.outline.close	Κλικ για κλείσιμο του περιγράμματος	Click to close the outline
+tools.outline.too_small	Το περίγραμμα χρειάζεται τουλάχιστον τρία σημεία που περικλείουν εμβαδόν	The outline needs at least three points enclosing an area
+tools.outline.detect_unavailable	Η εύρεση περιγράμματος από τοίχους δεν είναι ακόμη διαθέσιμη· σχεδιάστε το περίγραμμα	Finding the outline from walls is not available yet; draw the outline
+tools.outline.detect_failed	Οι τοίχοι δεν κλείνουν γύρω από αυτό το σημείο ({reason})· σχεδιάστε το περίγραμμα	The walls do not enclose this point ({reason}); draw the outline
+tools.roof.flip_hint	το πλήκτρο αναστροφής αλλάζει την κεκλιμένη πλευρά	the flip key changes the sloped edge
+
+tools.measure.start	Κάντε κλικ στο πρώτο σημείο της μέτρησης	Click the first point to measure
+tools.measure.next	Επόμενο σημείο· κλικ στο πρώτο σημείο για εμβαδόν, Esc για νέα μέτρηση	Next point; click the first point for the area, Esc to start again
+tools.measure.segment	Τμήμα	Segment
+tools.measure.total	Σύνολο	Total
+tools.measure.area	Εμβαδόν	Area
+tools.measure.result	Εμβαδόν {area}, περίμετρος {perimeter}	Area {area}, perimeter {perimeter}
+
+tools.history.wall_rectangle	Τοίχοι ορθογωνίου	Rectangle of walls

@@ -1,12 +1,20 @@
 //! Interactive tools, snapping and inference, typed input.
 //!
-//! Layer L8. See `docs/architecture.md` and `docs/ux.md` §3.
+//! Layer L8. See `docs/architecture.md`, `docs/ux.md` §3 and the behaviour specs in `specs/tools/`.
 //!
 //! A tool is a small state machine. The canvas feeds it [`ToolEvent`]s in model coordinates; the tool answers with
-//! a [`ToolOutput`]: preview geometry, commands to run, the snap it used, a prompt for the status bar and typed
-//! input fields to show next to the cursor. Tools never change the document themselves (ADR-0005).
+//! a [`ToolOutput`]: preview geometry, commands to run, the snap it used, a prompt for the status bar, typed
+//! input fields to show next to the cursor, handles of the selection and a text box when it needs text. Tools
+//! never change the document themselves (ADR-0005): everything they do is a command.
+//!
+//! Snapping uses a spatial index shared by all tools ([`Snapper::cached`]), so pointer moves stay fast on large
+//! storeys.
 
+mod common;
 pub mod input;
+mod measure;
+mod outline;
+mod preview;
 mod select;
 mod settings;
 pub mod snap;
@@ -20,10 +28,13 @@ use kanavos_geom::Point2;
 use kanavos_model::{Document, ElementKind, Id};
 use kanavos_units::Locale;
 
+pub use measure::MeasureTool;
+pub use outline::OutlineTool;
 pub use select::SelectTool;
 pub use settings::{
-    BeamSettings, ColumnSettings, OpeningSettings, RailingSettings, RoofKind, RoofSettings, SlabSettings,
-    SpaceSettings, StairSettings, TextSettings, ToolSettings, WallSettings,
+    BeamSettings, ColumnSettings, DimensionOrientation, DimensionSettings, GridSettings, LevelSettings,
+    ObjectPlacement, OpeningSettings, OutlineMode, RailingSettings, RoofKind, RoofSettings, SectionSettings,
+    SlabSettings, SpaceSettings, StairSettings, TextSettings, ToolSettings, WallMode, WallSettings,
 };
 pub use snap::{SnapHint, SnapQuery, SnapResult, SnapSettings, Snapper};
 pub use wall::WallTool;
@@ -194,7 +205,7 @@ pub struct Modifiers {
 /// Keys tools react to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
-    /// Commit typed input or finish a chain.
+    /// Commit typed input or finish a chain (with Shift in the text box: a new line).
     Enter,
     /// Back out one step.
     Escape,
@@ -204,8 +215,12 @@ pub enum Key {
     Tab,
     /// Delete the selection.
     Delete,
-    /// Flip side (e.g. door swing, wall reference side).
+    /// Flip side (door swing hand, wall reference side, roof slope edge, dimension orientation, object mirror).
     Flip,
+    /// Rotate: turns an object or column being placed by 90°; starts rotating the selection in the select tool.
+    Rotate,
+    /// Mirror the selection about an axis (select tool).
+    Mirror,
 }
 
 /// Input delivered to a tool. Positions are model coordinates (metres), not yet snapped.
@@ -248,7 +263,7 @@ pub enum ToolEvent {
         /// Modifiers.
         mods: Modifiers,
     },
-    /// Characters typed while the canvas has focus (numbers go to typed input).
+    /// Characters typed while the canvas has focus (numbers go to typed input, text to the text box).
     Text(String),
 }
 
@@ -279,12 +294,56 @@ pub enum CursorHint {
     Grab,
 }
 
+/// What dragging a handle does; the canvas picks the handle's glyph from it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HandleRole {
+    /// The end of a wall, beam, line or grid line (stretches it; connected wall ends follow).
+    End,
+    /// A vertex of an outline or path.
+    Vertex,
+    /// The midpoint of an outline edge: dragging inserts a new vertex there.
+    InsertVertex,
+    /// Moves the element (a column, object, text, level mark, stair, dimension line, opening along its wall, or
+    /// a wall sideways).
+    Move,
+    /// A jamb of a door, window or void: changes the width, keeping the other jamb in place.
+    Width,
+}
+
+/// An on-canvas handle of a selected element.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Handle {
+    /// Position in model coordinates.
+    pub at: Point2,
+    /// What dragging it does.
+    pub role: HandleRole,
+    /// The element it edits.
+    pub element: Id,
+    /// Under the pointer (draw it highlighted).
+    pub hot: bool,
+}
+
+/// A text box the canvas shows while the text tool collects text. Typed characters arrive as
+/// [`ToolEvent::Text`]; Enter commits, Shift+Enter starts a new line, Escape cancels.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextEntry {
+    /// Anchor of the first line's baseline, model coordinates.
+    pub at: Point2,
+    /// Text typed so far (lines separated by `\n`).
+    pub text: String,
+    /// Text height on paper, millimetres.
+    pub size_mm: f64,
+    /// Rotation, radians counter-clockwise.
+    pub rotation: f64,
+}
+
 /// What a tool returns for each event.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ToolOutput {
-    /// Rubber-band and ghost geometry in model metres.
+    /// Rubber-band and ghost geometry in model metres, at the plan's scale (text and symbols sized for it).
     pub preview: Drawing,
-    /// Commands to run now (in order; the canvas runs them as one undo step when there are several).
+    /// Commands to run now. Several commands that form one operation arrive as a single labelled `batch`, so
+    /// each operation is one undo step.
     pub commands: Vec<AnyCommand>,
     /// A new selection, when the tool changes it.
     pub selection: Option<BTreeSet<Id>>,
@@ -298,6 +357,19 @@ pub struct ToolOutput {
     pub finished: bool,
     /// Cursor shape.
     pub cursor: CursorHint,
+    /// Handles of the selection (select tool).
+    pub handles: Vec<Handle>,
+    /// Elements to pre-highlight (the element under the pointer, or what a click would act on).
+    pub highlight: Vec<Id>,
+    /// A text box to show (text tool).
+    pub text_entry: Option<TextEntry>,
+    /// Why the previewed operation cannot be done as it stands (e.g. an opening wider than its wall). The
+    /// preview is drawn in the warning colour and a click does nothing until the problem goes away.
+    pub warning: Option<String>,
+    /// Recently hovered points the pointer aligns with (draw a small cross on each).
+    pub tracked: Vec<Point2>,
+    /// The tool takes typed characters now: route character keys to [`ToolEvent::Text`] instead of shortcuts.
+    pub typing: bool,
 }
 
 /// Everything a tool may read.
@@ -333,7 +405,12 @@ pub trait Tool {
 /// Creates a tool. Tools not implemented yet fall back to selection.
 pub fn make_tool(id: ToolId) -> Box<dyn Tool> {
     match id {
+        ToolId::Select => Box::new(SelectTool::default()),
         ToolId::Wall => Box::new(WallTool::default()),
+        ToolId::Slab | ToolId::Roof | ToolId::Space | ToolId::Fill | ToolId::Plot => {
+            Box::new(OutlineTool::new(id))
+        }
+        ToolId::Measure => Box::new(MeasureTool::default()),
         _ => Box::new(SelectTool::default()),
     }
 }

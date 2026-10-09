@@ -1681,6 +1681,7 @@ dependencies = [
  "kanavos-model",
  "kanavos-objects",
  "kanavos-units",
+ "kanavos-views",
 ]
 
 [[package]]
