@@ -11,7 +11,6 @@ use kanavos_model::{BuildUp, Category, Document, Element, ElementKind, Id, Mater
 use kanavos_objects::{OpeningContext, object_parts, opening_parts};
 use kanavos_solid::Mesh;
 
-use crate::holes::wall_solids_with_openings;
 use crate::meshops::{V3, clip_polygon};
 
 /// One coloured mesh of an element.
@@ -119,17 +118,6 @@ pub fn element_scene_items(doc: &Document, id: Id) -> Vec<SceneItem> {
                 items.push(item(mesh, None, part.color));
             }
         }
-        ElementKind::Wall(_) => {
-            if let Some(layers) = wall_solids_with_openings(doc, id) {
-                for (mesh, material) in layers {
-                    items.push(item(mesh, material, color_of(material)));
-                }
-            } else if let Ok(solids) = solids(doc, id) {
-                for s in solids {
-                    items.push(item(s.mesh, s.material, color_of(s.material)));
-                }
-            }
-        }
         _ => {
             if let Ok(solids) = solids(doc, id) {
                 for s in solids {
@@ -204,6 +192,25 @@ fn deps_of(doc: &Document, e: &Element) -> Deps {
                             related.push(oe.clone());
                         }
                         structure_deps(doc, &other.structure, &mut materials, &mut build_ups);
+                    }
+                }
+                // Walls are clipped to the underside of roofs on their storey and cut by the columns standing in
+                // them, so those change the wall's solids too.
+                for other in doc.elements_on(s) {
+                    match &other.kind {
+                        ElementKind::Roof(r) => {
+                            related.push(other.clone());
+                            structure_deps(doc, &r.structure, &mut materials, &mut build_ups);
+                        }
+                        ElementKind::Column(c) => {
+                            let [x, y] = c.position.xy();
+                            let m = 1.0;
+                            if b[0] - m <= x && x <= b[2] + m && b[1] - m <= y && y <= b[3] + m {
+                                related.push(other.clone());
+                                materials.push(c.material);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

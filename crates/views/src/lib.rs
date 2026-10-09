@@ -18,7 +18,6 @@ mod annot;
 mod autodim;
 mod cut;
 mod hlr;
-mod holes;
 mod meshops;
 mod plan;
 mod poly;

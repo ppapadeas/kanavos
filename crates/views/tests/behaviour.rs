@@ -218,6 +218,39 @@ fn scene_cache_reuses_unchanged_elements() {
 }
 
 #[test]
+fn scene_cache_rebuilds_walls_when_a_roof_on_their_storey_changes() {
+    // Walls are clipped to the underside of roofs on their storey, so a roof edit must refresh the walls' cached
+    // meshes even though the walls themselves did not change.
+    let h = common::house();
+    let opts = SceneOptions::default();
+    let mut cache = SceneCache::new();
+    let (doc, roof) = h.doc.with_new_id();
+    let roof_kind = |base: f64| {
+        ElementKind::Roof(kanavos_model::Roof {
+            outline: kanavos_geom::Polygon2::from_m(&[
+                (-1.0, -1.0),
+                (13.0, -1.0),
+                (13.0, 11.0),
+                (-1.0, 11.0),
+            ]),
+            base: Length::m(base),
+            structure: kanavos_model::Structure::Basic {
+                material: h.doc.materials().next().unwrap().id,
+                thickness: Length::cm(20.0),
+            },
+            shape: kanavos_model::RoofShape::Flat { parapet: None },
+        })
+    };
+    let doc = doc.with_element(Element::on_storey(roof, h.ground, roof_kind(4.0)));
+    let _ = cache.scene(&doc, &opts);
+    let mut e = doc.element(roof).unwrap().clone();
+    e.kind = roof_kind(2.5);
+    let lowered = doc.with_element(e);
+    let cached = cache.scene(&lowered, &opts);
+    assert_eq!(cached, scene(&lowered, &opts), "cached scene matches a fresh one after the roof moved");
+}
+
+#[test]
 fn storey_filter_and_section_box() {
     let h = common::house();
     let only_ground =
