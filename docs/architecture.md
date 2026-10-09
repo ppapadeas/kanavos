@@ -27,13 +27,13 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L9  kanavos-ui (egui front end)   kanavos-mcp (MCP adapter)
  L8  kanavos-tools (interactive tools, snapping)   kanavos-render (wgpu)   kanavos-control (JSON-RPC)
  L7  kanavos-engine (session, command bus, undo, scheduling, selection)
- L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf
+ L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf   kanavos-gltf
  L5  kanavos-views (plan/section/elevation/3D derivation, hidden-line removal)   kanavos-schedules   kanavos-rules-gr
  L4  kanavos-elements (walls, slabs, openings, roofs, stairs, spaces …)   kanavos-objects (parametric objects)
- L3  kanavos-model (project document, attributes, relations, IDs)
+ L3  kanavos-model (project document, attributes, relations, IDs)   kanavos-raster (drawing → PNG)
  L2  kanavos-solid (solid modelling façade)   kanavos-drawing (2D drawing primitives)   kanavos-geo (CRS, ΕΓΣΑ87)
  L1  kanavos-geom   kanavos-i18n (message catalogue, el/en)
- L0  kanavos-units
+ L0  kanavos-units   kanavos-fonts (font discovery, glyph outlines, built-in stroke font)
  dev kanavos-testkit (fixtures, golden drawings, visual diffs)
 ```
 
@@ -42,11 +42,13 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | Crate | Owns |
 | --- | --- |
 | `kanavos-units` | Lengths, angles, areas, volumes; tolerances; locale-aware formatting (decimal comma for `el`). |
+| `kanavos-fonts` | Discovery of an installed Greek-capable sans-serif font (fonts are not bundled), glyph outlines and advance widths, and a built-in single-stroke lettering font so text output never fails. |
 | `kanavos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
 | `kanavos-i18n` | The message catalogue: every user-facing string, in Greek and English, one file per area. |
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
-| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
+| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. Output helpers: hatch expansion, dashing, text layout, page placement and SVG export. |
 | `kanavos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |
+| `kanavos-raster` | Antialiased rendering of drawings to RGBA images and PNG for previews and thumbnails. |
 | `kanavos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
 | `kanavos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |
 | `kanavos-objects` | Parametric object system for doors, windows, furniture and fixtures, in a sandboxed language (ADR‑0006). |
@@ -58,9 +60,10 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-ifc` | IFC 4.3 (ISO 16739‑1:2024) import/export over STEP Part 21. |
 | `kanavos-dxf` | DXF import (survey, underlays) and export (drawings). |
 | `kanavos-pdf` | Vector PDF export, PDF/A for archiving. |
+| `kanavos-gltf` | glTF 2.0 binary (`.glb`) export of the 3D model for visualisation tools. |
 | `kanavos-engine` | Open session, command bus, undo/redo, selection, change propagation, background job scheduling and cancellation, autosave. |
 | `kanavos-tools` | Interactive tools that turn input into commands; snapping and inference; typed numeric input. |
-| `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu). |
+| `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu): offscreen viewport image, orbit camera, picking, section box, edges, shadows and ambient occlusion; headless rendering for tests and batch export (ADR‑0007). |
 | `kanavos-control` | JSON-RPC 2.0 control protocol over stdio and local WebSocket (see [`control-protocol.md`](control-protocol.md)). |
 | `kanavos-ui` | The desktop interface (egui). Contains no model logic. |
 | `kanavos-mcp` | Exposes the control protocol as an MCP server for automation clients. |
@@ -112,8 +115,8 @@ pub trait Command {
 ## 6. Files
 
 - **Native `.kanavos`**: a ZIP container with a versioned JSON model (deterministic key order for diffs), binary
-  geometry caches that can always be rebuilt, embedded assets and a manifest. Documented in `docs/format.md`
-  (to write). Readers must accept older schema versions through migrations.
+  geometry caches that can always be rebuilt, embedded assets and a manifest. Documented in
+  [`format.md`](format.md). Readers must accept older schema versions through migrations.
 - **IFC 4.3** import and export is a first-class path, tested against buildingSMART sample files and models exported
   from other BIM tools.
 - **DXF** for survey underlays (τοπογραφικό) and drawing export. **PDF** vector export, PDF/A for archiving.
@@ -128,6 +131,8 @@ pub trait Command {
 | Edit a wall → section updated | ≤ 300 ms, streamed |
 | Open a 50,000-element project | ≤ 2 s to first interactive view |
 | Save | ≤ 200 ms incremental, never blocks input |
+| 3D viewport frame, 5,000 elements / 0.5 M triangles at 1920 × 1080 | ≤ 16 ms (60 fps), integrated graphics |
+| Pick the element under the cursor in 3D | ≤ 1 frame (asynchronous) |
 
 `cargo xtask bench` tracks these on reference projects; regressions over 10 % fail CI.
 
@@ -153,9 +158,14 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Need | Candidate | Licence (verify on adoption) |
 | --- | --- | --- |
 | GPU | wgpu | MIT OR Apache‑2.0 |
+| GPU buffer casts | bytemuck | Zlib OR Apache‑2.0 OR MIT |
+| Blocking on GPU futures (headless) | pollster | Apache‑2.0 OR MIT |
 | UI | egui / eframe, with AccessKit | MIT OR Apache‑2.0 |
 | Mesh booleans | manifold-rust (pure-Rust port of Manifold) | Apache‑2.0 |
 | B-rep (later) | truck / monstertruck | Apache‑2.0 |
 | STEP parsing | ruststep, or own Part 21 parser | Apache‑2.0 |
 | Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
 | Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
+| Font parsing | ttf-parser | MIT OR Apache‑2.0 |
+| Rasterising | tiny-skia (+ png) | BSD‑3‑Clause (png: MIT OR Apache‑2.0) |
+| Compression (PDF streams) | miniz_oxide | MIT OR Zlib OR Apache‑2.0 |

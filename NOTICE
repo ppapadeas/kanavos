@@ -17,3 +17,6 @@ affiliated with, sponsored by or endorsed by GRAPHISOFT SE, Autodesk, Inc. or an
 IFC is an open standard published as ISO 16739-1 and maintained by buildingSMART International.
 
 Third-party components and their licences are listed in ASSETS.md and enforced by deny.toml.
+
+Some dependencies are licensed under the Boost Software License 1.0 (BSL-1.0): clipboard-win and
+error-code, used for clipboard access on Windows. Each is allowed by a single-crate exception in deny.toml.

@@ -12,6 +12,7 @@ publish = false
 workspace = true
 
 [dependencies]
+kanavos-fonts = { path = "../fonts" }
 kanavos-geom = { path = "../geom" }
 kanavos-units = { path = "../units" }
 serde.workspace = true
@@ -19,3 +20,4 @@ schemars.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+roxmltree = "0.20"

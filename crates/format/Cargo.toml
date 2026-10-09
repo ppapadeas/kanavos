@@ -13,3 +13,14 @@ workspace = true
 
 [dependencies]
 kanavos-model = { path = "../model" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+serde_path_to_error = "0.1"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+# Selects the pure-Rust DEFLATE backend (miniz_oxide) for zip.
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+
+[dev-dependencies]
+kanavos-geom = { path = "../geom" }
+kanavos-drawing = { path = "../drawing" }
+proptest = { version = "1", default-features = false, features = ["std"] }

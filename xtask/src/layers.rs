@@ -3,12 +3,14 @@
 
 pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-units", 0),
+    ("kanavos-fonts", 0),
     ("kanavos-geom", 1),
     ("kanavos-i18n", 1),
     ("kanavos-solid", 2),
     ("kanavos-drawing", 2),
     ("kanavos-geo", 2),
     ("kanavos-model", 3),
+    ("kanavos-raster", 3),
     ("kanavos-elements", 4),
     ("kanavos-objects", 4),
     ("kanavos-views", 5),
@@ -19,6 +21,7 @@ pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-ifc", 6),
     ("kanavos-dxf", 6),
     ("kanavos-pdf", 6),
+    ("kanavos-gltf", 6),
     ("kanavos-engine", 7),
     ("kanavos-tools", 8),
     ("kanavos-render", 8),
