@@ -238,6 +238,7 @@ fn command_list_has_schemas() {
     assert_eq!(c["name"], "wall.join");
     assert_eq!(c["label"], "Join walls");
     assert!(c["schema"]["properties"]["first"].is_object());
+    assert!(c["example"]["first"].is_number());
     let all = t.call("command.list", json!({ "schemas": false })).unwrap();
     assert!(all["commands"].as_array().unwrap().len() >= 43);
     assert!(all["commands"][0].get("schema").is_none());

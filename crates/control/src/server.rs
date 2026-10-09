@@ -526,6 +526,10 @@ impl Server {
                 m.insert("help".into(), json!(kanavos_engine::commands::command_help(n, locale)));
                 if p.schemas {
                     m.insert("schema".into(), AnyCommand::args_schema(n).unwrap_or(Value::Null));
+                    m.insert(
+                        "example".into(),
+                        kanavos_engine::commands::examples::example(n).unwrap_or(Value::Null),
+                    );
                 }
                 Value::Object(m)
             })
