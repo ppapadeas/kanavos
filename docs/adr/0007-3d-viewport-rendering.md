@@ -22,7 +22,9 @@ image (with egui: `egui_wgpu::Renderer::register_native_texture`). The crate has
 - **Depth.** Reverse-Z with a 32-bit float depth buffer and an infinite far plane for perspective, which keeps
   depth precision roughly constant at every distance. Parallel projection fits its depth range to the scene.
 - **Batching.** Objects are packed into chunks of up to 256 objects, each with one vertex, index and edge buffer,
-  so a house draws in a few dozen calls and editing one element rebuilds one chunk. Each vertex carries a dense
+  so a house draws in a few dozen calls and editing one element rebuilds one chunk. Chunks outside the view
+  frustum are skipped, which also makes picks cheap (their frustum covers a few pixels). Mesh preparation for a
+  whole scene runs on all cores. Each vertex carries a dense
   object slot; per-object state (hidden, ghosted, selected, hovered) lives in a small integer texture, so
   selection and visibility changes never touch geometry. Transparent meshes share one buffer with a draw range
   each and are sorted back to front every frame.
@@ -51,6 +53,8 @@ image (with egui: `egui_wgpu::Renderer::register_native_texture`). The crate has
   material. Section and plan drawings come from `kanavos-views`, not from this renderer.
 - Shadows use one map fitted to the whole visible scene; very large sites get softer shadows. Fitting the map to
   the view frustum (cascades) can be added behind the same interface.
-- Measured on an integrated GPU (AMD Radeon 780M, Vulkan): 5,000 objects / 460,000 triangles at 1920 × 1080 with
-  MSAA 4×, shadows, ambient occlusion and edges render in about 10 ms per frame; preparing the scene takes about
-  130 ms once, editing one object about 1 ms, and a blocking pick about 1 ms.
+- Measured on an integrated GPU (AMD Radeon 780M, Vulkan) on an otherwise idle machine: 5,000 objects / 460,000
+  triangles at 1920 × 1080 with MSAA 4×, shadows, ambient occlusion and edges render in about 10 ms per frame;
+  preparing the scene takes about 30 ms (130 ms on one core), editing one object about 1 ms, and a blocking pick
+  about 1 ms. `cargo test -p kanavos-render --release --test headless -- --ignored --nocapture` repeats the
+  measurement.

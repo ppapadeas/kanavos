@@ -324,31 +324,33 @@ impl Renderer {
             self.origin = scene.origin;
             self.flags_dirty = true;
         }
-        let mut groups: HashMap<u64, Vec<&SceneMesh>> = HashMap::new();
-        let mut order = Vec::new();
+        // Group meshes by id, keeping the order in which ids first appear.
+        let mut index: HashMap<u64, usize> = HashMap::new();
+        let mut groups: Vec<(u64, Vec<&SceneMesh>)> = Vec::new();
         for m in &scene.meshes {
-            let g = groups.entry(m.id).or_default();
-            if g.is_empty() {
-                order.push(m.id);
+            match index.get(&m.id) {
+                Some(&i) => {
+                    if let Some(g) = groups.get_mut(i) {
+                        g.1.push(m);
+                    }
+                }
+                None => {
+                    index.insert(m.id, groups.len());
+                    groups.push((m.id, vec![m]));
+                }
             }
-            g.push(m);
         }
         let stale: Vec<u64> =
-            self.store.objects.keys().filter(|id| !groups.contains_key(id)).copied().collect();
+            self.store.objects.keys().filter(|id| !index.contains_key(id)).copied().collect();
         let mut update = SceneUpdate::default();
         for id in stale {
             if self.store.remove(id) {
                 update.removed += 1;
             }
         }
-        for id in order {
-            let Some(meshes) = groups.get(&id) else { continue };
-            if self.store.upsert(id, meshes, self.cos_crease) {
-                update.changed += 1;
-            } else {
-                update.unchanged += 1;
-            }
-        }
+        let (changed, unchanged) = self.store.upsert_many(&groups, self.cos_crease);
+        update.changed = changed;
+        update.unchanged = unchanged;
         if update.changed + update.removed > 0 {
             self.flags_dirty = true;
             self.visibility_revision += 1;
@@ -813,7 +815,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.pipelines.shadow);
             pass.set_bind_group(0, &self.shadow_bind_group, &[]);
-            stats.draw_calls += self.draw_opaque_chunks(&mut pass);
+            stats.draw_calls += self.draw_opaque_chunks(&mut pass, None);
         }
 
         let Some(targets) = self.targets.as_ref() else {
@@ -872,7 +874,7 @@ impl Renderer {
             stats.draw_calls += 1;
 
             pass.set_pipeline(&self.pipelines.opaque);
-            stats.draw_calls += self.draw_opaque_chunks(&mut pass);
+            stats.draw_calls += self.draw_opaque_chunks(&mut pass, Some(&setup.view_proj));
 
             if params.style.grid {
                 pass.set_pipeline(&self.pipelines.grid);
@@ -883,15 +885,15 @@ impl Renderer {
             let highlight = !self.selection.is_empty() || self.hovered.is_some();
             if params.style.edges || params.style.silhouettes || highlight {
                 pass.set_pipeline(&self.pipelines.edges);
-                stats.draw_calls += self.draw_edges(&mut pass);
+                stats.draw_calls += self.draw_edges(&mut pass, &setup.view_proj);
             }
             if params.style.show_hidden_selection && !self.selection.is_empty() {
                 pass.set_pipeline(&self.pipelines.edges_occluded);
-                stats.draw_calls += self.draw_edges(&mut pass);
+                stats.draw_calls += self.draw_edges(&mut pass, &setup.view_proj);
             }
             if !self.ghosted.is_empty() {
                 pass.set_pipeline(&self.pipelines.ghost);
-                stats.draw_calls += self.draw_opaque_chunks(&mut pass);
+                stats.draw_calls += self.draw_opaque_chunks(&mut pass, Some(&setup.view_proj));
             }
 
             // Transparent meshes, back to front.
@@ -999,12 +1001,14 @@ impl Renderer {
         out
     }
 
-    fn draw_opaque_chunks(&self, pass: &mut wgpu::RenderPass<'_>) -> usize {
+    /// Draws the opaque geometry of every chunk that may be inside `cull` (all chunks when `None`).
+    fn draw_opaque_chunks(&self, pass: &mut wgpu::RenderPass<'_>, cull: Option<&Mat4>) -> usize {
         let mut calls = 0;
         for chunk in &self.store.chunks {
             let g = &chunk.gpu;
             if let (Some(vb), Some(ib)) = (&g.vertices, &g.indices)
                 && g.index_count > 0
+                && cull.is_none_or(|m| chunk.may_be_visible(m))
             {
                 pass.set_vertex_buffer(0, vb.buffer.slice(..vb.len));
                 pass.set_index_buffer(ib.buffer.slice(..ib.len), wgpu::IndexFormat::Uint32);
@@ -1015,12 +1019,14 @@ impl Renderer {
         calls
     }
 
-    fn draw_edges(&self, pass: &mut wgpu::RenderPass<'_>) -> usize {
+    /// Draws the edges of every chunk that may be inside `cull`.
+    fn draw_edges(&self, pass: &mut wgpu::RenderPass<'_>, cull: &Mat4) -> usize {
         let mut calls = 0;
         for chunk in &self.store.chunks {
             let g = &chunk.gpu;
             if let Some(eb) = &g.edges
                 && g.edge_count > 0
+                && chunk.may_be_visible(cull)
             {
                 pass.set_vertex_buffer(0, eb.buffer.slice(..eb.len));
                 pass.draw(0..6, 0..g.edge_count);
@@ -1115,7 +1121,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.pipelines.pick);
             pass.set_bind_group(0, &self.pick_bind_group, &[]);
-            self.draw_opaque_chunks(&mut pass);
+            self.draw_opaque_chunks(&mut pass, Some(&narrowed));
             let t = &self.store.transparent;
             if let (Some(vb), Some(ib)) = (&t.vertices, &t.indices)
                 && !t.draws.is_empty()

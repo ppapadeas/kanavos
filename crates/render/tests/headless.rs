@@ -397,4 +397,16 @@ fn large_scene_timings() {
     let pick_start = std::time::Instant::now();
     let hit = r.pick(&g.device, &g.queue, &params, [960.0, 540.0]).unwrap();
     println!("blocking pick: {:?} → {:?}", pick_start.elapsed(), hit.id);
+
+    // Close up, most chunks are outside the view and skipped.
+    params.camera = OrbitCamera::looking_at(world_of(origin, 3.0, 3.0, 1.0), StandardView::IsoSouthWest, 6.0);
+    let t = std::time::Instant::now();
+    let stats = r.render(&g.device, &g.queue, &params).stats;
+    let _ = g.device.poll(wgpu::PollType::wait_indefinitely());
+    println!("close-up frame: {:?}, draw calls {}", t.elapsed(), stats.draw_calls);
+    assert!(stats.draw_calls < 20, "culling skips chunks: {stats:?}");
+}
+
+fn world_of(origin: Point3, x: f64, y: f64, z: f64) -> Point3 {
+    Point3::new(origin.x + x, origin.y + y, origin.z + z)
 }

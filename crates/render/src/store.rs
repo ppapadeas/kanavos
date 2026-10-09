@@ -114,6 +114,33 @@ pub(crate) struct Chunk {
     pub dirty: bool,
     /// Uploaded buffers.
     pub gpu: ChunkGpu,
+    /// Bounds of all members (render space), for frustum culling; refreshed on upload.
+    pub bounds: Option<([f32; 3], [f32; 3])>,
+}
+
+impl Chunk {
+    /// Whether any part of the chunk can be inside the clip volume of `view_proj` (render space to clip
+    /// space, reverse-Z). Conservative: a box is rejected only when all its corners lie outside the same
+    /// clip plane.
+    pub fn may_be_visible(&self, view_proj: &crate::math::Mat4) -> bool {
+        let Some((lo, hi)) = self.bounds else { return false };
+        let corners = (0..8).map(|i| {
+            let pick = |bit: usize, axis: usize| {
+                let (l, h) = (lo.get(axis).copied().unwrap_or(0.0), hi.get(axis).copied().unwrap_or(0.0));
+                f64::from(if i & bit == 0 { l } else { h })
+            };
+            view_proj.transform([pick(1, 0), pick(2, 1), pick(4, 2), 1.0])
+        });
+        // For each plane, the number of corners outside it: left, right, bottom, top, near (reverse-Z: z > w).
+        let mut outside = [0usize; 5];
+        for [x, y, z, w] in corners {
+            let tests = [x < -w, x > w, y < -w, y > w, z > w];
+            for (count, out) in outside.iter_mut().zip(tests) {
+                *count += usize::from(out);
+            }
+        }
+        !outside.contains(&8)
+    }
 }
 
 /// One transparent mesh in the shared transparent buffers.
@@ -226,14 +253,81 @@ impl Store {
         if self.objects.get(&id).is_some_and(|r| r.hash == hash) {
             return false;
         }
-        let existing = self.objects.remove(&id);
-        let slot = match &existing {
+        let slot = self.slot_for(id);
+        let parts = meshes.iter().map(|m| prepare_mesh(m, slot, cos_crease)).collect();
+        let category = meshes.first().map(|m| m.category).unwrap_or(0);
+        self.install(id, slot, category, hash, parts);
+        true
+    }
+
+    /// Inserts or replaces many objects, preparing their meshes on several threads when there is enough work.
+    /// Objects with empty mesh lists are removed. Returns (changed, unchanged).
+    pub fn upsert_many(&mut self, items: &[(u64, Vec<&SceneMesh>)], cos_crease: f64) -> (usize, usize) {
+        /// Below this many triangles, threads cost more than they save.
+        const PARALLEL_TRIANGLES: usize = 20_000;
+        let mut work: Vec<(u64, u32, u64, &[&SceneMesh])> = Vec::new();
+        let mut unchanged = 0;
+        let mut removed = 0;
+        for (id, meshes) in items {
+            if meshes.is_empty() {
+                removed += usize::from(self.remove(*id));
+                continue;
+            }
+            let hash = hash_meshes(meshes);
+            if self.objects.get(id).is_some_and(|r| r.hash == hash) {
+                unchanged += 1;
+                continue;
+            }
+            let slot = self.slot_for(*id);
+            work.push((*id, slot, hash, meshes.as_slice()));
+        }
+        let triangles: usize = work.iter().flat_map(|w| w.3.iter()).map(|m| m.triangle_count()).sum();
+        let threads = std::thread::available_parallelism().map(usize::from).unwrap_or(1).min(16);
+        let prepare = |batch: &[(u64, u32, u64, &[&SceneMesh])]| -> Vec<Vec<PreparedPart>> {
+            batch
+                .iter()
+                .map(|(_, slot, _, meshes)| {
+                    meshes.iter().map(|m| prepare_mesh(m, *slot, cos_crease)).collect()
+                })
+                .collect()
+        };
+        let prepared: Vec<Vec<PreparedPart>> = if threads > 1 && triangles >= PARALLEL_TRIANGLES {
+            let per_thread = work.len().div_ceil(threads).max(1);
+            std::thread::scope(|scope| {
+                let handles: Vec<_> = work
+                    .chunks(per_thread)
+                    .map(|batch| (batch.len(), scope.spawn(move || prepare(batch))))
+                    .collect();
+                // A panicking worker would be a bug in mesh preparation; its objects are then left empty, and
+                // the results stay aligned with `work`.
+                handles
+                    .into_iter()
+                    .flat_map(|(n, h)| h.join().unwrap_or_else(|_| vec![Vec::new(); n]))
+                    .collect()
+            })
+        } else {
+            prepare(&work)
+        };
+        let changed = work.len().min(prepared.len());
+        for ((id, slot, hash, meshes), parts) in work.iter().zip(prepared) {
+            let category = meshes.first().map(|m| m.category).unwrap_or(0);
+            self.install(*id, *slot, category, *hash, parts);
+        }
+        (changed + removed, unchanged)
+    }
+
+    /// The slot of an existing object, or a newly allocated one.
+    fn slot_for(&mut self, id: u64) -> u32 {
+        match self.objects.get(&id) {
             Some(r) => r.slot,
             None => self.allocate_slot(id),
-        };
-        let parts: Vec<PreparedPart> = meshes.iter().map(|m| prepare_mesh(m, slot, cos_crease)).collect();
+        }
+    }
+
+    /// Stores prepared parts for an object (new or replaced) and marks its chunk for upload.
+    fn install(&mut self, id: u64, slot: u32, category: u32, hash: u64, parts: Vec<PreparedPart>) {
+        let existing = self.objects.remove(&id);
         let bounds = parts.iter().map(|p| p.bounds).fold(None, union_bounds);
-        let category = meshes.first().map(|m| m.category).unwrap_or(0);
         let mut record = ObjectRecord { slot, category, hash, parts, chunk: 0, bounds };
         let new_vertices = record.opaque_vertices();
         let mut transparent_changed = record.has_transparent();
@@ -259,7 +353,6 @@ impl Store {
         self.transparent_dirty |= transparent_changed;
         self.objects.insert(id, record);
         self.revision += 1;
-        true
     }
 
     /// Removes an object. Returns whether it existed.
@@ -294,8 +387,10 @@ impl Store {
             let mut vertices: Vec<SurfaceVertex> = Vec::with_capacity(chunk.vertex_count);
             let mut indices: Vec<u32> = Vec::new();
             let mut edges: Vec<EdgeInstance> = Vec::new();
+            chunk.bounds = None;
             for id in &chunk.members {
                 let Some(rec) = self.objects.get(id) else { continue };
+                chunk.bounds = union_bounds(chunk.bounds, rec.bounds);
                 for part in &rec.parts {
                     edges.extend_from_slice(&part.edges);
                     if part.transparent {
@@ -463,6 +558,53 @@ mod tests {
         s.clear();
         assert!(s.objects.is_empty());
         assert!(s.chunk_members().iter().all(|m| m.is_empty()));
+    }
+
+    #[test]
+    fn batch_preparation_matches_one_by_one() {
+        // Enough triangles to take the multi-threaded path.
+        let meshes: Vec<SceneMesh> = (0..300u64)
+            .map(|id| {
+                let c = kanavos_geom::Point2::new(id as f64, 0.0);
+                let m = kanavos_solid::cylinder(c, 0.3, 0.0, 1.0 + id as f64 * 0.01, 24).unwrap();
+                SceneMesh::from_solid_mesh(id, &m, Point3::ORIGIN, Rgba::WHITE, 0)
+            })
+            .collect();
+        let items: Vec<(u64, Vec<&SceneMesh>)> = meshes.iter().map(|m| (m.id, vec![m])).collect();
+        let mut batch = Store::default();
+        assert_eq!(batch.upsert_many(&items, 0.9), (300, 0));
+        let mut single = Store::default();
+        for m in &meshes {
+            single.upsert(m.id, &[m], 0.9);
+        }
+        for m in &meshes {
+            let (a, b) = (&batch.objects[&m.id], &single.objects[&m.id]);
+            assert_eq!(a.slot, b.slot);
+            assert_eq!(a.parts[0].vertices, b.parts[0].vertices);
+            assert_eq!(a.parts[0].edges, b.parts[0].edges);
+        }
+        assert_eq!(batch.chunk_members(), single.chunk_members());
+        // Unchanged content is skipped; an empty list removes.
+        let mut again = items.clone();
+        again[0].1.clear();
+        assert_eq!(batch.upsert_many(&again, 0.9), (1, 299));
+        assert!(!batch.objects.contains_key(&0));
+    }
+
+    #[test]
+    fn frustum_culling_is_conservative() {
+        use crate::camera::{OrbitCamera, StandardView, Viewport};
+        let chunk = |lo: [f32; 3], hi: [f32; 3]| Chunk { bounds: Some((lo, hi)), ..Chunk::default() };
+        let camera = OrbitCamera::looking_at(Point3::ORIGIN, StandardView::Front, 10.0);
+        let vp = camera.view_projection(Viewport::new(800.0, 600.0), None, Point3::ORIGIN);
+        assert!(chunk([-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]).may_be_visible(&vp), "in view");
+        assert!(
+            chunk([-100.0, 5.0, -100.0], [100.0, 6.0, 100.0]).may_be_visible(&vp),
+            "straddles the frustum"
+        );
+        assert!(!chunk([50.0, -1.0, -1.0], [52.0, 1.0, 1.0]).may_be_visible(&vp), "far to the right");
+        assert!(!chunk([-1.0, -30.0, -1.0], [1.0, -20.0, 1.0]).may_be_visible(&vp), "behind the eye");
+        assert!(!Chunk::default().may_be_visible(&vp), "empty");
     }
 
     #[test]
