@@ -30,7 +30,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf
  L5  kanavos-views (plan/section/elevation/3D derivation, hidden-line removal)   kanavos-schedules   kanavos-rules-gr
  L4  kanavos-elements (walls, slabs, openings, roofs, stairs, spaces …)   kanavos-objects (parametric objects)
- L3  kanavos-model (project document, attributes, relations, IDs)
+ L3  kanavos-model (project document, attributes, relations, IDs)   kanavos-raster (drawing → PNG)
  L2  kanavos-solid (solid modelling façade)   kanavos-drawing (2D drawing primitives)   kanavos-geo (CRS, ΕΓΣΑ87)
  L1  kanavos-geom
  L0  kanavos-units   kanavos-fonts (font discovery, glyph outlines, built-in stroke font)
@@ -47,6 +47,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
 | `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. Output helpers: hatch expansion, dashing, text layout, page placement and SVG export. |
 | `kanavos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |
+| `kanavos-raster` | Antialiased rendering of drawings to RGBA images and PNG for previews and thumbnails. |
 | `kanavos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
 | `kanavos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |
 | `kanavos-objects` | Parametric object system for doors, windows, furniture and fixtures, in a sandboxed language (ADR‑0006). |
@@ -160,3 +161,4 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
 | Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
 | Font parsing | ttf-parser | MIT OR Apache‑2.0 |
+| Rasterising | tiny-skia (+ png) | BSD‑3‑Clause (png: MIT OR Apache‑2.0) |

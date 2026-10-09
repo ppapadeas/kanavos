@@ -9,6 +9,7 @@ pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-drawing", 2),
     ("kanavos-geo", 2),
     ("kanavos-model", 3),
+    ("kanavos-raster", 3),
     ("kanavos-elements", 4),
     ("kanavos-objects", 4),
     ("kanavos-views", 5),

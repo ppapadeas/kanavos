@@ -14,3 +14,7 @@ workspace = true
 [dependencies]
 kanavos-drawing = { path = "../drawing" }
 kanavos-model = { path = "../model" }
+
+[dev-dependencies]
+kanavos-raster = { path = "../raster" }
+png = "0.18"
