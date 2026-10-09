@@ -1704,6 +1704,7 @@ dependencies = [
  "kanavos-tools",
  "kanavos-units",
  "kanavos-views",
+ "png",
  "serde",
  "serde_json",
 ]

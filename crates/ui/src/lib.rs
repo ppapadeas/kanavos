@@ -6,17 +6,32 @@
 //! the commands they produce.
 //!
 //! Modules:
-//! - [`state`]: shared application state (session, selection, active storey, tool settings, language).
+//! - [`state`]: shared application state (session, selection, active storey, tool settings, language, pointer).
 //! - [`app`]: the shell — menus, project tree, view tabs, inspector, status bar.
 //! - [`canvas`]: the 2D drawing canvas (plans, sections, elevations, sheets) hosting the tools.
 //! - [`viewport3d`]: the 3D viewport.
-//! - [`fonts`]: system font loading.
+//! - [`theme`], [`icons`], [`widgets`], [`fonts`], [`names`]: our own visual identity and shared widgets.
+//! - Adapters to switch when other crates land: [`persist`] (native file format), [`exports`], [`imports`],
+//!   [`sample`] (first-launch project), [`jobs`] (background computation).
+//! - [`prefs`], [`fuzzy`], [`screenshot`]: preferences, search matching and the visual-verification hook.
 
 pub mod app;
 pub mod canvas;
+pub mod exports;
 pub mod fonts;
+pub mod fuzzy;
+pub mod icons;
+pub mod imports;
+pub mod jobs;
+pub mod names;
+pub mod persist;
+pub mod prefs;
+pub mod sample;
+pub mod screenshot;
 pub mod state;
+pub mod theme;
 pub mod viewport3d;
+pub mod widgets;
 
 pub use kanavos_model::Document;
 

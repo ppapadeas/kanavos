@@ -1,1 +1,613 @@
 # key	el	en
+# Desktop interface (crates/ui). Keep both languages in every change.
+ui.about.clean_room	Το Kanavos είναι ανεξάρτητο λογισμικό ανοικτού κώδικα, γραμμένο από την αρχή με βάση δικές μας προδιαγραφές, ανοικτά πρότυπα και την ελληνική νομοθεσία. Δεν περιέχει κώδικα, κείμενα, εικονίδια, βιβλιοθήκες αντικειμένων ή πρότυπα άλλων εφαρμογών BIM.	Kanavos is independent open-source software, written from scratch from our own specifications, open standards and Greek regulations. It contains no code, text, icons, object libraries or templates from other BIM applications.
+ui.about.clean_room_title	Καθαρή ανάπτυξη	Clean-room development
+ui.about.fonts	Γραμματοσειρές	Fonts
+ui.about.fonts_value	του συστήματος (δεν ενσωματώνονται)	from the system (none bundled)
+ui.about.formats	Ανοικτά πρότυπα	Open standards
+ui.about.licence	Άδεια	Licence
+ui.about.tagline	Σχεδιασμός κτιρίων με BIM, από το μοντέλο ως τα σχέδια άδειας.	BIM design of buildings, from the model to the permit drawings.
+ui.about.telemetry	Δεν αποστέλλονται δεδομένα: η τηλεμετρία είναι απενεργοποιημένη.	No data leaves this computer: telemetry is off.
+ui.align.centre	Κέντρο	Centre
+ui.align.left	Αριστερά	Left
+ui.align.right	Δεξιά	Right
+ui.cat.beam	Δοκός	Beam
+ui.cat.column	Υποστύλωμα	Column
+ui.cat.dimension	Διάσταση	Dimension
+ui.cat.door	Πόρτα	Door
+ui.cat.drafting	Σχεδίαση	Drafting
+ui.cat.grid	Άξονας κανάβου	Grid line
+ui.cat.level	Στάθμη	Level mark
+ui.cat.object	Αντικείμενο	Object
+ui.cat.opening	Άνοιγμα	Opening
+ui.cat.railing	Κιγκλίδωμα	Railing
+ui.cat.roof	Στέγη	Roof
+ui.cat.slab	Πλάκα	Slab
+ui.cat.space	Χώρος	Space
+ui.cat.stair	Κλίμακα	Stair
+ui.cat.text	Κείμενο	Text
+ui.cat.underlay	Υπόβαθρο	Underlay
+ui.cat.wall	Τοίχος	Wall
+ui.cat.window	Παράθυρο	Window
+ui.cats.beam	Δοκοί	Beams
+ui.cats.column	Υποστυλώματα	Columns
+ui.cats.dimension	Διαστάσεις	Dimensions
+ui.cats.door	Πόρτες	Doors
+ui.cats.drafting	Σχεδιάσεις	Drafting
+ui.cats.grid	Άξονες κανάβου	Grid lines
+ui.cats.level	Στάθμες	Level marks
+ui.cats.object	Αντικείμενα	Objects
+ui.cats.opening	Ανοίγματα	Openings
+ui.cats.railing	Κιγκλιδώματα	Railings
+ui.cats.roof	Στέγες	Roofs
+ui.cats.slab	Πλάκες	Slabs
+ui.cats.space	Χώροι	Spaces
+ui.cats.stair	Κλίμακες	Stairs
+ui.cats.text	Κείμενα	Texts
+ui.cats.underlay	Υπόβαθρα	Underlays
+ui.cats.wall	Τοίχοι	Walls
+ui.cats.window	Παράθυρα	Windows
+ui.confirm.delete_named	Θα διαγραφεί το «{name}».	“{name}” will be deleted.
+ui.confirm.delete_sheet	Διαγραφή φύλλου	Delete sheet
+ui.confirm.delete_storey	Διαγραφή επιπέδου	Delete storey
+ui.confirm.delete_storey_body	Θα διαγραφεί το επίπεδο «{name}» μαζί με {n} στοιχεία και την κάτοψή του.	The storey “{name}” will be deleted with its {n} elements and its plan.
+ui.confirm.delete_view	Διαγραφή όψης σχεδίου	Delete view
+ui.confirm.undo_hint	Μπορείτε να το αναιρέσετε με Ctrl+Z.	You can undo this with Ctrl+Z.
+ui.ctx.all	Όλα	All
+ui.ctx.auto	αυτόματο	automatic
+ui.ctx.default	προεπιλογή	default
+ui.ctx.max_riser	Μέγ. ρίχτι	Max. riser
+ui.ctx.object_search	Αναζήτηση αντικειμένου…	Search objects…
+ui.ctx.overhang	Προεξοχή	Overhang
+ui.ctx.reset_auto	Επαναφορά στο αυτόματο	Back to automatic
+ui.ctx.use_default	Προεπιλογή έργου	Project default
+ui.defaults.exterior_wall	Εξωτερικοί τοίχοι	Exterior walls
+ui.defaults.flat_roof	Δώματα	Flat roofs
+ui.defaults.floor_slab	Πλάκες ορόφων	Floor slabs
+ui.defaults.ground_slab	Πλάκες επί εδάφους	Ground slabs
+ui.defaults.interior_wall	Εσωτερικοί τοίχοι	Interior walls
+ui.defaults.pitched_roof	Κεκλιμένες στέγες	Pitched roofs
+ui.defaults.railing_material	Υλικό κιγκλιδωμάτων	Railing material
+ui.defaults.structural_material	Υλικό φέροντος οργανισμού	Structural material
+ui.dialog.age_hours	πριν από {n} ώρες	{n} hours ago
+ui.dialog.age_minutes	πριν από {n} λεπτά	{n} minutes ago
+ui.dialog.age_now	μόλις τώρα	just now
+ui.dialog.age_unknown	άγνωστη ώρα	at an unknown time
+ui.dialog.all_files	Όλα τα αρχεία	All files
+ui.dialog.discard	Χωρίς αποθήκευση	Don't save
+ui.dialog.discard_recovery	Απόρριψη	Discard
+ui.dialog.open_title	Άνοιγμα έργου	Open project
+ui.dialog.project_filter	Έργα Kanavos	Kanavos projects
+ui.dialog.recover	Ανάκτηση	Recover
+ui.dialog.recovery_body	Βρέθηκε αντίγραφο ανάκτησης του «{name}», {age}. Η προηγούμενη συνεδρία δεν έκλεισε κανονικά.	A recovery copy of “{name}” from {age} was found. The previous session did not close normally.
+ui.dialog.recovery_title	Ανάκτηση εργασίας	Recover work
+ui.dialog.save	Αποθήκευση	Save
+ui.dialog.save_title	Αποθήκευση έργου	Save project
+ui.dialog.unsaved_body	Το έργο «{name}» έχει αλλαγές που δεν έχουν αποθηκευτεί.	The project “{name}” has unsaved changes.
+ui.dialog.unsaved_title	Αποθήκευση αλλαγών;	Save changes?
+ui.empty.no_tab	Ανοίξτε μια κάτοψη, τομή, φύλλο ή πίνακα από το δέντρο του έργου.	Open a plan, section, sheet or schedule from the project tree.
+ui.empty.storey	Ξεκινήστε με έναν τοίχο — πατήστε W ή επιλέξτε τον Τοίχο από την παλέτα εργαλείων.	Start with a wall — press W or pick Wall in the tool palette.
+ui.export.csv	Πίνακας σε CSV	Schedule as CSV
+ui.export.dxf	Τρέχον σχέδιο σε DXF	Current drawing as DXF
+ui.export.gltf	Μοντέλο σε glTF	Model as glTF
+ui.export.ifc	Μοντέλο σε IFC	Model as IFC
+ui.export.pdf	Φύλλα σε PDF	Sheets as PDF
+ui.export.png	Τρέχον σχέδιο σε PNG	Current drawing as PNG
+ui.export.svg	Τρέχον σχέδιο σε SVG	Current drawing as SVG
+ui.field.hint	Πληκτρολογήστε τιμή, π.χ. 3,20 ή 320cm ή 3,20+0,25 — Enter για εφαρμογή, Esc για ακύρωση	Type a value, e.g. 3.20, 320cm or 3.20+0.25 — Enter applies, Esc cancels
+ui.field.invalid	Η τιμή δεν αναγνωρίστηκε· δοκιμάστε π.χ. 3,20 ή 320cm	The value was not recognised; try e.g. 3.20 or 320cm
+ui.hatch.concrete	Σκυρόδεμα	Concrete
+ui.hatch.cross_diagonal	Σταυρωτή (οπλισμένο σκυρόδεμα)	Crossed (reinforced concrete)
+ui.hatch.diagonal	Διαγώνια	Diagonal
+ui.hatch.dots	Κουκκίδες	Dots
+ui.hatch.earth	Έδαφος	Earth
+ui.hatch.gravel	Χαλίκι	Gravel
+ui.hatch.grid	Κάναβος πλακιδίων	Tile grid
+ui.hatch.horizontal	Οριζόντιες γραμμές	Horizontal lines
+ui.hatch.insulation	Θερμομόνωση	Insulation
+ui.hatch.masonry	Τοιχοποιία	Masonry
+ui.hatch.none	Χωρίς διαγράμμιση	No hatch
+ui.hatch.wood	Ξύλο	Wood
+ui.history.empty	Δεν υπάρχουν ακόμη αλλαγές σε αυτό το έργο.	There are no changes in this project yet.
+ui.history.redo	Μπορούν να επαναληφθούν	Can be redone
+ui.history.redo_hint	Κλικ για επανάληψη ως εδώ	Click to redo up to here
+ui.history.start	Αρχή	Start
+ui.import.dxf	Τοπογραφικό από DXF	Survey from DXF
+ui.import.ifc	Μοντέλο από IFC	Model from IFC
+ui.infill.bars	Κάγκελα	Bars
+ui.infill.glass	Γυαλί	Glass
+ui.infill.solid	Συμπαγές	Solid
+ui.insp.align	Στοίχιση	Alignment
+ui.insp.area	Εμβαδόν	Area
+ui.insp.area_total	Συνολικό εμβαδόν	Total area
+ui.insp.base	Στάθμη βάσης	Base level
+ui.insp.base_offset	Μετατόπιση βάσης	Base offset
+ui.insp.basic_material	Ένα υλικό με πάχος	Single material
+ui.insp.bold	Έντονα	Bold
+ui.insp.category	Κατηγορία	Category
+ui.insp.change_n	Αλλαγή {n} στοιχείων	Change {n} elements
+ui.insp.change_one	Αλλαγή ιδιοτήτων	Change properties
+ui.insp.color	Χρώμα	Colour
+ui.insp.definition	Αντικείμενο	Object
+ui.insp.depth	Βάθος	Depth
+ui.insp.deselect	Αποεπιλογή	Deselect
+ui.insp.diameter	Διάμετρος	Diameter
+ui.insp.direction	Διεύθυνση	Direction
+ui.insp.edge_n	Πλευρά {n}	Edge {n}
+ui.insp.elevation	Ύψος από δάπεδο	Height above floor
+ui.insp.end_x	Τέλος X	End X
+ui.insp.end_y	Τέλος Y	End Y
+ui.insp.finish	Επένδυση δαπέδου	Floor finish
+ui.insp.flip_hand	Αναστροφή φοράς	Swap hinge side
+ui.insp.flip_side	Αναστροφή πλευράς	Swap opening side
+ui.insp.gap	Κενό μεταξύ σκελών	Gap between flights
+ui.insp.going	Πάτημα	Going
+ui.insp.gross_area	Μικτό εμβαδόν	Gross area
+ui.insp.group.annotation	Σχολιασμός	Annotation
+ui.insp.group.edges	Κλίσεις ανά πλευρά	Slopes per edge
+ui.insp.group.geometry	Γεωμετρία	Geometry
+ui.insp.group.identity	Ταυτότητα	Identity
+ui.insp.group.parameters	Παράμετροι	Parameters
+ui.insp.group.placement	Τοποθέτηση	Placement
+ui.insp.group.quantities	Ποσότητες	Quantities
+ui.insp.group.space	Χώρος	Space
+ui.insp.group.structure	Δομή	Structure
+ui.insp.group.style	Εμφάνιση	Appearance
+ui.insp.group.text	Κείμενο	Text
+ui.insp.group.type	Τύπος	Type
+ui.insp.hatch	Διαγράμμιση	Hatch
+ui.insp.head	Ανώφλι	Head height
+ui.insp.height	Ύψος	Height
+ui.insp.holes	Οπές	Holes
+ui.insp.host	Φέρων τοίχος	Host wall
+ui.insp.infill	Πλήρωση	Infill
+ui.insp.kind	Είδος	Kind
+ui.insp.label	Ετικέτα	Label
+ui.insp.length	Μήκος	Length
+ui.insp.level_auto	Αυτόματη τιμή	Automatic value
+ui.insp.level_value	Τιμή στάθμης	Level value
+ui.insp.line_pattern	Τύπος γραμμής	Line pattern
+ui.insp.line_weight	Πάχος γραμμής	Line weight
+ui.insp.material	Υλικό	Material
+ui.insp.mirrored	Κατοπτρισμός	Mirrored
+ui.insp.mixed_types	Η επιλογή περιέχει διαφορετικά είδη στοιχείων. Επιλέξτε μια κατηγορία παραπάνω για να δείτε τις ιδιότητές της.	The selection mixes different element types. Pick a category above to see its properties.
+ui.insp.n_elements	{n} στοιχεία	{n} elements
+ui.insp.name	Όνομα	Name
+ui.insp.narrow_hint	Περιορισμός της επιλογής σε αυτή την κατηγορία	Narrow the selection to this category
+ui.insp.net_area	Καθαρό εμβαδόν	Net area
+ui.insp.number	Αριθμός	Number
+ui.insp.own_height	Δικό του ύψος	Own height
+ui.insp.page.history	Ιστορικό	History
+ui.insp.page.properties	Ιδιότητες	Properties
+ui.insp.parapet	Στηθαίο	Parapet
+ui.insp.parapet_height	Ύψος στηθαίου	Parapet height
+ui.insp.parapet_thickness	Πάχος στηθαίου	Parapet thickness
+ui.insp.perimeter	Περίμετρος	Perimeter
+ui.insp.phase	Φάση	Phase
+ui.insp.pitch	Κλίση	Pitch
+ui.insp.pitch_all	Κλίση κεκλιμένων πλευρών	Pitch of sloped edges
+ui.insp.points	Σημεία	Points
+ui.insp.position	Θέση στον τοίχο	Position along the wall
+ui.insp.post_spacing	Απόσταση ορθοστατών	Post spacing
+ui.insp.profile	Διατομή	Profile
+ui.insp.profile.circle	Κυκλική	Circular
+ui.insp.profile.rectangle	Ορθογωνική	Rectangular
+ui.insp.reference	Γραμμή αναφοράς	Reference line
+ui.insp.rise	Συνολικό ύψος	Total rise
+ui.insp.riser_height	Ύψος ρίχτι	Riser height
+ui.insp.risers	Αριθμός ριχτιών	Number of risers
+ui.insp.roof_pitched	Κεκλιμένη	Pitched
+ui.insp.rotation	Περιστροφή	Rotation
+ui.insp.select_hint	Επιλέξτε ένα στοιχείο στο σχέδιο για να δείτε και να αλλάξετε τις ιδιότητές του.	Select an element in the drawing to see and change its properties.
+ui.insp.shape	Μορφή	Shape
+ui.insp.sill	Ποδιά	Sill
+ui.insp.sloped	κεκλιμένη	sloped
+ui.insp.source	Αρχείο προέλευσης	Source file
+ui.insp.start_x	Αρχή X	Start X
+ui.insp.start_y	Αρχή Y	Start Y
+ui.insp.storey	Επίπεδο	Storey
+ui.insp.structure	Διαστρωμάτωση	Build-up
+ui.insp.style	Τύπος	Style
+ui.insp.tag	Κωδικός	Mark
+ui.insp.text_size	Μέγεθος	Size
+ui.insp.thickness	Πάχος	Thickness
+ui.insp.top_offset	Στάθμη άνω επιφάνειας	Top offset
+ui.insp.u_unknown	άγνωστο (λείπει το λ ενός υλικού)	unknown (a material has no λ)
+ui.insp.u_value	Συντελεστής U	U-value
+ui.insp.volume	Όγκος	Volume
+ui.insp.waist	Πάχος πλάκας	Waist
+ui.insp.width	Πλάτος	Width
+ui.mat_cat.air	Διάκενο αέρα	Air gap
+ui.mat_cat.board	Ξηρά δόμηση	Board
+ui.mat_cat.concrete	Σκυρόδεμα	Concrete
+ui.mat_cat.glass	Γυαλί	Glass
+ui.mat_cat.gravel	Αδρανή	Gravel
+ui.mat_cat.insulation	Θερμομόνωση	Insulation
+ui.mat_cat.masonry	Τοιχοποιία	Masonry
+ui.mat_cat.membrane	Μεμβράνη	Membrane
+ui.mat_cat.metal	Μέταλλο	Metal
+ui.mat_cat.other	Άλλο	Other
+ui.mat_cat.plaster	Επίχρισμα	Plaster
+ui.mat_cat.screed	Τσιμεντοκονία	Screed
+ui.mat_cat.soil	Έδαφος	Soil
+ui.mat_cat.stone	Φυσικός λίθος	Stone
+ui.mat_cat.tile	Πλακίδια	Tiles
+ui.mat_cat.wood	Ξύλο	Wood
+ui.menu.about	Σχετικά με το Kanavos	About Kanavos
+ui.menu.copy_to_storey	Αντιγραφή σε επίπεδο	Copy to storey
+ui.menu.delete	Διαγραφή	Delete
+ui.menu.detect_spaces	Αυτόματοι χώροι στο επίπεδο	Detect spaces on storey
+ui.menu.edit	Επεξεργασία	Edit
+ui.menu.exit	Έξοδος	Exit
+ui.menu.export	Εξαγωγή	Export
+ui.menu.file	Αρχείο	File
+ui.menu.help	Βοήθεια	Help
+ui.menu.history	Ιστορικό αλλαγών	Change history
+ui.menu.import	Εισαγωγή	Import
+ui.menu.inspector	Ιδιότητες	Inspector
+ui.menu.language	Γλώσσα	Language
+ui.menu.model	Μοντέλο	Model
+ui.menu.new	Νέο έργο	New project
+ui.menu.new_elevation	Νέα όψη	New elevation
+ui.menu.new_section	Νέα τομή	New section
+ui.menu.new_sheet	Νέο φύλλο σχεδίου	New sheet
+ui.menu.open	Άνοιγμα…	Open…
+ui.menu.open_sample	Άνοιγμα δείγματος κατοικίας	Open the sample house
+ui.menu.permit_set	Δημιουργία σετ σχεδίων άδειας	Generate permit drawing set
+ui.menu.recent	Πρόσφατα	Recent
+ui.menu.recent_none	Κανένα πρόσφατο αρχείο	No recent files
+ui.menu.redo	Επανάληψη	Redo
+ui.menu.redo_named	Επανάληψη: {step}	Redo: {step}
+ui.menu.save	Αποθήκευση	Save
+ui.menu.save_as	Αποθήκευση ως…	Save as…
+ui.menu.select_all	Επιλογή όλων στο επίπεδο	Select all on storey
+ui.menu.select_none	Καμία επιλογή	Select none
+ui.menu.shortcuts	Συντομεύσεις πληκτρολογίου	Keyboard shortcuts
+ui.menu.soon	σύντομα	coming soon
+ui.menu.split	Δύο όψεις δίπλα-δίπλα	Two views side by side
+ui.menu.theme	Θέμα	Theme
+ui.menu.theme_dark	Σκούρο θέμα	Dark theme
+ui.menu.theme_light	Φωτεινό θέμα	Light theme
+ui.menu.toggle_panels	Απόκρυψη/εμφάνιση πλευρικών πλαισίων	Hide/show side panels
+ui.menu.tree	Δέντρο έργου	Project tree
+ui.menu.ui_scale	Μέγεθος διεπαφής	Interface size
+ui.menu.undo	Αναίρεση	Undo
+ui.menu.undo_named	Αναίρεση: {step}	Undo: {step}
+ui.menu.view	Προβολή	View
+ui.menu.zoom_extents	Προσαρμογή στο παράθυρο	Zoom to fit
+ui.mgr.add_layer	Προσθήκη στρώσης	Add layer
+ui.mgr.building_top	Ανώτατη στάθμη κτιρίου: {l}	Top of the building: {l}
+ui.mgr.clear	Καθαρισμός τιμής	Clear value
+ui.mgr.conductivity	Συντελεστής λ	Conductivity λ
+ui.mgr.core	Φέρουσα	Core
+ui.mgr.core_hint	Η στρώση ανήκει στον φέροντα πυρήνα (διαστάσεις και συνδέσεις)	The layer is part of the structural core (dimensions and junctions)
+ui.mgr.cut_background	Φόντο τομής	Cut background
+ui.mgr.cut_hatch	Διαγράμμιση τομής	Cut hatch
+ui.mgr.defaults_hint	Τα εργαλεία χρησιμοποιούν αυτές τις διαστρωματώσεις και τα υλικά, εκτός αν επιλέξετε άλλα στη γραμμή εργαλείου.	Tools use these build-ups and materials unless you pick others in the context bar.
+ui.mgr.delete	Διαγραφή	Delete
+ui.mgr.density	Πυκνότητα	Density
+ui.mgr.duplicate	Αντίγραφο	Duplicate
+ui.mgr.filter	Αναζήτηση…	Search…
+ui.mgr.group.graphics	Απεικόνιση	Appearance
+ui.mgr.group.identity	Ταυτότητα	Identity
+ui.mgr.group.physics	Φυσικές ιδιότητες	Physical properties
+ui.mgr.in_use	Χρησιμοποιείται· δεν μπορεί να διαγραφεί	In use; cannot be deleted
+ui.mgr.layers	Στρώσεις	Layers
+ui.mgr.layers_slab	Από πάνω προς τα κάτω	From top to bottom
+ui.mgr.layers_wall	Από την αριστερή προς τη δεξιά παρειά (κοιτώντας από την αρχή προς το τέλος του τοίχου)	From the left face to the right face (looking from the wall's start to its end)
+ui.mgr.move_down	Μετακίνηση κάτω	Move down
+ui.mgr.move_up	Μετακίνηση πάνω	Move up
+ui.mgr.new	Νέο	New
+ui.mgr.new_buildup	Νέα διαστρωμάτωση	New build-up
+ui.mgr.new_material	Νέο υλικό	New material
+ui.mgr.nothing_selected	Επιλέξτε ένα στοιχείο από τη λίστα.	Pick an item from the list.
+ui.mgr.priority	Προτεραιότητα συνδέσεων	Junction priority
+ui.mgr.priority_hint	Όπου συναντώνται στοιχεία, τα υλικά με μεγαλύτερη προτεραιότητα διαπερνούν εκείνα με μικρότερη.	Where elements meet, materials with a higher priority run through those with a lower one.
+ui.mgr.project_hint	Τα στοιχεία αυτά τυπώνονται στις πινακίδες των φύλλων σχεδίων.	These details are printed in the title blocks of the sheets.
+ui.mgr.remove_layer	Αφαίρεση στρώσης	Remove layer
+ui.mgr.shift_above	Μετακίνηση των υπερκείμενων επιπέδων	Move the storeys above
+ui.mgr.shift_above_hint	Όταν αλλάζει το ύψος ενός επιπέδου, τα επίπεδα από πάνω ακολουθούν	When a storey's height changes, the storeys above follow
+ui.mgr.total	Συνολικό πάχος {t}	Total thickness {t}
+ui.mgr.usage	Χρήση	Use
+ui.mgr.used	σε χρήση	in use
+ui.nok.computing	Υπολογισμός…	Computing…
+ui.nok.counted	Δόμηση	Counted
+ui.nok.coverage	Κάλυψη	Coverage
+ui.nok.draw_plot	Σχεδίαση οικοπέδου	Draw the plot
+ui.nok.edit_terms	Όροι δόμησης	Building terms
+ui.nok.exempt	Εξαιρούμενα	Exempt
+ui.nok.floor_area	Δόμηση	Floor area
+ui.nok.floors	Όροφοι	Floors
+ui.nok.floors_ok	εντός ορίου	within the limit
+ui.nok.floors_over	υπέρβαση ορόφων	too many floors
+ui.nok.height	Ύψος	Height
+ui.nok.margin	Περιθώριο {a}	Margin {a}
+ui.nok.margin_len	Περιθώριο {l}	Margin {l}
+ui.nok.open_area_table	Άνοιγμα πίνακα εμβαδών	Open the area table
+ui.nok.over	Υπέρβαση {a}	Over by {a}
+ui.nok.over_len	Υπέρβαση {l}	Over by {l}
+ui.nok.per_storey	Εμβαδά ανά επίπεδο	Areas per storey
+ui.nok.plot_area	Εμβαδόν οικοπέδου {a}	Plot area {a}
+ui.nok.terms	Σ.Δ. {sd} · Κάλυψη {k}% · Μέγ. ύψος {h} m	Coefficient {sd} · Coverage {k}% · Max. height {h} m
+ui.nok.title	Όροι δόμησης (ΝΟΚ)	Building terms (ΝΟΚ)
+ui.nok.volume	Όγκος	Volume
+ui.nok.volume_pending	ο υπολογισμός όγκου έρχεται σύντομα	volume check coming soon
+ui.notice.autosave_failed	Η αυτόματη αποθήκευση απέτυχε: {why}	Autosave failed: {why}
+ui.notice.copied_to	Αντιγράφηκαν στο επίπεδο «{name}»	Copied to the storey “{name}”
+ui.notice.csv_needs_table	Ανοίξτε πρώτα έναν πίνακα για εξαγωγή σε CSV.	Open a schedule first to export it as CSV.
+ui.notice.draw_elevation	Σχεδιάστε τη γραμμή όψης στην κάτοψη: δύο κλικ, με τη ματιά προς τα αριστερά της γραμμής.	Draw the elevation line in the plan: two clicks, looking to the left of the line.
+ui.notice.draw_section	Σχεδιάστε τη γραμμή τομής στην κάτοψη: δύο κλικ, με τη ματιά προς τα αριστερά της γραμμής.	Draw the section line in the plan: two clicks, looking to the left of the line.
+ui.notice.export_failed	Η εξαγωγή απέτυχε: {why}	Export failed: {why}
+ui.notice.exported	Εξήχθη: {name}	Exported: {name}
+ui.notice.import_failed	Η εισαγωγή απέτυχε: {why}	Import failed: {why}
+ui.notice.new_project	Νέο έργο	New project
+ui.notice.not_available	«{what}» δεν είναι ακόμη διαθέσιμο σε αυτή την έκδοση.	“{what}” is not available in this build yet.
+ui.notice.open_failed	Το έργο δεν άνοιξε: {why}	The project could not be opened: {why}
+ui.notice.opened	Άνοιξε: {name}	Opened: {name}
+ui.notice.permit_set	Δημιουργήθηκαν {n} φύλλα σχεδίων άδειας	Created {n} permit sheets
+ui.notice.recovered	Η εργασία ανακτήθηκε. Αποθηκεύστε το έργο για να τη διατηρήσετε.	Your work was recovered. Save the project to keep it.
+ui.notice.save_failed	Η αποθήκευση απέτυχε: {why}	Saving failed: {why}
+ui.notice.saved	Αποθηκεύτηκε: {name}	Saved: {name}
+ui.notice.view_missing	Η όψη σχεδίου δεν υπάρχει πια.	The view no longer exists.
+ui.obj.door.double_swing	Δίφυλλη ανοιγόμενη	Double swing door
+ui.obj.door.single_swing	Μονόφυλλη ανοιγόμενη	Single swing door
+ui.obj.door.sliding	Συρόμενη πόρτα	Sliding door
+ui.obj.furniture.bed_double	Διπλό κρεβάτι	Double bed
+ui.obj.furniture.bed_single	Μονό κρεβάτι	Single bed
+ui.obj.furniture.chair	Καρέκλα	Chair
+ui.obj.furniture.sofa	Καναπές	Sofa
+ui.obj.furniture.table	Τραπέζι	Table
+ui.obj.furniture.wardrobe	Ντουλάπα	Wardrobe
+ui.obj.kitchen.counter	Πάγκος κουζίνας	Kitchen counter
+ui.obj.kitchen.fridge	Ψυγείο	Fridge
+ui.obj.kitchen.hob	Εστίες	Hob
+ui.obj.kitchen.sink	Νεροχύτης	Kitchen sink
+ui.obj.sanitary.basin	Νιπτήρας	Washbasin
+ui.obj.sanitary.bath	Μπανιέρα	Bath
+ui.obj.sanitary.shower	Ντουζιέρα	Shower tray
+ui.obj.sanitary.wc	Λεκάνη WC	WC
+ui.obj.vegetation.tree	Δέντρο	Tree
+ui.obj.vehicle.car	Αυτοκίνητο	Car
+ui.obj.void.rectangular	Ορθογωνικό άνοιγμα	Rectangular opening
+ui.obj.window.casement_1	Μονόφυλλο ανοιγόμενο	Single casement window
+ui.obj.window.casement_2	Δίφυλλο ανοιγόμενο	Double casement window
+ui.obj.window.fixed	Σταθερό υαλοστάσιο	Fixed window
+ui.obj.window.sliding	Συρόμενο παράθυρο	Sliding window
+ui.objcat.door	Πόρτες	Doors
+ui.objcat.equipment	Εξοπλισμός	Equipment
+ui.objcat.furniture	Έπιπλα	Furniture
+ui.objcat.kitchen	Κουζίνα	Kitchen
+ui.objcat.sanitary	Είδη υγιεινής	Sanitary
+ui.objcat.vegetation	Φύτευση	Planting
+ui.objcat.vehicle	Οχήματα	Vehicles
+ui.objcat.void	Ανοίγματα	Openings
+ui.objcat.window	Παράθυρα	Windows
+ui.objparam.frame	Πλάτος κάσας	Frame width
+ui.opening.door	Πόρτα	Door
+ui.opening.void	Άνοιγμα	Opening
+ui.opening.window	Παράθυρο	Window
+ui.palette.button	Αναζήτηση	Search
+ui.palette.footer	↑ ↓ επιλογή · Enter εκτέλεση · Esc κλείσιμο	↑ ↓ choose · Enter run · Esc close
+ui.palette.hint	Αναζήτηση εργαλείων, εντολών, όψεων, φύλλων και στοιχείων	Search tools, commands, views, sheets and elements
+ui.palette.kind.command	Εντολή	Command
+ui.palette.kind.element	Στοιχείο	Element
+ui.palette.kind.setting	Ρύθμιση	Setting
+ui.palette.kind.sheet	Φύλλο	Sheet
+ui.palette.kind.storey	Επίπεδο	Storey
+ui.palette.kind.tool	Εργαλείο	Tool
+ui.palette.kind.view	Όψη σχεδίου	View
+ui.palette.no_results	Δεν βρέθηκε τίποτα.	Nothing found.
+ui.palette.placeholder	Τι θέλετε να κάνετε; π.χ. «τοίχος», «τομή Α», «πίνακας θυρών»	What do you want to do? e.g. “wall”, “section A”, “door schedule”
+ui.palette.set.door_size	Διαστάσεις πόρτας	Door size
+ui.palette.set.roof_pitch	Κλίση στέγης	Roof pitch
+ui.palette.set.stair_riser	Ρίχτι κλίμακας	Stair riser
+ui.palette.set.text_size	Μέγεθος κειμένου	Text size
+ui.palette.set.wall_height	Ύψος τοίχου	Wall height
+ui.palette.set.wall_thickness	Πάχος τοίχου (διαστρωμάτωση)	Wall thickness (build-up)
+ui.palette.set.window_sill	Ποδιά παραθύρου	Window sill
+ui.panel.collapse	Σύμπτυξη πλαισίου	Collapse panel
+ui.panel.expand	Ανάπτυξη πλαισίου	Expand panel
+ui.paper.custom	Προσαρμοσμένο	Custom
+ui.pattern.custom	Προσαρμοσμένη	Custom
+ui.pattern.dash_dot	Παύλα-τελεία	Dash-dot
+ui.pattern.dash_dot_dot	Παύλα-δύο τελείες	Dash-dot-dot
+ui.pattern.dashed	Διακεκομμένη	Dashed
+ui.pattern.dotted	Στικτή	Dotted
+ui.pattern.hidden	Κρυμμένη	Hidden
+ui.pattern.solid	Συνεχής	Solid
+ui.phase.demolished	Προς καθαίρεση	To be demolished
+ui.phase.existing	Υφιστάμενο	Existing
+ui.phase.new	Νέο	New
+ui.project.date	Ημερομηνία	Date
+ui.project.designer	Μελετητής	Designer
+ui.project.designer_details	Στοιχεία μελετητή	Designer details
+ui.project.location	Θέση	Location
+ui.project.municipality	Δήμος	Municipality
+ui.project.name	Τίτλος έργου	Project title
+ui.project.notes	Σημειώσεις	Notes
+ui.project.owner	Ιδιοκτήτης	Owner
+ui.project.revision	Αναθεώρηση	Revision
+ui.ref.centre	Άξονας	Centre
+ui.ref.left	Αριστερή παρειά	Left face
+ui.ref.right	Δεξιά παρειά	Right face
+ui.roof.flat	Δώμα	Flat
+ui.roof.gable	Δίριχτη	Gable
+ui.roof.hip	Τετράριχτη	Hip
+ui.roof.mono	Μονόριχτη	Mono-pitch
+ui.schedule.doors	Πίνακας θυρών	Door schedule
+ui.schedule.materials	Πίνακας υλικών	Material quantities
+ui.schedule.objects	Πίνακας αντικειμένων	Object schedule
+ui.schedule.slabs	Πίνακας πλακών	Slab schedule
+ui.schedule.spaces	Πίνακας χώρων	Space schedule
+ui.schedule.walls	Πίνακας τοίχων	Wall schedule
+ui.schedule.windows	Πίνακας παραθύρων	Window schedule
+ui.shortcut.enter	Επιβεβαίωση πληκτρολογημένης τιμής ή τέλος αλυσίδας	Confirm a typed value or finish a chain
+ui.shortcut.escape	Ακύρωση της τρέχουσας ενέργειας	Cancel the current operation
+ui.shortcut.modifiers	Shift κλειδώνει τη διεύθυνση· Alt απενεργοποιεί την έλξη	Shift locks the direction; Alt turns snapping off
+ui.shortcut.ui_scale	Μεγέθυνση ή σμίκρυνση της διεπαφής	Make the interface larger or smaller
+ui.shortcuts.global	Γενικές συντομεύσεις	General shortcuts
+ui.shortcuts.note	Τα γράμματα των εργαλείων λειτουργούν όταν δεν γράφετε σε πεδίο κειμένου.	Tool letters work when you are not typing in a text field.
+ui.shortcuts.tools	Εργαλεία	Tools
+ui.site.altitude	Απόλυτο υψόμετρο ±0,00	Altitude of ±0.00
+ui.site.clear_plot	Διαγραφή ορίων	Clear boundary
+ui.site.coefficient	Συντελεστής δόμησης (Σ.Δ.)	Building coefficient
+ui.site.coverage	Ποσοστό κάλυψης	Coverage ratio
+ui.site.crs	Σύστημα αναφοράς	Reference system
+ui.site.easting	Τετμημένη αρχής (E)	Origin easting (E)
+ui.site.georef	Γεωαναφορά	Georeference
+ui.site.georef_hint	Η αρχή των συντεταγμένων του έργου τοποθετείται σε αυτές τις συντεταγμένες ΕΓΣΑ87.	The project origin is placed at these ΕΓΣΑ87 coordinates.
+ui.site.ground_level	Στάθμη φυσικού εδάφους	Natural ground level
+ui.site.limits	Επιτρεπόμενη κάλυψη {c} m² · επιτρεπόμενη δόμηση {f} m²	Allowed coverage {c} m² · allowed floor area {f} m²
+ui.site.max_floors	Μέγιστος αριθμός ορόφων	Maximum floors
+ui.site.max_height	Μέγιστο ύψος	Maximum height
+ui.site.northing	Τεταγμένη αρχής (N)	Origin northing (N)
+ui.site.plot	Οικόπεδο	Plot
+ui.site.plot_area	Εμβαδόν	Area
+ui.site.plot_summary	{a} · {n} κορυφές	{a} · {n} corners
+ui.site.rotation	Στροφή προς τον βορρά	Rotation to grid north
+ui.site.setback	Απόσταση Δ	Setback Δ
+ui.site.setback_rule	κατά τον ΝΟΚ (με βάση το ύψος)	per ΝΟΚ (from the height)
+ui.site.terms	Όροι δόμησης	Building terms
+ui.site.volume_coefficient	Συντελεστής όγκου	Volume coefficient
+ui.space_cat.attic	Σοφίτα	Attic
+ui.space_cat.auxiliary	Βοηθητική χρήση	Auxiliary use
+ui.space_cat.balcony	Εξώστης	Balcony
+ui.space_cat.lift_shaft	Φρεάτιο ανελκυστήρα	Lift shaft
+ui.space_cat.main_use	Κύρια χρήση	Main use
+ui.space_cat.other	Άλλο	Other
+ui.space_cat.parking	Στάθμευση	Parking
+ui.space_cat.pilotis	Πυλωτή	Pilotis
+ui.space_cat.semi_open	Ημιυπαίθριος χώρος	Semi-open space
+ui.space_cat.shaft	Φωταγωγός / αεραγωγός	Light or air shaft
+ui.space_cat.stairwell	Κλιμακοστάσιο	Stairwell
+ui.space_cat.technical	Τεχνικός χώρος	Technical room
+ui.stair.half_left	Με πλατύσκαλο αριστερή (180°)	Half turn left
+ui.stair.half_right	Με πλατύσκαλο δεξιά (180°)	Half turn right
+ui.stair.quarter_left	Γωνιακή αριστερή (90°)	Quarter turn left
+ui.stair.quarter_right	Γωνιακή δεξιά (90°)	Quarter turn right
+ui.stair.straight	Ευθύγραμμη	Straight
+ui.status.no_cursor	Χ/Υ —	X/Y —
+ui.status.ready	Έτοιμο	Ready
+ui.status.snap	Έλξη (Alt την απενεργοποιεί προσωρινά)	Snapping (hold Alt to turn it off)
+ui.status.snap_edges	Έλξη σε ακμές και παρειές	Snap to edges and faces
+ui.status.snap_grid	Έλξη σε κάναβο 5 cm	Snap to a 5 cm grid
+ui.status.snap_points	Έλξη σε άκρα, μέσα και γωνίες	Snap to ends, midpoints and corners
+ui.status.unsaved	Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί	There are unsaved changes
+ui.status.updating	Ενημέρωση…	Updating…
+ui.storey.below	Υπόγειο	Below ground
+ui.storey.cut	Επίπεδο τομής	Cut plane
+ui.storey.elements	Στοιχεία	Elements
+ui.storey.elevation	Στάθμη	Elevation
+ui.storey.height	Ύψος ορόφου	Storey height
+ui.table.empty	Ο πίνακας είναι κενός: δεν υπάρχουν ακόμη τέτοια στοιχεία στο μοντέλο.	The schedule is empty: there are no such elements in the model yet.
+ui.table.export_csv	Εξαγωγή CSV	Export CSV
+ui.table.export_csv_hint	Αποθήκευση του πίνακα για υπολογιστικά φύλλα	Save the table for spreadsheets
+ui.table.not_available	Αυτός ο πίνακας δεν είναι ακόμη διαθέσιμος.	This schedule is not available yet.
+ui.table.rows	{n} γραμμές	{n} rows
+ui.tabs.close	Κλείσιμο καρτέλας	Close tab
+ui.tabs.split	Δύο όψεις δίπλα-δίπλα	Two views side by side
+ui.tool.arc	Τόξο	Arc
+ui.tool.beam	Δοκός	Beam
+ui.tool.circle	Κύκλος	Circle
+ui.tool.column	Υποστύλωμα	Column
+ui.tool.dimension	Διάσταση	Dimension
+ui.tool.door	Πόρτα	Door
+ui.tool.elevation	Όψη	Elevation
+ui.tool.fill	Γέμισμα	Fill
+ui.tool.grid	Κάναβος	Grid line
+ui.tool.level	Στάθμη	Level
+ui.tool.line	Γραμμή	Line
+ui.tool.measure	Μέτρηση	Measure
+ui.tool.object	Αντικείμενο	Object
+ui.tool.plot	Οικόπεδο	Plot
+ui.tool.polyline	Πολυγραμμή	Polyline
+ui.tool.railing	Κιγκλίδωμα	Railing
+ui.tool.roof	Στέγη	Roof
+ui.tool.section	Τομή	Section
+ui.tool.select	Επιλογή	Select
+ui.tool.slab	Πλάκα	Slab
+ui.tool.space	Χώρος	Space
+ui.tool.stair	Κλίμακα	Stair
+ui.tool.text	Κείμενο	Text
+ui.tool.void	Άνοιγμα	Opening
+ui.tool.wall	Τοίχος	Wall
+ui.tool.window	Παράθυρο	Window
+ui.tool_hint.arc	Τόξα σχεδίασης	Drafting arcs
+ui.tool_hint.beam	Δοκοί μεταξύ δύο σημείων	Beams between two points
+ui.tool_hint.circle	Κύκλοι σχεδίασης	Drafting circles
+ui.tool_hint.column	Υποστυλώματα με κλικ στη θέση τους	Columns placed with a click
+ui.tool_hint.dimension	Αλυσίδες διαστάσεων	Dimension chains
+ui.tool_hint.door	Πόρτες μέσα σε τοίχους	Doors in walls
+ui.tool_hint.elevation	Γραμμή όψης· δημιουργεί νέα όψη σχεδίου	Elevation line; creates a new view
+ui.tool_hint.fill	Περιοχές με γέμισμα ή διαγράμμιση	Filled or hatched regions
+ui.tool_hint.grid	Άξονες κανάβου με ετικέτα	Labelled grid lines
+ui.tool_hint.level	Σημάδια στάθμης	Level marks
+ui.tool_hint.line	Ευθύγραμμα τμήματα σχεδίασης	Drafting lines
+ui.tool_hint.measure	Μέτρηση αποστάσεων και εμβαδών χωρίς αλλαγές	Measure distances and areas without changing anything
+ui.tool_hint.object	Έπιπλα, είδη υγιεινής και εξοπλισμός	Furniture, sanitary fixtures and equipment
+ui.tool_hint.plot	Σχεδίαση των ορίων του οικοπέδου	Draw the plot boundary
+ui.tool_hint.polyline	Συνεχείς γραμμές σχεδίασης	Drafting polylines
+ui.tool_hint.railing	Κιγκλιδώματα κατά μήκος διαδρομής	Railings along a path
+ui.tool_hint.roof	Στέγη ή δώμα με σχεδίαση περιγράμματος	Pitched or flat roof by drawing its outline
+ui.tool_hint.section	Γραμμή τομής· δημιουργεί νέα όψη σχεδίου	Section line; creates a new view
+ui.tool_hint.select	Επιλογή, μετακίνηση και επεξεργασία στοιχείων με λαβές	Select, move and edit elements with handles
+ui.tool_hint.slab	Πλάκα με σχεδίαση περιγράμματος	Slab by drawing its outline
+ui.tool_hint.space	Χώροι με κλικ μέσα σε τοίχους ή με περίγραμμα	Spaces by clicking inside walls or drawing an outline
+ui.tool_hint.stair	Κλίμακες ευθύγραμμες ή με πλατύσκαλο	Straight stairs or stairs with a landing
+ui.tool_hint.text	Σημειώσεις κειμένου	Text notes
+ui.tool_hint.void	Κενά ανοίγματα σε τοίχους	Empty openings in walls
+ui.tool_hint.wall	Τοίχοι σε συνεχή σειρά· πληκτρολογήστε μήκος ενώ σχεδιάζετε	Walls in a chain; type a length while drawing
+ui.tool_hint.window	Παράθυρα μέσα σε τοίχους	Windows in walls
+ui.tree.area_table	Πίνακας εμβαδών (ΝΟΚ)	Area table (ΝΟΚ)
+ui.tree.basement	Υπόγειο	Basement
+ui.tree.copy_of	{name} (αντίγραφο)	{name} (copy)
+ui.tree.delete	Διαγραφή	Delete
+ui.tree.duplicate	Δημιουργία αντιγράφου	Duplicate
+ui.tree.duplicate_label	Αντίγραφο επιπέδου	Duplicate storey
+ui.tree.elevations	Όψεις	Elevations
+ui.tree.new_sheet_name	Νέο φύλλο	New sheet
+ui.tree.no_plot	χωρίς οικόπεδο	no plot
+ui.tree.no_sheets	Δεν υπάρχουν φύλλα ακόμη.	There are no sheets yet.
+ui.tree.none_yet	καμία ακόμη	none yet
+ui.tree.open	Άνοιγμα	Open
+ui.tree.open_plan	Άνοιγμα κάτοψης	Open plan
+ui.tree.plot_terms	Όροι δόμησης	Building terms
+ui.tree.project_hint	Στοιχεία έργου	Project information
+ui.tree.properties	Ιδιότητες…	Properties…
+ui.tree.rename	Μετονομασία	Rename
+ui.tree.schedules	Πίνακες	Schedules
+ui.tree.sections	Τομές	Sections
+ui.tree.sheet_add	Νέο φύλλο σχεδίου	New sheet
+ui.tree.sheets	Φύλλα σχεδίων	Sheets
+ui.tree.site	Οικόπεδο	Site
+ui.tree.site_terms	Οικόπεδο και όροι δόμησης	Plot and building terms
+ui.tree.storey_add	Νέο επίπεδο από πάνω	New storey on top
+ui.tree.storey_add_above	Νέο επίπεδο από πάνω	New storey above
+ui.tree.storey_add_below	Νέο υπόγειο	New storey below
+ui.tree.storey_hint	{n} στοιχεία · κλικ για την κάτοψη, διπλό κλικ για μετονομασία	{n} elements · click for the plan, double-click to rename
+ui.tree.storey_new_name	Όροφος {n}	Floor {n}
+ui.tree.storeys	Επίπεδα	Storeys
+ui.tree.three_d	Τρισδιάστατες	3D
+ui.tree.title	ΕΡΓΟ	PROJECT
+ui.tree.untitled	Έργο χωρίς τίτλο	Untitled project
+ui.tree.views	Όψεις σχεδίου	Views
+ui.usage.any	Γενική χρήση	Any
+ui.usage.roof	Στέγες	Roofs
+ui.usage.slab	Πλάκες	Slabs
+ui.usage.wall	Τοίχοι	Walls
+ui.view.area_table	Πίνακας εμβαδών	Area table
+ui.view.coverage	Διάγραμμα κάλυψης	Coverage diagram
+ui.view.elevation	Όψη	Elevation
+ui.view.plan	Κάτοψη	Plan
+ui.view.schedule	Πίνακας	Schedule
+ui.view.section	Τομή	Section
+ui.view.site_plan	Τοπογραφικό	Site plan
+ui.view.three_d	Τρισδιάστατη όψη	3D view
+ui.window.about	Σχετικά με το Kanavos	About Kanavos
+ui.window.buildups	Διαστρωματώσεις	Build-ups
+ui.window.defaults	Προεπιλογές στοιχείων	Element defaults
+ui.window.materials	Υλικά	Materials
+ui.window.project	Στοιχεία έργου	Project information
+ui.window.shortcuts	Συντομεύσεις πληκτρολογίου	Keyboard shortcuts
+ui.window.site	Οικόπεδο και όροι δόμησης	Plot and building terms
+ui.window.storeys	Επίπεδα	Storeys
