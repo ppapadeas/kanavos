@@ -8,10 +8,13 @@
 //! report.
 //!
 //! Other modules:
+//! - [`derived`]: plans, sections, sheets, the 3D scene, the ΝΟΚ report and schedules computed off the interface
+//!   thread, keyed by document revision.
 //! - [`io`] and [`export`]: the single place where file formats and exporters are connected.
 //! - [`geo`]: plan geometry derived from walls (rooms, outlines, dimension chains) that commands need.
 
 pub mod commands;
+pub mod derived;
 pub mod export;
 pub mod geo;
 pub mod io;
