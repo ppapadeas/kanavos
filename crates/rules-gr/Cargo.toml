@@ -15,6 +15,8 @@ workspace = true
 kanavos-model = { path = "../model" }
 kanavos-elements = { path = "../elements" }
 kanavos-geom = { path = "../geom" }
+kanavos-solid = { path = "../solid" }
 kanavos-units = { path = "../units" }
 kanavos-drawing = { path = "../drawing" }
 kanavos-i18n = { path = "../i18n" }
+i_overlay = "9.0"
