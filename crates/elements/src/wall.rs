@@ -513,31 +513,38 @@ fn subtract_interval(intervals: &[(ZPlane, ZPlane)], lo: f64, hi: f64, at: Point
     out
 }
 
-/// Net side areas of a wall's two faces (gross face area minus openings), as `(left, right, gross_left,
-/// gross_right)` in square metres. Arc faces scale openings by their radius.
-pub(crate) fn face_areas(doc: &Document, w: &WallInfo, layout: &WallLayout) -> (f64, f64, f64, f64) {
-    let len = |pts: &[Point2]| -> f64 {
-        pts.windows(2).map(|p| if let [a, b] = p { a.distance(*b).as_m() } else { 0.0 }).sum()
-    };
-    let h = w.top - w.base;
-    let gl = len(&layout.left_face) * h;
-    let gr = len(&layout.right_face) * h;
-    let (mut ol, mut or) = (0.0, 0.0);
-    for o in openings_of(doc, w) {
-        let height = (o.head.min(w.top) - o.sill.max(w.base)).max(0.0);
-        let width = o.u1 - o.u0;
-        let (sl, sr) = match &w.arc {
-            Some(a) => {
-                let r = a.radius.as_m().max(1e-9);
-                let s = if a.sweep.as_rad() > 0.0 { 1.0 } else { -1.0 };
-                ((r - s * w.left) / r, (r - s * w.right) / r)
+/// Net areas of a wall's two faces, measured on its solids: the outer surface of the first layer on the left
+/// face and of the last layer on the right face, after junction clean-up, openings and roof clipping. Returns
+/// `(left, right)` in square metres.
+pub(crate) fn face_areas(w: &WallInfo, solids: &[ElementSolid]) -> (f64, f64) {
+    let last = w.layers.len().saturating_sub(1);
+    let mut left = 0.0;
+    let mut right = 0.0;
+    for s in solids {
+        let SolidPart::Layer(k) = s.part else { continue };
+        if k != 0 && k != last {
+            continue;
+        }
+        for [a, b, c] in s.mesh.triangle_points() {
+            let n = (b - a).cross(c - a);
+            let area = n.length() / 2.0;
+            let Some(n) = n.normalized() else { continue };
+            if n.z.abs() > 0.1 {
+                continue;
             }
-            None => (1.0, 1.0),
-        };
-        ol += width * sl * height;
-        or += width * sr * height;
+            let centroid = Point2::new((a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0);
+            let (u, d) = w.project(centroid);
+            let side = w.tangent(u).perp();
+            let facing = n.x * side.x + n.y * side.y;
+            if k == 0 && (d - w.left).abs() < 1e-4 && facing > 0.5 {
+                left += area;
+            }
+            if k == last && (d - w.right).abs() < 1e-4 && facing < -0.5 {
+                right += area;
+            }
+        }
     }
-    ((gl - ol).max(0.0), (gr - or).max(0.0), gl, gr)
+    (left, right)
 }
 
 #[cfg(test)]

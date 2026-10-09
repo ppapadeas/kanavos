@@ -85,10 +85,10 @@ pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities,
             q.thickness = Some(layout.thickness);
             q.gross_area = Some(gross);
             q.area = Some(gross - Area::m2(open));
-            let (nl, nr, _, _) = face_areas(doc, &info, &layout);
+            let sol = wall_solids(doc, &info, &layout)?;
+            let (nl, nr) = face_areas(&info, &sol);
             q.face_area_left = Some(Area::m2(nl));
             q.face_area_right = Some(Area::m2(nr));
-            let sol = wall_solids(doc, &info, &layout)?;
             d.layers = layer_volumes(&sol);
             q.volume = Some(d.layers.iter().map(|l| l.volume).sum());
             d.openings =

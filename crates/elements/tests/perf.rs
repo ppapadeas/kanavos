@@ -57,10 +57,25 @@ fn two_hundred_walls_resolve_within_budget() {
         pieces += geo.plan_parts(&f.doc, id, cut).unwrap().cut.len();
     }
     let plan = t.elapsed().as_secs_f64();
+    // The per-element path (what a view calling `plan_parts` for every element does).
+    let t = Instant::now();
+    for (id, _) in geo.walls() {
+        let _ = kanavos_elements::plan_parts(&f.doc, id, cut).unwrap();
+    }
+    let single = t.elapsed().as_secs_f64();
+    let t = Instant::now();
+    let mut volume = 0.0;
+    for (id, _) in geo.walls() {
+        volume += geo.solids(&f.doc, id).unwrap().iter().map(|s| s.mesh.volume()).sum::<f64>();
+    }
+    let solids = t.elapsed().as_secs_f64();
     println!(
-        "storey junctions: {:.2} ms; plan parts of all walls: {:.2} ms; {pieces} cut pieces",
+        "storey junctions: {:.2} ms; plan parts of all walls: {:.2} ms (one by one: {:.2} ms); solids: {:.2} ms; \
+         {pieces} cut pieces, {volume:.2} m³",
         best * 1e3,
-        plan * 1e3
+        plan * 1e3,
+        single * 1e3,
+        solids * 1e3
     );
     if !cfg!(debug_assertions) {
         assert!(best < 0.020, "200-wall storey took {:.1} ms", best * 1e3);

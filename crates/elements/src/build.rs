@@ -161,6 +161,11 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
                         return Err(invalid(id, "slopes", "pitches must be between 0° and 89°"));
                     }
                 }
+                // The planes must resolve (e.g. gables must not enclose a part no plane can reach).
+                crate::roof::roof_geometry(doc, e).map_err(|err| match err {
+                    GeometryError::Invalid { field, reason, .. } => invalid(id, field, reason),
+                    other => other,
+                })?;
             }
         }
         ElementKind::Railing(r) => {

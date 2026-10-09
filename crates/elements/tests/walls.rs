@@ -16,6 +16,17 @@ fn has_vertex(p: &kanavos_geom::Polygon2, x: f64, y: f64) -> bool {
 }
 
 #[test]
+fn face_areas_follow_the_junctions() {
+    let mut f = fx();
+    let a = f.ext_wall((0.0, 0.0), (10.0, 0.0));
+    f.ext_wall((10.0, 0.0), (10.0, 8.0));
+    let q = quantities(&f.doc, a).unwrap();
+    // Free start at x = 0; mitred end: right (south, outer) face to x = 10.155, left (north, inner) to 9.845.
+    assert!(close(q.face_area_right.unwrap().as_m2(), 10.155 * 3.0, 1e-6), "{:?}", q.face_area_right);
+    assert!(close(q.face_area_left.unwrap().as_m2(), 9.845 * 3.0, 1e-6), "{:?}", q.face_area_left);
+}
+
+#[test]
 fn single_wall_is_a_rectangle() {
     let mut f = fx();
     let w = f.basic_wall((0.0, 0.0), (5.0, 0.0), 0.25, 3.0);

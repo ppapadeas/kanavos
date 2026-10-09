@@ -33,6 +33,49 @@ impl Canvas {
         ((x - self.min.x.as_m()) * self.scale, self.height as f64 - (y - self.min.y.as_m()) * self.scale)
     }
 
+    /// Fills a triangle given in canvas coordinates with a depth per corner, keeping the nearest (smallest
+    /// depth) colour per pixel.
+    pub fn triangle(&mut self, depth: &mut Vec<f64>, pts: [(Point2, f64); 3], c: Rgb) {
+        if depth.len() != self.width * self.height {
+            *depth = vec![f64::INFINITY; self.width * self.height];
+        }
+        let p: Vec<(f64, f64, f64)> = pts
+            .iter()
+            .map(|(q, z)| {
+                let (x, y) = self.to_px(*q);
+                (x, y, *z)
+            })
+            .collect();
+        let (x0, y0, z0) = p[0];
+        let (x1, y1, z1) = p[1];
+        let (x2, y2, z2) = p[2];
+        let area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+        if area.abs() < 1e-9 {
+            return;
+        }
+        let minx = x0.min(x1).min(x2).floor().max(0.0) as usize;
+        let maxx = (x0.max(x1).max(x2).ceil() as usize).min(self.width.saturating_sub(1));
+        let miny = y0.min(y1).min(y2).floor().max(0.0) as usize;
+        let maxy = (y0.max(y1).max(y2).ceil() as usize).min(self.height.saturating_sub(1));
+        for py in miny..=maxy {
+            for px in minx..=maxx {
+                let (x, y) = (px as f64 + 0.5, py as f64 + 0.5);
+                let w0 = ((x1 - x) * (y2 - y) - (x2 - x) * (y1 - y)) / area;
+                let w1 = ((x2 - x) * (y0 - y) - (x0 - x) * (y2 - y)) / area;
+                let w2 = 1.0 - w0 - w1;
+                if w0 < -1e-9 || w1 < -1e-9 || w2 < -1e-9 {
+                    continue;
+                }
+                let z = w0 * z0 + w1 * z1 + w2 * z2;
+                let i = py * self.width + px;
+                if z < depth[i] {
+                    depth[i] = z;
+                    self.pixels[i] = c;
+                }
+            }
+        }
+    }
+
     fn set(&mut self, x: i64, y: i64, c: Rgb) {
         if x >= 0
             && y >= 0

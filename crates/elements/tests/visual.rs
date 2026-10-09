@@ -195,6 +195,59 @@ fn house_plan_roof_and_section() {
             }
         }
         single.write_png(&dir.join("house_plan_single.png")).unwrap();
+        // Isometric flat-shaded views from the south-east, with and without the roof, and the stair alone from
+        // below.
+        for (name, with_roof) in
+            [("house_3d.png", true), ("house_3d_open.png", false), ("stair_3d.png", false)]
+        {
+            let stair_only = name == "stair_3d.png";
+            let view = if stair_only {
+                kanavos_geom::Vec3::new(-0.3, 1.0, 0.25).normalized().unwrap()
+            } else {
+                kanavos_geom::Vec3::new(-1.0, 1.0, -0.9).normalized().unwrap()
+            };
+            let right = view.cross(kanavos_geom::Vec3::Z).normalized().unwrap();
+            let up = right.cross(view);
+            let light = kanavos_geom::Vec3::new(0.4, -0.7, 0.8).normalized().unwrap();
+            let mut tris = Vec::new();
+            for e in doc.elements_on(ground) {
+                if !with_roof && matches!(e.kind, ElementKind::Roof(_)) {
+                    continue;
+                }
+                if stair_only && !matches!(e.kind, ElementKind::Stair(_)) {
+                    continue;
+                }
+                if let Ok(sol) = geo.solids(doc, e.id) {
+                    for s in sol {
+                        let base = material_colour(s.material);
+                        for [a, b, c] in s.mesh.triangle_points() {
+                            let n = (b - a).cross(c - a).normalized().unwrap_or(kanavos_geom::Vec3::Z);
+                            if n.dot(view) > 0.0 {
+                                continue;
+                            }
+                            let k = 0.35 + 0.65 * n.dot(light).max(0.0);
+                            let col = [
+                                (base[0] as f64 * k) as u8,
+                                (base[1] as f64 * k) as u8,
+                                (base[2] as f64 * k) as u8,
+                            ];
+                            let pr = |p: kanavos_geom::Point3| {
+                                (Point2::new(p.to_vec().dot(right), p.to_vec().dot(up)), p.to_vec().dot(view))
+                            };
+                            tris.push(([pr(a), pr(b), pr(c)], col));
+                        }
+                    }
+                }
+            }
+            let pts: Vec<Point2> = tris.iter().flat_map(|(t, _)| t.iter().map(|(p, _)| *p)).collect();
+            let b = Bbox2::from_points(pts).unwrap();
+            let mut img = Canvas::new(b, 60.0);
+            let mut depth = Vec::new();
+            for (t, col) in &tris {
+                img.triangle(&mut depth, *t, *col);
+            }
+            img.write_png(&dir.join(name)).unwrap();
+        }
         // Close-ups of junctions.
         let spots = [
             ("se", 12.0, 0.0),
