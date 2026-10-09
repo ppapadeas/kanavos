@@ -1,8 +1,80 @@
 # key	el	en
-rules.area_table	Πίνακας εμβαδών	Area table
-rules.col.storey	Επίπεδο	Storey
-rules.col.gross	Μικτό εμβαδόν (m²)	Gross area (m²)
-rules.col.counted	Δόμηση (m²)	Counted floor area (m²)
-rules.col.exempt	Εξαιρούμενα (m²)	Exempt (m²)
+rules.area_table	Πίνακας εμβαδών (m²)	Area table (m²)
+rules.terms_table	Στοιχεία δόμησης	Building data
+rules.coverage_calc	Υπολογισμός κάλυψης (m²)	Coverage calculation (m²)
+rules.coordinates	Συντεταγμένες κορυφών οικοπέδου (ΕΓΣΑ87)	Plot vertex coordinates (GGRS87)
+rules.building_coordinates	Συντεταγμένες κορυφών κτιρίου (ΕΓΣΑ87)	Building vertex coordinates (GGRS87)
+rules.setbacks	Αποστάσεις από τα όρια (m)	Distances from the boundaries (m)
 rules.total	Σύνολο	Total
+rules.col.storey	Επίπεδο	Storey
+rules.col.level	Στάθμη	Level
+rules.col.gross	Μικτό εμβαδόν	Gross area
+rules.col.main	Κύριοι	Main use
+rules.col.auxiliary	Βοηθητικοί	Auxiliary
+rules.col.circulation	Κλιμ./φρεάτια	Stairs/shafts
+rules.col.semi_open	Ημιυπαίθριοι	Semi-open
+rules.col.balconies	Εξώστες	Balconies
+rules.col.counted	Δόμηση	Floor area
+rules.col.covered	Κάλυψη	Coverage
+rules.col.exempt	Εξαιρούμενα	Exempt
+rules.col.item	Μέγεθος	Item
+rules.col.allowed	Επιτρεπόμενα	Allowed
+rules.col.achieved	Πραγματοποιούμενα	Achieved
+rules.col.piece	Ε	A
+rules.col.formula	Υπολογισμός	Calculation
+rules.col.area	Εμβαδόν	Area
+rules.col.vertex	Κορυφή	Vertex
+rules.col.easting	Χ (m)	E (m)
+rules.col.northing	Υ (m)	N (m)
+rules.col.side	Πλευρά	Side
+rules.col.length	Μήκος (m)	Length (m)
+rules.col.boundary	Όριο	Boundary
+rules.col.kind	Είδος	Kind
+rules.col.required	Απαιτούμενη	Required
+rules.col.actual	Πραγματοποιούμενη	Achieved
+rules.edge.street	Πρόσωπο σε οδό	Street front
+rules.edge.building_line	Οικοδομική γραμμή	Building line
+rules.edge.side	Πλάγιο όριο (δ)	Side boundary (δ)
+rules.edge.rear	Όριο Δ	Boundary (Δ)
+rules.row.achieved	Πραγματοποιούμενα	Achieved
+rules.row.allowed	Επιτρεπόμενα	Allowed
+rules.row.open_space_counted	Ημιυπαίθριοι και εξώστες πέραν του 40%	Semi-open spaces and balconies over 40%
+rules.item.plot_area	Εμβαδόν οικοπέδου (m²)	Plot area (m²)
+rules.item.coverage_ratio	Ποσοστό κάλυψης	Coverage ratio
+rules.item.coverage	Κάλυψη (m²)	Coverage (m²)
+rules.item.coefficient	Συντελεστής δόμησης	Building coefficient
+rules.item.floor_area	Δόμηση (m²)	Floor area (m²)
+rules.item.volume_coefficient	Συντελεστής όγκου	Volume coefficient
+rules.item.volume	Όγκος (m³)	Volume (m³)
+rules.item.height	Ύψος (m)	Height (m)
+rules.item.ridge	Ύψος στέγης (m)	Roof height (m)
+rules.item.floors	Αριθμός ορόφων	Number of floors
+rules.item.semi_open	Ημιυπαίθριοι (m²)	Semi-open spaces (m²)
+rules.item.open_spaces	Ημιυπαίθριοι και εξώστες (m²)	Semi-open spaces and balconies (m²)
+rules.item.uncovered	Ακάλυπτος χώρος (m²)	Uncovered area (m²)
+rules.north	Β	N
+rules.label.street_line	Ρ.Γ.	Street line
+rules.label.building_line	Ο.Γ.	Building line
+rules.label.setback	Όριο αποστάσεων	Setback line
+rules.label.setback_values	Δ = {d} m, δ = {sd} m	Δ = {d} m, δ = {sd} m
+rules.label.floors	Κτίριο · όροφοι: {n}	Building · floors: {n}
+rules.label.access	Είσοδος	Access
+rules.label.zero_level	±0,00 = {alt} m απόλυτο υψόμετρο	±0.00 = {alt} m above sea level
 rules.note.no_plot	Δεν έχει σχεδιαστεί οικόπεδο· τα όρια δεν μπορούν να υπολογιστούν.	No plot has been drawn; limits cannot be computed.
+rules.note.no_spaces	Το επίπεδο «{storey}» δεν έχει χώρους· η επιφάνειά του λογίζεται ως κύρια χρήση.	Storey "{storey}" has no spaces; its area is taken as main use.
+rules.note.no_spaces_below	Το υπόγειο «{storey}» δεν έχει χώρους· η επιφάνειά του λογίζεται ως βοηθητική χρήση.	Basement "{storey}" has no spaces; its area is taken as auxiliary use.
+rules.note.stair_excess	Το κλιμακοστάσιο στο επίπεδο «{storey}» υπερβαίνει τα {limit}· τα {excess} προσμετρώνται στη δόμηση.	The stairwell on storey "{storey}" exceeds {limit}; {excess} counts as floor area.
+rules.note.attic_excess	Η σοφίτα στο επίπεδο «{storey}» υπερβαίνει το μισό του υποκείμενου ορόφου· τα {excess} προσμετρώνται στη δόμηση.	The attic on storey "{storey}" exceeds half of the storey below; {excess} counts as floor area.
+rules.warn.open_space_excess	Οι ημιυπαίθριοι χώροι και οι εξώστες ({area}) υπερβαίνουν το όριο {allowance} και προσμετρώνται στη δόμηση.	Semi-open spaces and balconies ({area}) exceed the allowance of {allowance} and count as floor area.
+rules.warn.semi_open_cap	Οι ημιυπαίθριοι χώροι ({area}) υπερβαίνουν το ανώτατο όριο {cap}.	Semi-open spaces ({area}) exceed the cap of {cap}.
+rules.warn.height_exceeded	Το ύψος του κτιρίου ({used}) υπερβαίνει το επιτρεπόμενο ({allowed}).	The building height ({used}) exceeds the limit ({allowed}).
+rules.warn.roof_too_high	Η στέγη φτάνει σε ύψος {used}, πάνω από το όριο {allowed}.	The roof reaches {used}, above the limit of {allowed}.
+rules.warn.rooftop_too_high	Κατασκευές στο δώμα υψώνονται {used} πάνω από την τελευταία πλάκα (όριο {allowed}).	Rooftop structures rise {used} above the top slab (limit {allowed}).
+rules.warn.basement_too_high	Το υπόγειο «{storey}» εξέχει {above} από το έδαφος (όριο {allowed}) και δεν λογίζεται ως υπόγειο.	Basement "{storey}" rises {above} above the ground (limit {allowed}) and does not count as a basement.
+rules.warn.pilotis	Η πυλωτή στο επίπεδο «{storey}» ({area}) δεν καλύπτει το μισό της κάλυψης ή δεν βρίσκεται στη στάθμη του εδάφους.	The pilotis on storey "{storey}" ({area}) covers less than half the footprint or is not at ground level.
+rules.warn.floors_exceeded	Οι όροφοι ({used}) υπερβαίνουν τους επιτρεπόμενους ({allowed}).	The number of floors ({used}) exceeds the limit ({allowed}).
+rules.warn.volume_exceeded	Ο όγκος ({used}) υπερβαίνει τον επιτρεπόμενο ({allowed}).	The volume ({used}) exceeds the limit ({allowed}).
+rules.warn.coverage_exceeded	Η κάλυψη ({used}) υπερβαίνει την επιτρεπόμενη ({allowed}).	Coverage ({used}) exceeds the limit ({allowed}).
+rules.warn.floor_area_exceeded	Η δόμηση ({used}) υπερβαίνει την επιτρεπόμενη ({allowed}).	Floor area ({used}) exceeds the limit ({allowed}).
+rules.warn.setback	Το κτίριο απέχει {actual} από το όριο {edge}· απαιτούνται {required}.	The building is {actual} from boundary {edge}; {required} is required.
+rules.warn.outside_plot	Τμήμα του κτιρίου ({area}) βρίσκεται εκτός οικοπέδου.	Part of the building ({area}) lies outside the plot.

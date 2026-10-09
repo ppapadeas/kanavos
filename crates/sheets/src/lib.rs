@@ -2,16 +2,36 @@
 //!
 //! Layer L6. See `docs/architecture.md`.
 //!
-//! [`render_view`] is the single entry point that turns any 2D view into a drawing (plans, sections and
-//! elevations from `kanavos-views`, regulation views from `kanavos-rules-gr`, tables from `kanavos-schedules`).
-//! [`sheet_drawing`] composes a sheet in paper millimetres: border, title block and viewports at scale.
+//! [`render_view`] is the single entry point that turns any view into a drawing (plans, sections, elevations and
+//! 3D line drawings from `kanavos-views`, regulation views from `kanavos-rules-gr`, tables from
+//! `kanavos-schedules`). [`sheet_drawing`] composes a sheet in paper millimetres: frame with a binding margin,
+//! viewports at scale with titles, and the title block. [`auto_layout`] packs views on the smallest A-series
+//! sheet that holds them, and [`permit_set`] builds the whole permit drawing set. Behaviour is specified in
+//! `specs/sheets/`.
 
-use kanavos_drawing::table::TableStyle;
-use kanavos_drawing::{Affine, Anchor, Drawing, DrawingUnits, Item, Stroke, Text, pt, weights};
+mod crop;
+mod layout;
+mod permit;
+mod title_block;
+
+use kanavos_drawing::table::{Table, TableStyle};
+use kanavos_drawing::{
+    Affine, Anchor, Drawing, DrawingUnits, Item, LinePattern, Rect, Stroke, Text, pt, weights,
+};
 use kanavos_i18n::t;
-use kanavos_model::{Document, Id, Paper, PaperSize, Sheet, View, ViewKind, Viewport};
+use kanavos_model::{Document, Id, View, ViewKind, Viewport};
 use kanavos_units::Locale;
 use kanavos_views::ViewError;
+
+pub use crop::crop;
+pub use layout::{LABEL_BAND, PAPER_CANDIDATES, auto_layout, fits, paper_extent, view_paper_size};
+pub use permit::{PermitViews, ensure_permit_views, permit_set};
+pub use title_block::{TITLE_BLOCK_HEIGHT, TITLE_BLOCK_WIDTH, sheet_scale_label, title_block};
+
+/// Margin of the drawing frame from the paper edge on the top, right and bottom, mm.
+pub const FRAME_MARGIN: f64 = 10.0;
+/// Margin of the drawing frame from the left paper edge, leaving room for binding, mm.
+pub const BINDING_MARGIN: f64 = 20.0;
 
 /// Why a sheet or view could not be drawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,33 +62,104 @@ impl From<ViewError> for SheetError {
     }
 }
 
-/// Draws any 2D view. Model-space views come back in metres at the view's scale; tables come back in paper
+/// Visible extent of a drawing in its own coordinates, with text measured by its full box in the fonts it will be
+/// printed with (`kanavos_drawing::page::content_bounds`).
+pub(crate) fn extent(d: &Drawing) -> Option<Rect> {
+    kanavos_drawing::page::content_bounds(d, kanavos_drawing::fonts::Fonts::system())
+}
+
+/// Widens table columns so that headers and cells fit their text (measured, with 1.5 mm padding each side).
+pub fn fit_columns(table: &mut Table, style: &TableStyle, locale: Locale) {
+    let measure = |s: &str, bold: bool| kanavos_drawing::text::measure_mm(s, style.text_mm, bold) + 3.0;
+    for (i, c) in table.columns.iter_mut().enumerate() {
+        let mut w = measure(&c.header, true);
+        for row in &table.rows {
+            if let Some(cell) = row.get(i) {
+                w = w.max(measure(&cell.display(locale), false));
+            }
+        }
+        for row in &table.footer {
+            if let Some(cell) = row.get(i) {
+                w = w.max(measure(&cell.display(locale), true));
+            }
+        }
+        c.width_mm = c.width_mm.max(w);
+    }
+}
+
+/// Stacks paper-space tables vertically with a gap, top-left at the origin, columns widened to their text.
+fn stack_tables(tables: &[Table], locale: Locale) -> Drawing {
+    let style = TableStyle::default();
+    let mut d = Drawing::paper();
+    let mut y = 0.0;
+    for table in tables {
+        let mut table = table.clone();
+        fit_columns(&mut table, &style, locale);
+        d.extend(table.to_drawing(pt(0.0, y), &style, locale));
+        y -= table.height_mm(&style) + 8.0;
+    }
+    d
+}
+
+/// Draws any view. Model-space views come back in metres at the view's scale; tables come back in paper
 /// millimetres (check `Drawing::units`).
+///
+/// 3D views are drawn by `kanavos_views::view_drawing` as line drawings; while that is not available the call
+/// fails with [`SheetError::Unsupported`], and [`sheet_drawing`] shows a framed placeholder instead.
 pub fn render_view(doc: &Document, view: Id, locale: Locale) -> Result<Drawing, SheetError> {
     let v = doc.view(view).ok_or(SheetError::NotFound(view))?;
-    let scale = f64::from(v.scale);
+    let scale = f64::from(v.scale.max(1));
     Ok(match &v.kind {
         ViewKind::Plan { .. } | ViewKind::Section { .. } | ViewKind::Elevation { .. } => {
             kanavos_views::view_drawing(doc, view, locale)?
         }
-        ViewKind::CoverageDiagram | ViewKind::SitePlan => {
-            kanavos_rules_gr::coverage_diagram(doc, locale, scale)
+        ViewKind::ThreeD { .. } => match kanavos_views::view_drawing(doc, view, locale) {
+            Ok(d) => d,
+            Err(ViewError::WrongKind(_)) => return Err(SheetError::Unsupported(view)),
+            Err(e) => return Err(e.into()),
+        },
+        ViewKind::CoverageDiagram => {
+            let mut d = kanavos_rules_gr::coverage_diagram(doc, locale, scale);
+            kanavos_views::filter_layers(&mut d, &v.hidden_layers);
+            d
+        }
+        ViewKind::SitePlan => {
+            let mut d = kanavos_rules_gr::site_plan(doc, locale, scale);
+            kanavos_views::filter_layers(&mut d, &v.hidden_layers);
+            d
         }
         ViewKind::AreaTable => {
-            kanavos_rules_gr::area_table(doc, locale).to_drawing(pt(0.0, 0.0), &TableStyle::default(), locale)
+            let report = kanavos_rules_gr::nok_report(doc);
+            stack_tables(
+                &[
+                    kanavos_rules_gr::terms_table_of(doc, &report, locale),
+                    kanavos_rules_gr::area_table_of(doc, &report, locale),
+                ],
+                locale,
+            )
         }
-        ViewKind::Schedule { schedule } => kanavos_schedules::schedule(doc, *schedule, locale).to_drawing(
-            pt(0.0, 0.0),
-            &TableStyle::default(),
-            locale,
-        ),
-        ViewKind::ThreeD { .. } => return Err(SheetError::Unsupported(view)),
+        ViewKind::Schedule { schedule } => {
+            stack_tables(&[kanavos_schedules::schedule(doc, *schedule, locale)], locale)
+        }
     })
 }
 
-/// Map from a view's drawing coordinates to sheet millimetres for a viewport.
+/// The view's drawing as placed on a sheet: cropped to the viewport's crop rectangle (model views only).
+pub fn viewport_drawing(doc: &Document, vp: &Viewport, locale: Locale) -> Result<Drawing, SheetError> {
+    let d = render_view(doc, vp.view, locale)?;
+    Ok(match (vp.crop, d.units) {
+        (Some([a, b]), DrawingUnits::Metres) => {
+            let ([ax, ay], [bx, by]) = (a.xy(), b.xy());
+            crop(&d, pt(ax, ay), pt(bx, by))
+        }
+        _ => d,
+    })
+}
+
+/// Map from a view's drawing coordinates to sheet millimetres for a viewport: the centre of the drawing's
+/// bounds goes to the viewport centre, at the viewport's scale (or the view's).
 pub fn viewport_map(drawing: &Drawing, vp: &Viewport, view: &View) -> Affine {
-    let bounds = drawing.bounds();
+    let bounds = extent(drawing);
     match drawing.units {
         DrawingUnits::Metres => {
             let scale = f64::from(vp.scale.unwrap_or(view.scale)).max(1.0);
@@ -83,34 +174,96 @@ pub fn viewport_map(drawing: &Drawing, vp: &Viewport, view: &View) -> Affine {
     }
 }
 
-/// Composes a sheet: border, title block and every viewport, in paper millimetres.
+/// Title and scale label under a viewport whose drawing ends at `bottom` (sheet mm).
+fn viewport_label(d: &mut Drawing, x: f64, bottom: f64, title: &str, scale: Option<u32>, locale: Locale) {
+    let mut text = Text::new(pt(x, bottom - 4.0), title, 3.5).anchored(Anchor::TopCentre);
+    text.bold = true;
+    let half = (text.width_mm() / 2.0 + 1.0).max(10.0);
+    d.push(Item::text(text, "sheet.viewport_title"));
+    let y = bottom - 9.0;
+    d.push(Item::line(
+        pt(x - half, y),
+        pt(x + half, y),
+        Stroke::solid(weights::MEDIUM),
+        "sheet.viewport_title",
+    ));
+    if let Some(s) = scale {
+        let label = format!("{} 1:{s}", t(locale, "sheets.scale"));
+        let text = Text::new(pt(x, y - 1.5), label, 2.5).anchored(Anchor::TopCentre);
+        d.push(Item::text(text, "sheet.viewport_title"));
+    }
+}
+
+/// A framed placeholder for a view that cannot be drawn yet (e.g. 3D before line drawings exist).
+fn placeholder(d: &mut Drawing, centre: [f64; 2], locale: Locale) -> f64 {
+    let (w, h) = (120.0, 80.0);
+    let [cx, cy] = centre;
+    d.push(Item::polyline(
+        vec![
+            pt(cx - w / 2.0, cy - h / 2.0),
+            pt(cx + w / 2.0, cy - h / 2.0),
+            pt(cx + w / 2.0, cy + h / 2.0),
+            pt(cx - w / 2.0, cy + h / 2.0),
+        ],
+        true,
+        Stroke::patterned(weights::THIN, LinePattern::Dashed),
+        "sheet.placeholder",
+    ));
+    d.push(Item::text(
+        Text::new(pt(cx, cy), t(locale, "sheets.view_unavailable"), 3.0).anchored(Anchor::Centre),
+        "sheet.placeholder",
+    ));
+    cy - h / 2.0
+}
+
+/// North arrow beside a plan viewport, rotated to grid north.
+fn plan_north_arrow(doc: &Document, d: &mut Drawing, b: &Rect, locale: Locale) {
+    let rotation = doc.site().georef.rotation.as_rad();
+    let at = pt(b.max.x + 12.0, b.max.y - 12.0);
+    d.extend(kanavos_rules_gr::north_arrow(at, 8.0, rotation, locale));
+}
+
+/// Composes a sheet: frame, every viewport with its title and scale, and the title block, in paper millimetres.
 pub fn sheet_drawing(doc: &Document, sheet: Id, locale: Locale) -> Result<Drawing, SheetError> {
     let s = doc.sheet(sheet).ok_or(SheetError::NotFound(sheet))?;
     let (w, h) = s.paper.dimensions_mm();
     let mut d = Drawing::paper();
-    // Border with a 20 mm binding margin on the left and 10 mm elsewhere.
     d.push(Item::polyline(
-        vec![pt(20.0, 10.0), pt(w - 10.0, 10.0), pt(w - 10.0, h - 10.0), pt(20.0, h - 10.0)],
+        vec![
+            pt(BINDING_MARGIN, FRAME_MARGIN),
+            pt(w - FRAME_MARGIN, FRAME_MARGIN),
+            pt(w - FRAME_MARGIN, h - FRAME_MARGIN),
+            pt(BINDING_MARGIN, h - FRAME_MARGIN),
+        ],
         true,
         Stroke::solid(weights::EXTRA_THICK),
         "sheet.border",
     ));
     for vp in &s.viewports {
         let Some(view) = doc.view(vp.view) else { continue };
-        let Ok(drawing) = render_view(doc, vp.view, locale) else { continue };
+        let title = vp.title.clone().unwrap_or_else(|| view.name.clone());
+        let drawing = match viewport_drawing(doc, vp, locale) {
+            Ok(drawing) => drawing,
+            Err(_) => {
+                let bottom = placeholder(&mut d, vp.centre, locale);
+                viewport_label(&mut d, vp.centre[0], bottom, &title, None, locale);
+                continue;
+            }
+        };
         let m = viewport_map(&drawing, vp, view);
         let placed = drawing.transformed(&m);
-        let bottom = placed.bounds().map(|b| b.min.y).unwrap_or(vp.centre[1]);
+        let bounds = extent(&placed);
+        let bottom = bounds.map(|b| b.min.y).unwrap_or(vp.centre[1]);
+        let is_model = drawing.units == DrawingUnits::Metres;
         d.items.extend(placed.items);
-        let title = vp.title.clone().unwrap_or_else(|| view.name.clone());
-        let scale_label = match drawing.units {
-            DrawingUnits::Metres => format!("{title}  1:{}", vp.scale.unwrap_or(view.scale)),
-            DrawingUnits::Millimetres => title,
-        };
-        let mut text =
-            Text::new(pt(vp.centre[0], bottom - 8.0), scale_label, 3.5).anchored(Anchor::TopCentre);
-        text.bold = true;
-        d.push(Item::text(text, "sheet.viewport_title"));
+        if let (ViewKind::Plan { .. }, Some(b)) = (&view.kind, bounds) {
+            plan_north_arrow(doc, &mut d, &b, locale);
+        }
+        // Tables carry their own title; model views get a title and scale underneath.
+        if is_model {
+            let scale = vp.scale.unwrap_or(view.scale);
+            viewport_label(&mut d, vp.centre[0], bottom, &title, Some(scale), locale);
+        }
     }
     if s.title_block {
         d.extend(title_block(doc, s, locale));
@@ -118,103 +271,45 @@ pub fn sheet_drawing(doc: &Document, sheet: Id, locale: Locale) -> Result<Drawin
     Ok(d)
 }
 
-/// The title block in the lower-right corner of a sheet.
-pub fn title_block(doc: &Document, s: &Sheet, locale: Locale) -> Drawing {
-    let (w, _) = s.paper.dimensions_mm();
-    let info = doc.info();
-    let mut d = Drawing::paper();
-    let (x1, y0) = (w - 10.0, 10.0);
-    let x0 = x1 - 180.0;
-    let rows: Vec<(String, String)> = vec![
-        (t(locale, "sheets.tb.project").into_owned(), info.name.clone()),
-        (t(locale, "sheets.tb.location").into_owned(), info.location.clone()),
-        (t(locale, "sheets.tb.owner").into_owned(), info.owner.clone()),
-        (t(locale, "sheets.tb.designer").into_owned(), info.designer.clone()),
-        (t(locale, "sheets.tb.drawing").into_owned(), s.name.clone()),
-        (t(locale, "sheets.tb.number").into_owned(), format!("{}    {}", s.number, info.date)),
-    ];
-    let row_h = 8.0;
-    let height = row_h * rows.len() as f64;
-    d.push(Item::polyline(
-        vec![pt(x0, y0), pt(x1, y0), pt(x1, y0 + height), pt(x0, y0 + height)],
-        true,
-        Stroke::solid(weights::THICK),
-        "sheet.title_block",
-    ));
-    for (i, (label, value)) in rows.iter().enumerate() {
-        let y = y0 + height - row_h * (i as f64 + 1.0);
-        d.push(Item::line(pt(x0, y), pt(x1, y), Stroke::solid(weights::FINE), "sheet.title_block"));
-        d.push(Item::text(Text::new(pt(x0 + 2.0, y + 2.5), label.clone(), 2.0), "sheet.title_block"));
-        let mut v = Text::new(pt(x0 + 45.0, y + 2.5), value.clone(), 2.8);
-        v.bold = true;
-        d.push(Item::text(v, "sheet.title_block"));
-    }
-    d.push(Item::line(
-        pt(x0 + 43.0, y0),
-        pt(x0 + 43.0, y0 + height),
-        Stroke::solid(weights::FINE),
-        "sheet.title_block",
-    ));
-    d
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kanavos_model::{Paper, PaperSize, Sheet, starter};
 
-/// Adds the standard permit drawing set (διάγραμμα κάλυψης, plans, sections, elevations, area table) as sheets,
-/// creating a section through the middle of the building if none exists. Returns the new document.
-pub fn permit_set(doc: &Document, locale: Locale) -> Result<Document, SheetError> {
-    let mut doc = doc.clone();
-    let mut number = 1;
-    let mut add_sheet = |doc: &mut Document, name: String, views: Vec<Id>| {
-        let (d, id) = doc.with_new_id();
-        let paper = Paper { size: PaperSize::A3, landscape: true };
-        let (w, h) = paper.dimensions_mm();
-        let viewports = views
-            .iter()
-            .enumerate()
-            .map(|(i, v)| {
-                let n = views.len().max(1) as f64;
-                Viewport {
-                    view: *v,
-                    centre: [20.0 + (w - 30.0) * (i as f64 + 0.5) / n, h / 2.0 + 20.0],
-                    scale: None,
-                    title: None,
-                    crop: None,
+    #[test]
+    fn every_view_kind_renders_or_degrades() {
+        let doc = starter();
+        for v in doc.views() {
+            match render_view(&doc, v.id, Locale::El) {
+                Ok(_) => {}
+                Err(SheetError::Unsupported(id)) => {
+                    assert!(matches!(doc.view(id).map(|v| &v.kind), Some(ViewKind::ThreeD { .. })))
                 }
-            })
-            .collect();
-        *doc = d.with_sheet(Sheet {
+                Err(e) => panic!("{} failed: {e}", v.name),
+            }
+        }
+    }
+
+    #[test]
+    fn three_d_viewport_gets_a_placeholder() {
+        let doc = starter();
+        let three_d = doc.views().find(|v| matches!(v.kind, ViewKind::ThreeD { .. })).map(|v| v.id).unwrap();
+        let (doc, id) = doc.with_new_id();
+        let doc = doc.with_sheet(Sheet {
             id,
-            number: format!("Α-{number:02}"),
-            name,
-            paper,
-            viewports,
+            number: "Α-09".into(),
+            name: "3D".into(),
+            paper: Paper { size: PaperSize::A3, landscape: true },
+            viewports: vec![Viewport {
+                view: three_d,
+                centre: [200.0, 180.0],
+                scale: None,
+                title: None,
+                crop: None,
+            }],
             title_block: true,
         });
-        number += 1;
-    };
-    let coverage: Vec<Id> =
-        doc.views().filter(|v| matches!(v.kind, ViewKind::CoverageDiagram)).map(|v| v.id).collect();
-    if !coverage.is_empty() {
-        add_sheet(&mut doc, t(locale, "sheets.coverage").into_owned(), coverage);
+        let d = sheet_drawing(&doc, id, Locale::El).unwrap();
+        assert!(d.layer_items("sheet.placeholder").count() >= 2);
     }
-    let plans: Vec<(String, Id)> =
-        doc.storeys().iter().filter_map(|s| doc.plan_view_of(s.id).map(|v| (v.name.clone(), v.id))).collect();
-    for (name, v) in plans {
-        add_sheet(&mut doc, name, vec![v]);
-    }
-    let sections: Vec<Id> =
-        doc.views().filter(|v| matches!(v.kind, ViewKind::Section { .. })).map(|v| v.id).collect();
-    if !sections.is_empty() {
-        add_sheet(&mut doc, t(locale, "sheets.sections").into_owned(), sections);
-    }
-    let elevations: Vec<Id> =
-        doc.views().filter(|v| matches!(v.kind, ViewKind::Elevation { .. })).map(|v| v.id).collect();
-    if !elevations.is_empty() {
-        add_sheet(&mut doc, t(locale, "sheets.elevations").into_owned(), elevations);
-    }
-    let tables: Vec<Id> =
-        doc.views().filter(|v| matches!(v.kind, ViewKind::AreaTable)).map(|v| v.id).collect();
-    if !tables.is_empty() {
-        add_sheet(&mut doc, t(locale, "sheets.areas").into_owned(), tables);
-    }
-    Ok(doc)
 }

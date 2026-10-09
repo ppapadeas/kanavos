@@ -2,16 +2,50 @@
 schedules.not_available	Ο πίνακας δεν είναι ακόμη διαθέσιμος	This schedule is not available yet
 schedules.doors	Πίνακας θυρών	Door schedule
 schedules.windows	Πίνακας παραθύρων	Window schedule
+schedules.voids	Πίνακας ανοιγμάτων	Opening schedule
 schedules.spaces	Πίνακας χώρων	Space schedule
 schedules.walls	Πίνακας τοίχων	Wall schedule
+schedules.slabs	Πίνακας πλακών	Slab schedule
+schedules.materials	Προμέτρηση υλικών	Material take-off
+schedules.objects	Πίνακας αντικειμένων	Object schedule
 schedules.total	Σύνολο	Total
+schedules.subtotal_of	Σύνολο {name}	Total {name}
+schedules.mark.door	Θ	D
+schedules.mark.window	Π	W
+schedules.mark.void	Α	O
 schedules.col.tag	Κωδ.	Mark
+schedules.col.type	Τύπος	Type
 schedules.col.storey	Επίπεδο	Storey
-schedules.col.width	Πλάτος	Width
-schedules.col.height	Ύψος	Height
-schedules.col.sill	Ποδιά	Sill
+schedules.col.storeys	Επίπεδα	Storeys
+schedules.col.width	Πλάτος (m)	Width (m)
+schedules.col.height	Ύψος (m)	Height (m)
+schedules.col.sill	Ποδιά (m)	Sill (m)
+schedules.col.count	Τεμ.	Qty
 schedules.col.number	Α/Α	No.
 schedules.col.name	Όνομα	Name
+schedules.col.category	Κατηγορία	Category
 schedules.col.area	Εμβαδόν	Area
+schedules.col.area_m2	Εμβαδόν (m²)	Area (m²)
+schedules.col.perimeter_m	Περίμετρος (m)	Perimeter (m)
+schedules.col.height_m	Ύψος (m)	Height (m)
 schedules.col.length	Μήκος	Length
+schedules.col.length_m	Μήκος (m)	Length (m)
 schedules.col.thickness	Πάχος	Thickness
+schedules.col.thickness_m	Πάχος (m)	Thickness (m)
+schedules.col.volume_m3	Όγκος (m³)	Volume (m³)
+schedules.col.mass_kg	Μάζα (kg)	Mass (kg)
+schedules.col.build_up	Διαστρωμάτωση	Build-up
+schedules.col.material	Υλικό	Material
+schedules.col.object	Αντικείμενο	Object
+schedules.category.main_use	Κύριος χώρος	Main use
+schedules.category.auxiliary	Βοηθητικός χώρος	Auxiliary use
+schedules.category.stairwell	Κλιμακοστάσιο	Stairwell
+schedules.category.lift_shaft	Φρεάτιο ανελκυστήρα	Lift shaft
+schedules.category.semi_open	Ημιυπαίθριος χώρος	Semi-open space
+schedules.category.balcony	Εξώστης	Balcony
+schedules.category.pilotis	Πυλωτή	Pilotis
+schedules.category.parking	Χώρος στάθμευσης	Parking
+schedules.category.attic	Σοφίτα	Attic
+schedules.category.technical	Τεχνικός χώρος	Plant room
+schedules.category.shaft	Φωταγωγός / αεραγωγός	Light or ventilation shaft
+schedules.category.other	Άλλος χώρος	Other
