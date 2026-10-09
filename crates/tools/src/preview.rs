@@ -151,6 +151,11 @@ pub(crate) fn rubber(d: &mut Drawing, a: Point2, b: Point2) {
     ));
 }
 
+/// A solid preview line.
+pub(crate) fn line(d: &mut Drawing, a: Point2, b: Point2, color: Rgba) {
+    d.push(Item::line(p(a), p(b), Stroke::solid(weights::THIN).with_color(color), "tool.line"));
+}
+
 /// A preview polyline.
 pub(crate) fn polyline(d: &mut Drawing, pts: &[Point2], closed: bool, color: Rgba) {
     if pts.len() >= 2 {

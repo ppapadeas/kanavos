@@ -424,6 +424,11 @@ pub(crate) fn structural_material(doc: &Document) -> Option<Id> {
     doc.defaults().structural_material.or_else(|| first_material(doc))
 }
 
+/// The default railing material, else the structural material.
+pub(crate) fn railing_material(doc: &Document) -> Option<Id> {
+    doc.defaults().railing_material.or_else(|| structural_material(doc))
+}
+
 /// Height of a storey, or 3 m when it is missing.
 pub(crate) fn storey_height(doc: &Document, storey: Id) -> Length {
     doc.storey(storey).map(|s| s.height).unwrap_or(Length::m(3.0))

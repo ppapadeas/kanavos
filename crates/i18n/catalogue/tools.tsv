@@ -2,9 +2,27 @@
 tools.select	Επιλογή	Select
 tools.wall	Τοίχος	Wall
 tools.slab	Πλάκα	Slab
+tools.column	Υποστύλωμα	Column
+tools.beam	Δοκός	Beam
+tools.door	Πόρτα	Door
+tools.window	Παράθυρο	Window
+tools.void	Κενό άνοιγμα	Void
+tools.stair	Σκάλα	Stair
 tools.roof	Στέγη	Roof
+tools.railing	Κιγκλίδωμα	Railing
 tools.space	Χώρος	Space
+tools.object	Αντικείμενο	Object
+tools.dimension	Διάσταση	Dimension
+tools.text	Κείμενο	Text
+tools.level	Στάθμη	Level
+tools.line	Γραμμή	Line
+tools.polyline	Πολυγραμμή	Polyline
+tools.arc	Τόξο	Arc
+tools.circle	Κύκλος	Circle
 tools.fill	Γέμισμα	Fill
+tools.grid	Άξονας κανάβου	Grid line
+tools.section	Τομή	Section
+tools.elevation	Όψη	Elevation
 tools.measure	Μέτρηση	Measure
 tools.plot	Οικόπεδο	Plot
 
@@ -12,9 +30,14 @@ tools.field.point	Θέση	Position
 tools.field.length	Μήκος	Length
 tools.field.angle	Γωνία	Angle
 tools.field.offset	Μετατόπιση	Offset
+tools.field.distance	Απόσταση	Distance
+tools.field.width	Πλάτος	Width
 tools.field.dx	Δx	Δx
 tools.field.dy	Δy	Δy
+tools.field.radius	Ακτίνα	Radius
 tools.field.rise	Βέλος	Rise
+tools.field.rotation	Περιστροφή	Rotation
+tools.field.level	Στάθμη	Level
 tools.input.unreadable	Η πληκτρολόγηση δεν αναγνωρίζεται (π.χ. 3,20 ή 320cm ή @2<90)	Typed input not recognised (e.g. 3.20, 320cm or @2<90)
 
 tools.snap.free	ελεύθερο	free
@@ -96,6 +119,49 @@ tools.outline.too_small	Το περίγραμμα χρειάζεται τουλ�
 tools.outline.detect_unavailable	Η εύρεση περιγράμματος από τοίχους δεν είναι ακόμη διαθέσιμη· σχεδιάστε το περίγραμμα	Finding the outline from walls is not available yet; draw the outline
 tools.outline.detect_failed	Οι τοίχοι δεν κλείνουν γύρω από αυτό το σημείο ({reason})· σχεδιάστε το περίγραμμα	The walls do not enclose this point ({reason}); draw the outline
 tools.roof.flip_hint	το πλήκτρο αναστροφής αλλάζει την κεκλιμένη πλευρά	the flip key changes the sloped edge
+
+tools.opening.hover	{what}: περάστε πάνω από τοίχο και κάντε κλικ για τοποθέτηση	{what}: hover a wall and click to place
+tools.opening.centre	κέντρο τοίχου	centre of wall
+tools.opening.flush	στο άκρο του τοίχου	at the wall end
+tools.opening.step	βήμα {step} εκ.	{step} cm step
+tools.opening.from_start	από την αρχή του τοίχου	from the wall start
+tools.opening.from_end	από το τέλος του τοίχου	from the wall end
+tools.opening.distance	απόσταση {d}	distance {d}
+tools.opening.overlap	Το άνοιγμα επικαλύπτει άλλο άνοιγμα του τοίχου	The opening overlaps another opening in the wall
+tools.opening.side_door	η πλευρά του δείκτη ορίζει τη φορά ανοίγματος, η αναστροφή αλλάζει την πλευρά των μεντεσέδων	the pointer's side sets the swing; flip swaps the hinge side
+tools.opening.side_window	η πλευρά του δείκτη ορίζει την εξωτερική πλευρά	the pointer's side sets the outer face
+
+tools.place.position	{what}: κάντε κλικ για τοποθέτηση· σύρετε για περιστροφή, πλήκτρο περιστροφής για 90°	{what}: click to place; drag to rotate, rotate key for 90° steps
+tools.place.rotation	Κάντε κλικ προς την κατεύθυνση περιστροφής ή πληκτρολογήστε μοίρες	Click towards the rotation or type degrees
+tools.place.no_material	Δεν υπάρχει υλικό για το στοιχείο	There is no material for the element
+tools.stair.origin	Κάντε κλικ στο μέσο του πρώτου ρίχτι	Click the middle of the first riser
+tools.stair.direction	Κάντε κλικ προς την κατεύθυνση ανάβασης ή πληκτρολογήστε γωνία	Click in the walking direction or type an angle
+tools.stair.summary	{risers} ρίχτια των {riser} εκ., πάτημα {going} εκ., μήκος {run}	{risers} risers of {riser} cm, going {going} cm, run {run}
+
+tools.path.start	{what}: κάντε κλικ στο πρώτο σημείο	{what}: click the first point
+tools.path.end	{what}: κάντε κλικ στο δεύτερο σημείο	{what}: click the second point
+tools.path.next	{what}: κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	{what}: click the next point or type a length; Enter to finish
+tools.path.next_or_finish	{what}: επόμενο σημείο· διπλό κλικ ή Enter για τέλος	{what}: next point; double-click or Enter to finish
+tools.arc.start	Κάντε κλικ στην αρχή του τόξου	Click the start of the arc
+tools.arc.end	Κάντε κλικ στο τέλος του τόξου	Click the end of the arc
+tools.arc.through	Κάντε κλικ σε σημείο του τόξου ή πληκτρολογήστε το βέλος	Click a point on the arc or type its rise
+tools.circle.centre	Κάντε κλικ στο κέντρο του κύκλου	Click the centre of the circle
+tools.circle.radius	Κάντε κλικ σε σημείο του κύκλου ή πληκτρολογήστε την ακτίνα	Click a point on the circle or type the radius
+tools.curve.degenerate	Τα σημεία δεν ορίζουν τόξο ή κύκλο	The points do not define an arc or circle
+
+tools.dimension.start	Κάντε κλικ στο πρώτο σημείο, ή σε τοίχο για να τον διαστασιολογήσετε	Click the first point, or a wall to dimension it
+tools.dimension.next	Κάντε κλικ στο επόμενο σημείο	Click the next point
+tools.dimension.next_or_place	Επόμενο σημείο· Enter ή διπλό κλικ για τοποθέτηση της γραμμής	Next point; Enter or double-click to place the line
+tools.dimension.place	Κάντε κλικ στη θέση της γραμμής διάστασης· η αναστροφή εναλλάσσει παράλληλη, οριζόντια και κατακόρυφη	Click where the dimension line goes; flip cycles aligned, horizontal and vertical
+tools.text.place	Κάντε κλικ στη θέση του κειμένου	Click where the text goes
+tools.text.type	Πληκτρολογήστε· Enter για καταχώριση, Shift+Enter για νέα γραμμή, Esc για ακύρωση	Type; Enter to commit, Shift+Enter for a new line, Esc to cancel
+tools.level.place	Κάντε κλικ για σήμανση στάθμης· πληκτρολογήστε τιμή για άλλη στάθμη	Click to place a level mark; type a value for another level
+tools.section.start	Τομή {m}: κάντε κλικ στην αρχή της γραμμής τομής	Section {m}: click the start of the section line
+tools.elevation.start	Όψη {m}: κάντε κλικ στην αρχή της γραμμής όψης	Elevation {m}: click the start of the elevation line
+tools.marker.end	Κάντε κλικ στο τέλος της γραμμής ή πληκτρολογήστε μήκος	Click the end of the line or type a length
+tools.marker.side	Κάντε κλικ στην πλευρά προς την οποία κοιτάζει η όψη	Click on the side the view looks to
+tools.section.name	Τομή {m}-{m}	Section {m}-{m}
+tools.elevation.name	Όψη {m}	Elevation {m}
 
 tools.measure.start	Κάντε κλικ στο πρώτο σημείο της μέτρησης	Click the first point to measure
 tools.measure.next	Επόμενο σημείο· κλικ στο πρώτο σημείο για εμβαδόν, Esc για νέα μέτρηση	Next point; click the first point for the area, Esc to start again

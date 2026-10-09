@@ -13,23 +13,32 @@
 mod common;
 pub mod input;
 mod measure;
+mod opening;
 mod outline;
+mod path;
+mod place;
 mod preview;
 mod select;
 mod settings;
 pub mod snap;
 mod wall;
 
+mod annotate;
+
 use std::collections::BTreeSet;
 
 use kanavos_drawing::Drawing;
 use kanavos_engine::AnyCommand;
 use kanavos_geom::Point2;
-use kanavos_model::{Document, ElementKind, Id};
+use kanavos_model::{Document, ElementKind, Id, OpeningKind};
 use kanavos_units::Locale;
 
+pub use annotate::{DimensionTool, LevelTool, MarkerTool, TextTool};
 pub use measure::MeasureTool;
+pub use opening::OpeningTool;
 pub use outline::OutlineTool;
+pub use path::{CurveTool, PathTool};
+pub use place::{PlaceTool, StairTool};
 pub use select::SelectTool;
 pub use settings::{
     BeamSettings, ColumnSettings, DimensionOrientation, DimensionSettings, GridSettings, LevelSettings,
@@ -402,7 +411,7 @@ pub trait Tool {
     fn is_idle(&self) -> bool;
 }
 
-/// Creates a tool. Tools not implemented yet fall back to selection.
+/// Creates a tool.
 pub fn make_tool(id: ToolId) -> Box<dyn Tool> {
     match id {
         ToolId::Select => Box::new(SelectTool::default()),
@@ -410,8 +419,20 @@ pub fn make_tool(id: ToolId) -> Box<dyn Tool> {
         ToolId::Slab | ToolId::Roof | ToolId::Space | ToolId::Fill | ToolId::Plot => {
             Box::new(OutlineTool::new(id))
         }
+        ToolId::Column | ToolId::Object => Box::new(PlaceTool::new(id)),
+        ToolId::Beam | ToolId::Line | ToolId::Polyline | ToolId::Railing | ToolId::Grid => {
+            Box::new(PathTool::new(id))
+        }
+        ToolId::Door => Box::new(OpeningTool::new(OpeningKind::Door)),
+        ToolId::Window => Box::new(OpeningTool::new(OpeningKind::Window)),
+        ToolId::Void => Box::new(OpeningTool::new(OpeningKind::Void)),
+        ToolId::Stair => Box::new(StairTool::default()),
+        ToolId::Arc | ToolId::Circle => Box::new(CurveTool::new(id)),
+        ToolId::Dimension => Box::new(DimensionTool::default()),
+        ToolId::Text => Box::new(TextTool::default()),
+        ToolId::Level => Box::new(LevelTool::default()),
+        ToolId::Section | ToolId::Elevation => Box::new(MarkerTool::new(id)),
         ToolId::Measure => Box::new(MeasureTool::default()),
-        _ => Box::new(SelectTool::default()),
     }
 }
 

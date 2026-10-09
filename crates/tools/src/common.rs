@@ -7,7 +7,7 @@ use kanavos_engine::AnyCommand;
 use kanavos_engine::commands::Batch;
 use kanavos_geom::{Angle, Arc2, Point2, Segment2, Vec2};
 use kanavos_i18n::t;
-use kanavos_model::{Document, Id};
+use kanavos_model::{Document, ElementKind, Id};
 use kanavos_units::{Length, LengthDisplay, Locale, format_decimal};
 
 use crate::input::{Typed, eval_angle, eval_length, parse};
@@ -140,12 +140,22 @@ pub(crate) enum Field {
     Angle,
     /// Sideways offset to the left of the direction.
     Offset,
+    /// Distance (e.g. from a wall end to an opening's jamb).
+    Distance,
+    /// Width.
+    Width,
     /// X extent.
     Dx,
     /// Y extent.
     Dy,
+    /// Radius.
+    Radius,
     /// Rise of an arc above its chord.
     Rise,
+    /// Rotation in degrees.
+    Rotation,
+    /// Level value.
+    Level,
 }
 
 impl Field {
@@ -155,14 +165,19 @@ impl Field {
             Field::Length => "tools.field.length",
             Field::Angle => "tools.field.angle",
             Field::Offset => "tools.field.offset",
+            Field::Distance => "tools.field.distance",
+            Field::Width => "tools.field.width",
             Field::Dx => "tools.field.dx",
             Field::Dy => "tools.field.dy",
+            Field::Radius => "tools.field.radius",
             Field::Rise => "tools.field.rise",
+            Field::Rotation => "tools.field.rotation",
+            Field::Level => "tools.field.level",
         }
     }
 
     fn is_angle(self) -> bool {
-        self == Field::Angle
+        matches!(self, Field::Angle | Field::Rotation)
     }
 }
 
@@ -363,6 +378,15 @@ pub(crate) fn find_wall(doc: &Document, storey: Id, start: Point2, end: Point2, 
         })
         .map(|(id, _)| id)
         .max()
+}
+
+/// The id of the newest element on a storey of the same type whose kind matches `pred`.
+pub(crate) fn find_element(
+    doc: &Document,
+    storey: Option<Id>,
+    pred: impl Fn(&ElementKind) -> bool,
+) -> Option<Id> {
+    doc.elements().filter(|e| e.storey == storey && pred(&e.kind)).map(|e| e.id).max()
 }
 
 /// The arc from `s` to `e` through `m`, or `None` when the points are collinear or coincide.
