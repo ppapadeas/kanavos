@@ -1025,35 +1025,7 @@ impl Canvas {
                     }
                 }
                 Event::Text(s) if has_keys => {
-                    let accepted: String = if self.text_entry.is_some() {
-                        // The text box takes every printable character, spaces included.
-                        s.chars().filter(|c| !c.is_control()).collect()
-                    } else if self.is_typing() {
-                        // Typed values: digits, operators, separators and unit letters (ux.md §3).
-                        s.chars()
-                            .filter(|c| {
-                                c.is_ascii_digit()
-                                    || matches!(
-                                        c,
-                                        '.' | ','
-                                            | ';'
-                                            | '@'
-                                            | '#'
-                                            | '<'
-                                            | '+'
-                                            | '-'
-                                            | '*'
-                                            | '/'
-                                            | '('
-                                            | ')'
-                                            | 'm'
-                                            | 'c'
-                                    )
-                            })
-                            .collect()
-                    } else {
-                        String::new()
-                    };
+                    let accepted = accept_text(s, self.text_entry.is_some(), self.is_typing());
                     if !accepted.is_empty() {
                         batch.push(ToolEvent::Text(accepted));
                     }
@@ -1531,6 +1503,27 @@ impl Canvas {
     }
 }
 
+/// The characters of a text event that go to the tool: everything printable while a text box is open; digits,
+/// operators, separators, `@`, `#` and the unit letters `m` and `c` while a value is typed; nothing otherwise (the
+/// keys are then application shortcuts).
+pub fn accept_text(s: &str, text_box: bool, typing: bool) -> String {
+    if text_box {
+        s.chars().filter(|c| !c.is_control()).collect()
+    } else if typing {
+        s.chars()
+            .filter(|c| {
+                c.is_ascii_digit()
+                    || matches!(
+                        c,
+                        '.' | ',' | ';' | '@' | '#' | '<' | '+' | '-' | '*' | '/' | '(' | ')' | 'm' | 'c'
+                    )
+            })
+            .collect()
+    } else {
+        String::new()
+    }
+}
+
 /// Size in screen points of one paper millimetre (for tests of the scale logic).
 pub fn points_per_paper_mm(zoom: f64, units: DrawingUnits, scale: f64) -> f64 {
     match units {
@@ -1595,6 +1588,33 @@ mod tests {
         state.tool = ToolId::Select;
         c.send(ToolEvent::Move { at: Point2::new(3.0, 1.0), mods: m }, &mut state);
         assert!(c.fields.is_empty() && c.text_entry.is_none());
+    }
+
+    #[test]
+    fn typed_text_goes_to_the_tool_only_when_it_asks() {
+        assert_eq!(accept_text("3,20+25cm", false, true), "3,20+25cm");
+        assert_eq!(accept_text("@2.5<90", false, true), "@2.5<90");
+        assert_eq!(accept_text("w x 5", false, true), "5");
+        assert_eq!(accept_text("w", false, false), "");
+        assert_eq!(accept_text("Είσοδος 2", true, false), "Είσοδος 2");
+    }
+
+    #[test]
+    fn the_select_tool_highlights_what_is_under_the_pointer() {
+        let (mut state, view) = house_state();
+        let storey = state.active_storey;
+        let cmds = demo::house_commands(state.doc(), storey, (0.0, 0.0)).unwrap();
+        state.run_all(cmds, String::new()).unwrap();
+        let mut c = Canvas::new(CanvasKind::Plan { view });
+        c.view.zoom = 80.0;
+        // On the west wall's centre line.
+        c.send(ToolEvent::Move { at: Point2::new(0.0, 6.5), mods: Modifiers::default() }, &mut state);
+        assert!(!c.highlight.is_empty());
+        let id = c.highlight.first().copied().unwrap();
+        assert!(matches!(
+            state.doc().element(id).map(|e| &e.kind),
+            Some(kanavos_model::ElementKind::Wall(_))
+        ));
     }
 
     #[test]
