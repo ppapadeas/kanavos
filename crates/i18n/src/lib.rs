@@ -29,6 +29,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("files", include_str!("../catalogue/files.tsv")),
     ("tools", include_str!("../catalogue/tools.tsv")),
     ("ui", include_str!("../catalogue/ui.tsv")),
+    ("canvas", include_str!("../catalogue/canvas.tsv")),
     ("cli", include_str!("../catalogue/cli.tsv")),
 ];
 
