@@ -172,6 +172,8 @@ pub struct Canvas {
     properties_requested: bool,
     strip_size: egui::Vec2,
     stats: CanvasStats,
+    /// Whether this canvas last wrote the shared cursor/prompt/typing state.
+    published: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -232,6 +234,7 @@ impl Canvas {
             properties_requested: false,
             strip_size: vec2(320.0, 30.0),
             stats: CanvasStats::default(),
+            published: false,
         }
     }
 
@@ -381,6 +384,29 @@ impl Canvas {
 
     /// Shows the canvas.
     pub fn ui(&mut self, ui: &mut egui::Ui, state: &mut AppState) {
+        self.ui_inner(ui, state);
+        self.publish(state);
+    }
+
+    /// Shares the pointer position, the tool prompt and the typing state with the shell (status bar,
+    /// shortcuts). Only the canvas the pointer is over, or the one taking typed input, publishes; a canvas that
+    /// published before clears its values when it stops.
+    fn publish(&mut self, state: &mut AppState) {
+        let active = self.pointer_inside || self.is_typing();
+        if active {
+            state.cursor = self.cursor_model;
+            state.prompt = self.prompt.clone();
+            state.canvas_typing = self.is_typing();
+            self.published = true;
+        } else if self.published {
+            state.cursor = None;
+            state.prompt.clear();
+            state.canvas_typing = false;
+            self.published = false;
+        }
+    }
+
+    fn ui_inner(&mut self, ui: &mut egui::Ui, state: &mut AppState) {
         let started = Instant::now();
         shot::tick(ui.ctx(), Some(&mut *state));
         text::install_bold(ui.ctx());
