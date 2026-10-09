@@ -1,0 +1,687 @@
+//! The built-in catalogue (ADR-0006 phase 1): every definition, its default size and its parameters.
+//!
+//! Sizes are common Greek and European practice: interior doors 0.80–0.90 × 2.10 m, windows on 0.90 m sills,
+//! sanitary ware and kitchen modules on the 0.60 m grid, beds and sofas at standard mattress and seat sizes.
+
+use crate::{ObjectCategory, ObjectDef, Origin, ParamDef, ParamKind};
+
+macro_rules! param {
+    ($key:literal, $kind:ident, $default:expr, $min:expr, $max:expr) => {
+        ParamDef {
+            key: $key,
+            label: concat!("objects.param.", $key),
+            kind: ParamKind::$kind,
+            default: $default,
+            min: $min,
+            max: $max,
+        }
+    };
+}
+
+macro_rules! opening {
+    ($id:literal, $cat:ident, ($w:expr, $h:expr), $sill:expr, $ifc:literal, $ty:literal, $params:expr) => {
+        ObjectDef {
+            id: $id,
+            name: concat!("objects.", $id),
+            category: ObjectCategory::$cat,
+            width: $w,
+            depth: 0.0,
+            height: $h,
+            sill: $sill,
+            params: $params,
+            origin: Origin::FrontCentre,
+            ifc_class: $ifc,
+            ifc_type: $ty,
+            min_size: [0.3, 0.0, 0.3],
+            max_size: [8.0, 0.0, 6.0],
+        }
+    };
+}
+
+macro_rules! object {
+    ($id:literal, $cat:ident, ($w:expr, $d:expr, $h:expr), $origin:ident, $ifc:literal, $ty:literal, $params:expr) => {
+        ObjectDef {
+            id: $id,
+            name: concat!("objects.", $id),
+            category: ObjectCategory::$cat,
+            width: $w,
+            depth: $d,
+            height: $h,
+            sill: 0.0,
+            params: $params,
+            origin: Origin::$origin,
+            ifc_class: $ifc,
+            ifc_type: $ty,
+            min_size: [0.1, 0.01, 0.01],
+            max_size: [30.0, 30.0, 30.0],
+        }
+    };
+}
+
+fn frame(default: f64) -> ParamDef {
+    param!("frame", Length, default, 0.02, 0.2)
+}
+fn frame_depth(default: f64) -> ParamDef {
+    param!("frame_depth", Length, default, 0.03, 0.6)
+}
+fn setback(default: f64) -> ParamDef {
+    param!("setback", Length, default, 0.0, 0.6)
+}
+fn leaf(default: f64) -> ParamDef {
+    param!("leaf", Length, default, 0.02, 0.1)
+}
+fn swing() -> ParamDef {
+    param!("swing", Angle, 90.0, 15.0, 180.0)
+}
+fn threshold(on: bool) -> ParamDef {
+    param!("threshold", Toggle, if on { 1.0 } else { 0.0 }, 0.0, 1.0)
+}
+fn glazing(default: f64) -> ParamDef {
+    param!("glazing", Count, default, 0.0, 90.0)
+}
+fn handle() -> ParamDef {
+    param!("handle", Toggle, 1.0, 0.0, 1.0)
+}
+fn shutters() -> ParamDef {
+    param!("shutters", Toggle, 0.0, 0.0, 1.0)
+}
+fn roller() -> ParamDef {
+    param!("roller", Toggle, 0.0, 0.0, 1.0)
+}
+fn roller_box(default: f64) -> ParamDef {
+    param!("roller_box", Length, default, 0.12, 0.4)
+}
+
+/// Parameters of a hinged door.
+fn hinged_door() -> Vec<ParamDef> {
+    vec![frame(0.05), frame_depth(0.1), leaf(0.04), swing(), threshold(false), glazing(0.0), handle()]
+}
+
+/// Parameters every window shares.
+fn window(extra: Vec<ParamDef>) -> Vec<ParamDef> {
+    let mut v = vec![
+        frame(0.06),
+        frame_depth(0.07),
+        setback(0.06),
+        param!("sill_out", Toggle, 1.0, 0.0, 1.0),
+        param!("sill_projection", Length, 0.03, 0.0, 0.1),
+        param!("sill_in", Toggle, 1.0, 0.0, 1.0),
+        shutters(),
+        roller(),
+        roller_box(0.22),
+        handle(),
+    ];
+    v.extend(extra);
+    v
+}
+
+fn transom() -> ParamDef {
+    param!("transom", Length, 0.0, 0.0, 1.0)
+}
+
+/// Builds the catalogue.
+pub(crate) fn build() -> Vec<ObjectDef> {
+    vec![
+        // Doors.
+        opening!("door.single_swing", Door, (0.9, 2.1), 0.0, "IfcDoor", "DOOR", hinged_door()),
+        opening!("door.double_swing", Door, (1.4, 2.1), 0.0, "IfcDoor", "DOOR", hinged_door()),
+        opening!("door.unequal_double", Door, (1.3, 2.1), 0.0, "IfcDoor", "DOOR", {
+            let mut v = hinged_door();
+            v.push(param!("main_leaf", Length, 0.85, 0.3, 2.0));
+            v
+        }),
+        opening!(
+            "door.sliding_single",
+            Door,
+            (0.9, 2.1),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![leaf(0.04), glazing(0.0), handle()]
+        ),
+        opening!(
+            "door.sliding",
+            Door,
+            (1.6, 2.2),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![frame(0.04), frame_depth(0.12), leaf(0.04), glazing(0.0), handle()]
+        ),
+        opening!(
+            "door.pocket",
+            Door,
+            (0.9, 2.1),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![
+                frame(0.03),
+                frame_depth(0.1),
+                leaf(0.04),
+                param!("leaves", Count, 1.0, 1.0, 2.0),
+                glazing(0.0),
+                handle()
+            ]
+        ),
+        opening!(
+            "door.folding",
+            Door,
+            (1.2, 2.1),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![
+                frame(0.04),
+                frame_depth(0.1),
+                leaf(0.03),
+                param!("panels", Count, 4.0, 2.0, 8.0),
+                glazing(0.0),
+                handle()
+            ]
+        ),
+        opening!(
+            "door.entrance",
+            Door,
+            (1.35, 2.2),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![
+                frame(0.07),
+                frame_depth(0.12),
+                leaf(0.065),
+                swing(),
+                param!("sidelight", Length, 0.35, 0.0, 1.2),
+                threshold(true),
+                glazing(0.0),
+                handle()
+            ]
+        ),
+        opening!(
+            "door.balcony",
+            Door,
+            (1.4, 2.3),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![
+                frame(0.06),
+                frame_depth(0.07),
+                setback(0.06),
+                leaf(0.065),
+                param!("leaves", Count, 2.0, 1.0, 2.0),
+                swing(),
+                glazing(75.0),
+                threshold(true),
+                shutters(),
+                roller(),
+                roller_box(0.22),
+                handle()
+            ]
+        ),
+        opening!(
+            "door.balcony_sliding",
+            Door,
+            (2.0, 2.3),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![
+                frame(0.06),
+                frame_depth(0.11),
+                setback(0.06),
+                param!("panes", Count, 2.0, 2.0, 4.0),
+                threshold(true),
+                shutters(),
+                roller(),
+                roller_box(0.25),
+                handle()
+            ]
+        ),
+        opening!(
+            "door.garage",
+            Door,
+            (2.5, 2.2),
+            0.0,
+            "IfcDoor",
+            "DOOR",
+            vec![leaf(0.045), param!("sections", Count, 5.0, 3.0, 8.0), handle()]
+        ),
+        // Windows.
+        opening!(
+            "window.casement_1",
+            Window,
+            (0.8, 1.2),
+            0.9,
+            "IfcWindow",
+            "WINDOW",
+            window(vec![transom()])
+        ),
+        opening!(
+            "window.casement_2",
+            Window,
+            (1.2, 1.4),
+            0.9,
+            "IfcWindow",
+            "WINDOW",
+            window(vec![transom()])
+        ),
+        opening!(
+            "window.casement_3",
+            Window,
+            (1.8, 1.4),
+            0.9,
+            "IfcWindow",
+            "WINDOW",
+            window(vec![transom()])
+        ),
+        opening!(
+            "window.tilt_turn",
+            Window,
+            (0.9, 1.4),
+            0.9,
+            "IfcWindow",
+            "WINDOW",
+            window(vec![param!("leaves", Count, 1.0, 1.0, 2.0), transom()])
+        ),
+        opening!("window.top_hung", Window, (0.8, 0.6), 1.5, "IfcWindow", "WINDOW", window(vec![])),
+        opening!("window.sliding", Window, (1.8, 1.4), 0.9, "IfcWindow", "WINDOW", {
+            let mut v = window(vec![param!("panes", Count, 2.0, 2.0, 4.0)]);
+            for p in &mut v {
+                if p.key == "frame_depth" {
+                    p.default = 0.1;
+                }
+            }
+            v
+        }),
+        opening!(
+            "window.fixed",
+            Window,
+            (1.0, 1.0),
+            1.0,
+            "IfcWindow",
+            "WINDOW",
+            window(vec![param!("mullions", Count, 0.0, 0.0, 6.0), transom()])
+        ),
+        // Voids.
+        opening!(
+            "void.rectangular",
+            Void,
+            (1.0, 2.2),
+            0.0,
+            "IfcOpeningElement",
+            "OPENING",
+            vec![param!("lintel", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        opening!(
+            "void.lined",
+            Void,
+            (1.0, 2.2),
+            0.0,
+            "IfcOpeningElement",
+            "OPENING",
+            vec![param!("lining", Length, 0.025, 0.01, 0.08), param!("lintel", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        // Bedroom.
+        object!(
+            "furniture.bed_single",
+            Furniture,
+            (0.9, 2.0, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "BED",
+            vec![]
+        ),
+        object!(
+            "furniture.bed_double",
+            Furniture,
+            (1.6, 2.0, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "BED",
+            vec![]
+        ),
+        object!("furniture.cot", Furniture, (0.7, 1.3, 0.9), FrontCentre, "IfcFurniture", "BED", vec![]),
+        object!(
+            "furniture.nightstand",
+            Furniture,
+            (0.45, 0.4, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![]
+        ),
+        object!(
+            "furniture.wardrobe",
+            Furniture,
+            (1.2, 0.6, 2.4),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("doors", Count, 2.0, 1.0, 8.0)]
+        ),
+        object!(
+            "furniture.chest_of_drawers",
+            Furniture,
+            (1.0, 0.5, 0.85),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("drawers", Count, 4.0, 2.0, 8.0)]
+        ),
+        // Living and dining.
+        object!(
+            "furniture.sofa_2",
+            Furniture,
+            (1.7, 0.9, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seats", Count, 2.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.sofa",
+            Furniture,
+            (2.2, 0.9, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seats", Count, 3.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.sofa_corner",
+            Furniture,
+            (2.6, 2.0, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "SOFA",
+            vec![param!("seat_depth", Length, 0.9, 0.6, 1.2), param!("seats", Count, 3.0, 1.0, 5.0)]
+        ),
+        object!(
+            "furniture.armchair",
+            Furniture,
+            (0.85, 0.85, 0.8),
+            FrontCentre,
+            "IfcFurniture",
+            "CHAIR",
+            vec![]
+        ),
+        object!(
+            "furniture.coffee_table",
+            Furniture,
+            (1.1, 0.6, 0.42),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![]
+        ),
+        object!(
+            "furniture.table",
+            Furniture,
+            (1.6, 0.9, 0.75),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 6.0, 0.0, 12.0)]
+        ),
+        object!(
+            "furniture.table_round",
+            Furniture,
+            (1.1, 1.1, 0.75),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 4.0, 0.0, 8.0)]
+        ),
+        object!("furniture.chair", Furniture, (0.45, 0.5, 0.9), FrontCentre, "IfcFurniture", "CHAIR", vec![]),
+        object!("furniture.desk", Furniture, (1.4, 0.7, 0.75), FrontCentre, "IfcFurniture", "DESK", vec![]),
+        object!(
+            "furniture.office_chair",
+            Furniture,
+            (0.62, 0.62, 1.0),
+            Centre,
+            "IfcFurniture",
+            "CHAIR",
+            vec![]
+        ),
+        object!(
+            "furniture.bookcase",
+            Furniture,
+            (1.0, 0.35, 2.0),
+            FrontCentre,
+            "IfcFurniture",
+            "SHELF",
+            vec![param!("shelves", Count, 5.0, 1.0, 10.0)]
+        ),
+        object!(
+            "furniture.tv_unit",
+            Furniture,
+            (1.8, 0.45, 0.5),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![]
+        ),
+        object!(
+            "furniture.garden_table",
+            Furniture,
+            (1.4, 0.8, 0.74),
+            Centre,
+            "IfcFurniture",
+            "TABLE",
+            vec![param!("chairs", Count, 4.0, 0.0, 8.0), param!("parasol", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        // Kitchen.
+        object!(
+            "kitchen.counter",
+            Kitchen,
+            (2.4, 0.6, 0.9),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("module", Length, 0.6, 0.3, 1.2), handle()]
+        ),
+        object!(
+            "kitchen.wall_cabinets",
+            Kitchen,
+            (2.4, 0.35, 0.7),
+            FrontCentre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("mount", Length, 1.45, 0.3, 2.4), param!("module", Length, 0.6, 0.3, 1.2), handle()]
+        ),
+        object!(
+            "kitchen.sink",
+            Kitchen,
+            (0.8, 0.6, 0.9),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SINK",
+            vec![param!("bowls", Count, 1.0, 1.0, 2.0), param!("drainer", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        object!(
+            "kitchen.sink_double",
+            Kitchen,
+            (1.2, 0.6, 0.9),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SINK",
+            vec![param!("bowls", Count, 2.0, 1.0, 2.0), param!("drainer", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        object!(
+            "kitchen.hob",
+            Kitchen,
+            (0.6, 0.6, 0.9),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "ELECTRICCOOKER",
+            vec![param!("burners", Count, 4.0, 1.0, 6.0)]
+        ),
+        object!(
+            "kitchen.cooker",
+            Kitchen,
+            (0.6, 0.6, 0.85),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "ELECTRICCOOKER",
+            vec![param!("burners", Count, 4.0, 1.0, 6.0)]
+        ),
+        object!(
+            "kitchen.oven",
+            Kitchen,
+            (0.6, 0.6, 2.1),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "ELECTRICCOOKER",
+            vec![]
+        ),
+        object!(
+            "kitchen.fridge",
+            Kitchen,
+            (0.6, 0.65, 1.85),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "FRIDGE_FREEZER",
+            vec![]
+        ),
+        object!(
+            "kitchen.dishwasher",
+            Kitchen,
+            (0.6, 0.6, 0.9),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "DISHWASHER",
+            vec![]
+        ),
+        object!(
+            "kitchen.island",
+            Kitchen,
+            (1.8, 0.9, 0.9),
+            Centre,
+            "IfcFurniture",
+            "NOTDEFINED",
+            vec![param!("overhang", Length, 0.3, 0.0, 0.5), param!("stools", Count, 3.0, 0.0, 6.0)]
+        ),
+        // Bathroom.
+        object!(
+            "sanitary.wc",
+            Sanitary,
+            (0.38, 0.68, 0.8),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "TOILETPAN",
+            vec![]
+        ),
+        object!(
+            "sanitary.wc_wall",
+            Sanitary,
+            (0.36, 0.54, 0.4),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "TOILETPAN",
+            vec![]
+        ),
+        object!(
+            "sanitary.bidet",
+            Sanitary,
+            (0.36, 0.54, 0.4),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "BIDET",
+            vec![]
+        ),
+        object!(
+            "sanitary.basin",
+            Sanitary,
+            (0.6, 0.45, 0.85),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "WASHHANDBASIN",
+            vec![param!("pedestal", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        object!(
+            "sanitary.vanity",
+            Sanitary,
+            (0.8, 0.5, 0.85),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "WASHHANDBASIN",
+            vec![]
+        ),
+        object!(
+            "sanitary.bath",
+            Sanitary,
+            (1.7, 0.75, 0.55),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "BATH",
+            vec![]
+        ),
+        object!(
+            "sanitary.shower",
+            Sanitary,
+            (0.9, 0.9, 0.05),
+            FrontCentre,
+            "IfcSanitaryTerminal",
+            "SHOWER",
+            vec![]
+        ),
+        object!(
+            "sanitary.shower_screen",
+            Sanitary,
+            (0.9, 0.03, 1.95),
+            FrontCentre,
+            "IfcBuildingElementProxy",
+            "NOTDEFINED",
+            vec![param!("door", Toggle, 1.0, 0.0, 1.0)]
+        ),
+        // Equipment.
+        object!(
+            "equipment.washing_machine",
+            Equipment,
+            (0.6, 0.6, 0.85),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "WASHINGMACHINE",
+            vec![]
+        ),
+        object!(
+            "equipment.water_heater",
+            Equipment,
+            (0.45, 0.47, 0.8),
+            FrontCentre,
+            "IfcElectricAppliance",
+            "FREESTANDINGWATERHEATER",
+            vec![param!("mount", Length, 1.4, 0.3, 2.4)]
+        ),
+        // Outdoor.
+        object!(
+            "vegetation.tree",
+            Vegetation,
+            (4.0, 4.0, 6.0),
+            Centre,
+            "IfcGeographicElement",
+            "VEGETATION",
+            vec![param!("trunk", Length, 2.0, 0.3, 10.0)]
+        ),
+        object!(
+            "vegetation.shrub",
+            Vegetation,
+            (1.2, 1.2, 1.0),
+            Centre,
+            "IfcGeographicElement",
+            "VEGETATION",
+            vec![]
+        ),
+        object!(
+            "vehicle.car",
+            Vehicle,
+            (1.8, 4.5, 1.5),
+            Centre,
+            "IfcBuildingElementProxy",
+            "NOTDEFINED",
+            vec![]
+        ),
+    ]
+}

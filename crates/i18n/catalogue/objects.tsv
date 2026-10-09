@@ -1,1 +1,127 @@
 # key	el	en
+# Categories
+objects.category.door	Πόρτες	Doors
+objects.category.window	Παράθυρα	Windows
+objects.category.void	Ανοίγματα χωρίς κούφωμα	Plain openings
+objects.category.furniture	Έπιπλα	Furniture
+objects.category.sanitary	Είδη υγιεινής	Sanitary fixtures
+objects.category.kitchen	Κουζίνα	Kitchen
+objects.category.equipment	Εξοπλισμός	Equipment
+objects.category.vegetation	Φυτά	Plants
+objects.category.vehicle	Οχήματα	Vehicles
+# Doors
+objects.door.single_swing	Μονόφυλλη ανοιγόμενη πόρτα	Single swing door
+objects.door.double_swing	Δίφυλλη ανοιγόμενη πόρτα	Double swing door
+objects.door.unequal_double	Δίφυλλη πόρτα με άνισα φύλλα	Unequal double door
+objects.door.sliding_single	Μονόφυλλη συρόμενη πόρτα επί του τοίχου	Single sliding door on the wall face
+objects.door.sliding	Δίφυλλη επάλληλη συρόμενη πόρτα	Double bypass sliding door
+objects.door.pocket	Συρόμενη πόρτα μέσα στον τοίχο	Pocket sliding door
+objects.door.folding	Πτυσσόμενη πόρτα	Folding door
+objects.door.entrance	Πόρτα εισόδου με πλαϊνό σταθερό υαλοστάσιο	Entrance door with side light
+objects.door.balcony	Ανοιγόμενη μπαλκονόπορτα	Casement balcony door
+objects.door.balcony_sliding	Επάλληλη συρόμενη μπαλκονόπορτα	Sliding balcony door
+objects.door.garage	Σπαστή γκαραζόπορτα	Sectional garage door
+# Windows
+objects.window.casement_1	Μονόφυλλο ανοιγόμενο παράθυρο	Single casement window
+objects.window.casement_2	Δίφυλλο ανοιγόμενο παράθυρο	Double casement window
+objects.window.casement_3	Τρίφυλλο ανοιγόμενο παράθυρο	Triple casement window
+objects.window.tilt_turn	Ανοιγοανακλινόμενο παράθυρο	Tilt-and-turn window
+objects.window.top_hung	Προβαλλόμενο παράθυρο	Top-hung window
+objects.window.sliding	Επάλληλα συρόμενο παράθυρο	Sliding window
+objects.window.fixed	Σταθερό παράθυρο	Fixed window
+# Plain openings
+objects.void.rectangular	Άνοιγμα χωρίς κούφωμα	Plain opening
+objects.void.lined	Άνοιγμα με επένδυση λαμπάδων	Opening with lined reveals
+# Furniture
+objects.furniture.bed_single	Μονό κρεβάτι	Single bed
+objects.furniture.bed_double	Διπλό κρεβάτι	Double bed
+objects.furniture.cot	Βρεφική κούνια	Cot
+objects.furniture.nightstand	Κομοδίνο	Nightstand
+objects.furniture.wardrobe	Ντουλάπα	Wardrobe
+objects.furniture.chest_of_drawers	Συρταριέρα	Chest of drawers
+objects.furniture.sofa_2	Διθέσιος καναπές	Two-seat sofa
+objects.furniture.sofa	Τριθέσιος καναπές	Three-seat sofa
+objects.furniture.sofa_corner	Γωνιακός καναπές	Corner sofa
+objects.furniture.armchair	Πολυθρόνα	Armchair
+objects.furniture.coffee_table	Τραπεζάκι σαλονιού	Coffee table
+objects.furniture.table	Τραπέζι φαγητού με καρέκλες	Dining table with chairs
+objects.furniture.table_round	Στρογγυλό τραπέζι με καρέκλες	Round table with chairs
+objects.furniture.chair	Καρέκλα	Chair
+objects.furniture.desk	Γραφείο	Desk
+objects.furniture.office_chair	Καρέκλα γραφείου	Office chair
+objects.furniture.bookcase	Βιβλιοθήκη	Bookcase
+objects.furniture.tv_unit	Έπιπλο τηλεόρασης	TV unit
+objects.furniture.garden_table	Τραπέζι κήπου με ομπρέλα	Garden table with parasol
+# Kitchen
+objects.kitchen.counter	Ντουλάπια βάσης με πάγκο εργασίας	Base units with worktop
+objects.kitchen.wall_cabinets	Ντουλάπια τοίχου	Wall cabinets
+objects.kitchen.sink	Νεροχύτης	Kitchen sink
+objects.kitchen.sink_double	Νεροχύτης με δύο γούρνες	Double-bowl kitchen sink
+objects.kitchen.hob	Εστίες μαγειρέματος	Hob
+objects.kitchen.cooker	Κουζίνα με φούρνο	Cooker with oven
+objects.kitchen.oven	Φούρνος σε ντουλάπι-στήλη	Built-in oven in a tall unit
+objects.kitchen.fridge	Ψυγειοκαταψύκτης	Fridge-freezer
+objects.kitchen.dishwasher	Πλυντήριο πιάτων	Dishwasher
+objects.kitchen.island	Νησίδα κουζίνας	Kitchen island
+# Bathroom
+objects.sanitary.wc	Λεκάνη WC δαπέδου με καζανάκι	Floor-standing WC with cistern
+objects.sanitary.wc_wall	Κρεμαστή λεκάνη WC	Wall-hung WC
+objects.sanitary.bidet	Μπιντές	Bidet
+objects.sanitary.basin	Νιπτήρας	Washbasin
+objects.sanitary.vanity	Νιπτήρας με έπιπλο	Vanity unit with basin
+objects.sanitary.bath	Μπανιέρα	Bathtub
+objects.sanitary.shower	Ντουζιέρα	Shower tray
+objects.sanitary.shower_screen	Διαχωριστικό ντουζιέρας	Shower screen
+# Equipment
+objects.equipment.washing_machine	Πλυντήριο ρούχων	Washing machine
+objects.equipment.water_heater	Ηλεκτρικός θερμοσίφωνας	Electric water heater
+# Outdoor
+objects.vegetation.tree	Δέντρο	Tree
+objects.vegetation.shrub	Θάμνος	Shrub
+objects.vehicle.car	Αυτοκίνητο	Car
+# Parameters
+objects.param.width	Πλάτος	Width
+objects.param.depth	Βάθος	Depth
+objects.param.height	Ύψος	Height
+objects.param.sill	Ύψος ποδιάς	Sill height
+objects.param.frame	Πλάτος κάσας	Frame width
+objects.param.frame_depth	Βάθος κάσας	Frame depth
+objects.param.setback	Απόσταση κάσας από την εξωτερική παρειά	Frame setback from the outer face
+objects.param.leaf	Πάχος φύλλου	Leaf thickness
+objects.param.swing	Γωνία ανοίγματος φύλλου στην κάτοψη	Leaf swing angle in plan
+objects.param.threshold	Κατωκάσι	Threshold
+objects.param.glazing	Τζάμι φύλλου (% του ύψους)	Leaf glazing (% of height)
+objects.param.handle	Χερούλι	Handle
+objects.param.main_leaf	Πλάτος κύριου φύλλου	Main leaf width
+objects.param.leaves	Αριθμός φύλλων	Number of leaves
+objects.param.panels	Αριθμός πτυσσόμενων φύλλων	Number of folding panels
+objects.param.sidelight	Πλάτος πλαϊνού υαλοστασίου	Side light width
+objects.param.shutters	Εξωτερικά παντζούρια	External shutters
+objects.param.roller	Ρολό με κουτί	Roller shutter with box
+objects.param.roller_box	Ύψος κουτιού ρολού	Roller shutter box height
+objects.param.panes	Αριθμός συρόμενων φύλλων	Number of sliding panes
+objects.param.sections	Αριθμός τμημάτων	Number of sections
+objects.param.sill_out	Εξωτερική ποδιά (μαρμαροποδιά)	External sill
+objects.param.sill_projection	Προεξοχή εξωτερικής ποδιάς	External sill projection
+objects.param.sill_in	Εσωτερική ποδιά	Internal sill
+objects.param.transom	Ύψος φεγγίτη	Top light height
+objects.param.mullions	Αριθμός ορθοστατών	Number of mullions
+objects.param.lintel	Ένδειξη πρεκιού στην κάτοψη	Show the lintel in plan
+objects.param.lining	Πάχος επένδυσης λαμπάδων	Reveal lining thickness
+objects.param.doors	Αριθμός φύλλων ντουλάπας	Number of doors
+objects.param.drawers	Αριθμός συρταριών	Number of drawers
+objects.param.seats	Αριθμός θέσεων	Number of seats
+objects.param.seat_depth	Βάθος καθίσματος	Seat depth
+objects.param.chairs	Αριθμός καρεκλών	Number of chairs
+objects.param.shelves	Αριθμός ραφιών	Number of shelves
+objects.param.parasol	Ομπρέλα	Parasol
+objects.param.module	Πλάτος ντουλαπιού	Cabinet width
+objects.param.mount	Ύψος τοποθέτησης	Mounting height
+objects.param.bowls	Αριθμός γουρνών	Number of bowls
+objects.param.drainer	Στραγγιστήρι	Drainer
+objects.param.burners	Αριθμός εστιών	Number of burners
+objects.param.overhang	Προεξοχή πάγκου	Worktop overhang
+objects.param.stools	Αριθμός σκαμπό	Number of stools
+objects.param.pedestal	Κολόνα νιπτήρα	Pedestal
+objects.param.door	Ανοιγόμενο φύλλο	Hinged door
+objects.param.trunk	Ύψος κορμού	Trunk height

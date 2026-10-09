@@ -1,24 +1,60 @@
-//! Parametric object system for doors, windows and fixtures.
+//! Parametric object system for doors, windows, voids, furniture and fixtures.
 //!
-//! Layer L4. See `docs/architecture.md` and ADR-0006.
+//! Layer L4. See `docs/architecture.md`, ADR-0006 and the specs in `specs/objects/`.
 //!
-//! Objects are defined in Rust for now (a catalogue of parametric definitions); a sandboxed authoring language is
-//! a later phase (ADR-0006). Every definition produces a 2D plan symbol and 3D parts from its parameters.
+//! Objects are built-in parametric definitions written in Rust (ADR-0006 phase 1); a sandboxed authoring language
+//! is a later phase. Every definition produces a 2D plan symbol and coloured 3D parts from its parameters. Every
+//! object was drawn from scratch from general drafting conventions (ISO 128, ΕΛΟΤ practice) and common product
+//! dimensions.
 //!
-//! Local coordinates:
-//! - **Openings** (doors, windows): `x` along the host wall (the opening spans `−width/2 … +width/2`), `y` across
-//!   the wall (positive towards the wall's left face; the faces are at `left_face` and `right_face`), `z` up from
-//!   the sill. Views place them with the opening's world placement.
-//! - **Free objects** (furniture, fixtures): origin at the insertion point, `x` right, `y` back/up in plan, `z` up
-//!   from the object's base. Views apply the object's position, rotation and mirroring.
+//! # Local coordinates
+//!
+//! - **Openings** (doors, windows, voids): `x` along the host wall (the opening spans `−width/2 … +width/2`),
+//!   `y` across the wall (positive towards the wall's left side; the faces are at `left_face` and `right_face`),
+//!   `z` up from the sill. The opening's `width` and `height` are the hole in the wall; frames sit inside it.
+//!   By default door leaves and window sashes open towards the **left face** (the inside of a wall drawn
+//!   counter-clockwise around a building) and a window's outer face, with its sill, shutters and roller box, is
+//!   the **right face**. `flip_side` swaps the two faces; `flip_hand` swaps the hinge jamb (single hinges sit at
+//!   `x = −width/2` by default) and the side sliding leaves park on.
+//! - **Free objects** (furniture, fixtures): origin at the insertion point, `x` right, `y` back in plan, `z` up
+//!   from the object's base. Objects that stand against a wall have their origin at the middle of their front
+//!   edge and extend over `y = 0 … depth` ([`Origin::FrontCentre`]); free-standing objects (tables, trees, cars)
+//!   are centred on the origin ([`Origin::Centre`]). Views apply position, rotation and mirroring.
+//!
+//! # Plan symbols
+//!
+//! Layers are `door.symbol`, `window.symbol`, `opening.symbol` and `object.symbol`, with suffixes for parts a
+//! view may hide: `.swing` (swing arcs and sliding arrows), `.above` (parts above the cut plane, dashed),
+//! `.sill`/`.threshold` and `.shutter`. Leaves are drawn at 0.35 mm, frames at 0.25 mm, glass, swing arcs and
+//! furniture at 0.18 mm and details at 0.13 mm. [`opening_symbol_at`] and [`object_symbol_at`] take the drawing
+//! scale: at 1:50 and larger symbols show full detail, at smaller scales they are simplified.
+
+mod bathroom;
+mod catalogue;
+mod doors;
+mod furniture;
+mod host;
+mod kitchen;
+mod outdoor;
+mod params;
+mod parts;
+mod shape;
+mod sym;
+mod voids;
+mod windows;
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-use kanavos_drawing::{Item, LinePattern, Rgba, Shape, Stroke, pt, weights};
+use kanavos_drawing::{Drawing, Item, Rect, Rgba, pt};
 use kanavos_geom::Point3;
 use kanavos_model::{Object, Opening, OpeningKind};
 use kanavos_solid::{Mesh, cuboid};
+
+use crate::host::Host;
+use crate::params::P;
+use crate::parts::Parts;
+use crate::sym::{Pen, Sym};
 
 /// What an object is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -44,6 +80,19 @@ pub enum ObjectCategory {
 }
 
 impl ObjectCategory {
+    /// Every category, in catalogue order.
+    pub const ALL: [ObjectCategory; 9] = [
+        ObjectCategory::Door,
+        ObjectCategory::Window,
+        ObjectCategory::Void,
+        ObjectCategory::Furniture,
+        ObjectCategory::Kitchen,
+        ObjectCategory::Sanitary,
+        ObjectCategory::Equipment,
+        ObjectCategory::Vegetation,
+        ObjectCategory::Vehicle,
+    ];
+
     /// Catalogue key of the category name.
     pub fn name_key(self) -> &'static str {
         match self {
@@ -63,6 +112,16 @@ impl ObjectCategory {
     pub fn is_opening(self) -> bool {
         matches!(self, ObjectCategory::Door | ObjectCategory::Window | ObjectCategory::Void)
     }
+
+    /// The opening kind of an opening category.
+    pub fn opening_kind(self) -> Option<OpeningKind> {
+        match self {
+            ObjectCategory::Door => Some(OpeningKind::Door),
+            ObjectCategory::Window => Some(OpeningKind::Window),
+            ObjectCategory::Void => Some(OpeningKind::Void),
+            _ => None,
+        }
+    }
 }
 
 /// Kind of a parameter value.
@@ -70,7 +129,7 @@ impl ObjectCategory {
 pub enum ParamKind {
     /// A length in metres.
     Length,
-    /// A whole number.
+    /// A whole number (counts, and percentages such as `glazing`).
     Count,
     /// On/off (0 or 1).
     Toggle,
@@ -95,6 +154,31 @@ pub struct ParamDef {
     pub max: f64,
 }
 
+impl ParamDef {
+    /// A stored value made valid: non-finite values give the default, others are limited to `min … max`; counts
+    /// and toggles are rounded.
+    pub fn clamp(&self, value: f64) -> f64 {
+        if !value.is_finite() {
+            return self.default;
+        }
+        let v = value.max(self.min).min(self.max.max(self.min));
+        match self.kind {
+            ParamKind::Count | ParamKind::Toggle => v.round(),
+            ParamKind::Length | ParamKind::Angle => v,
+        }
+    }
+}
+
+/// Where a free object's insertion point sits in its footprint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Origin {
+    /// The middle of the front edge; the object extends over `y = 0 … depth` (objects against a wall).
+    #[default]
+    FrontCentre,
+    /// The centre of the footprint (tables, trees, cars).
+    Centre,
+}
+
 /// A catalogue entry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjectDef {
@@ -104,7 +188,7 @@ pub struct ObjectDef {
     pub name: &'static str,
     /// Category.
     pub category: ObjectCategory,
-    /// Default width (openings: clear width; objects: x size), metres.
+    /// Default width (openings: width of the hole; objects: x size), metres.
     pub width: f64,
     /// Default depth (objects: y size), metres. Openings ignore it.
     pub depth: f64,
@@ -114,85 +198,34 @@ pub struct ObjectDef {
     pub sill: f64,
     /// Parameters beyond width/depth/height.
     pub params: Vec<ParamDef>,
+    /// Where the insertion point of a free object sits.
+    pub origin: Origin,
+    /// IFC entity the object exports as (ISO 16739-1), e.g. `"IfcDoor"`, `"IfcSanitaryTerminal"`.
+    pub ifc_class: &'static str,
+    /// IFC predefined type, e.g. `"DOOR"`, `"TOILETPAN"`, `"NOTDEFINED"`.
+    pub ifc_type: &'static str,
+    /// Smallest accepted width, depth and height, metres.
+    pub min_size: [f64; 3],
+    /// Largest accepted width, depth and height, metres.
+    pub max_size: [f64; 3],
 }
 
-fn p(key: &'static str, label: &'static str, kind: ParamKind, default: f64, min: f64, max: f64) -> ParamDef {
-    ParamDef { key, label, kind, default, min, max }
-}
+impl ObjectDef {
+    /// The definition of a parameter.
+    pub fn param_def(&self, key: &str) -> Option<&ParamDef> {
+        self.params.iter().find(|p| p.key == key)
+    }
 
-fn def(
-    id: &'static str,
-    name: &'static str,
-    category: ObjectCategory,
-    size: (f64, f64, f64),
-    sill: f64,
-    params: Vec<ParamDef>,
-) -> ObjectDef {
-    ObjectDef { id, name, category, width: size.0, depth: size.1, height: size.2, sill, params }
+    /// Every parameter at its default value.
+    pub fn default_params(&self) -> BTreeMap<String, f64> {
+        self.params.iter().map(|p| (p.key.to_owned(), p.default)).collect()
+    }
 }
 
 /// The built-in catalogue.
 pub fn catalogue() -> &'static [ObjectDef] {
     static CATALOGUE: OnceLock<Vec<ObjectDef>> = OnceLock::new();
-    CATALOGUE.get_or_init(|| {
-        use ObjectCategory::*;
-        use ParamKind::*;
-        let frame = || p("frame", "objects.param.frame", Length, 0.06, 0.02, 0.2);
-        vec![
-            def("door.single_swing", "objects.door.single_swing", Door, (0.9, 0.0, 2.1), 0.0, vec![frame()]),
-            def("door.double_swing", "objects.door.double_swing", Door, (1.4, 0.0, 2.1), 0.0, vec![frame()]),
-            def("door.sliding", "objects.door.sliding", Door, (1.6, 0.0, 2.2), 0.0, vec![frame()]),
-            def(
-                "window.casement_1",
-                "objects.window.casement_1",
-                Window,
-                (0.8, 0.0, 1.2),
-                0.9,
-                vec![frame()],
-            ),
-            def(
-                "window.casement_2",
-                "objects.window.casement_2",
-                Window,
-                (1.2, 0.0, 1.4),
-                0.9,
-                vec![frame()],
-            ),
-            def("window.sliding", "objects.window.sliding", Window, (1.8, 0.0, 1.4), 0.9, vec![frame()]),
-            def("window.fixed", "objects.window.fixed", Window, (1.0, 0.0, 1.0), 1.0, vec![frame()]),
-            def("void.rectangular", "objects.void.rectangular", Void, (1.0, 0.0, 2.2), 0.0, vec![]),
-            def(
-                "furniture.bed_double",
-                "objects.furniture.bed_double",
-                Furniture,
-                (1.6, 2.0, 0.45),
-                0.0,
-                vec![],
-            ),
-            def(
-                "furniture.bed_single",
-                "objects.furniture.bed_single",
-                Furniture,
-                (0.9, 2.0, 0.45),
-                0.0,
-                vec![],
-            ),
-            def("furniture.table", "objects.furniture.table", Furniture, (1.6, 0.9, 0.75), 0.0, vec![]),
-            def("furniture.chair", "objects.furniture.chair", Furniture, (0.45, 0.5, 0.9), 0.0, vec![]),
-            def("furniture.sofa", "objects.furniture.sofa", Furniture, (2.2, 0.9, 0.8), 0.0, vec![]),
-            def("furniture.wardrobe", "objects.furniture.wardrobe", Furniture, (1.2, 0.6, 2.4), 0.0, vec![]),
-            def("sanitary.wc", "objects.sanitary.wc", Sanitary, (0.38, 0.65, 0.4), 0.0, vec![]),
-            def("sanitary.basin", "objects.sanitary.basin", Sanitary, (0.6, 0.45, 0.85), 0.0, vec![]),
-            def("sanitary.shower", "objects.sanitary.shower", Sanitary, (0.9, 0.9, 0.05), 0.0, vec![]),
-            def("sanitary.bath", "objects.sanitary.bath", Sanitary, (1.7, 0.75, 0.55), 0.0, vec![]),
-            def("kitchen.counter", "objects.kitchen.counter", Kitchen, (2.4, 0.6, 0.9), 0.0, vec![]),
-            def("kitchen.sink", "objects.kitchen.sink", Kitchen, (0.8, 0.6, 0.9), 0.0, vec![]),
-            def("kitchen.hob", "objects.kitchen.hob", Kitchen, (0.6, 0.6, 0.9), 0.0, vec![]),
-            def("kitchen.fridge", "objects.kitchen.fridge", Kitchen, (0.6, 0.65, 1.85), 0.0, vec![]),
-            def("vegetation.tree", "objects.vegetation.tree", Vegetation, (4.0, 4.0, 6.0), 0.0, vec![]),
-            def("vehicle.car", "objects.vehicle.car", Vehicle, (1.8, 4.5, 1.5), 0.0, vec![]),
-        ]
-    })
+    CATALOGUE.get_or_init(catalogue::build)
 }
 
 /// Finds a definition by id.
@@ -215,6 +248,7 @@ pub fn default_style(kind: OpeningKind) -> &'static str {
 }
 
 /// A parameter value from a map, falling back to the definition's default (and to `fallback` for unknown keys).
+/// The value is returned as stored; generators use it limited to the definition's range.
 pub fn param(def: Option<&ObjectDef>, params: &BTreeMap<String, f64>, key: &str, fallback: f64) -> f64 {
     if let Some(v) = params.get(key) {
         return *v;
@@ -242,140 +276,197 @@ pub struct Part {
     pub color: Rgba,
 }
 
-const FRAME: Rgba = Rgba::rgb(235, 235, 232);
-const LEAF: Rgba = Rgba::rgb(160, 120, 80);
-const GLASS: Rgba = Rgba::new(160, 200, 225, 110);
-
-/// Plan symbol of a door or window in local coordinates (layers `door.symbol` / `window.symbol`).
-pub fn opening_symbol(ctx: &OpeningContext<'_>) -> Vec<Item> {
-    let o = ctx.opening;
-    let w = o.width.as_m();
-    let (yl, yr) = (ctx.left_face, ctx.right_face);
-    let mut items = Vec::new();
-    let thin = Stroke::solid(weights::FINE);
-    let medium = Stroke::solid(weights::THIN);
-    match o.kind {
-        OpeningKind::Door => {
-            let layer = "door.symbol";
-            // Jamb lines.
-            items.push(Item::line(pt(-w / 2.0, yl), pt(-w / 2.0, yr), thin.clone(), layer));
-            items.push(Item::line(pt(w / 2.0, yl), pt(w / 2.0, yr), thin.clone(), layer));
-            // Leaf and swing on the side given by flip_side (default: left face side).
-            let face = if o.flip_side { yr } else { yl };
-            let sign = if o.flip_side { -1.0 } else { 1.0 };
-            let hinge_x = if o.flip_hand { w / 2.0 } else { -w / 2.0 };
-            let free_x = -hinge_x;
-            let leaf_end = pt(hinge_x, face + sign * w);
-            items.push(Item::line(pt(hinge_x, face), leaf_end, medium, layer));
-            let start = (pt(free_x, face).y - face).atan2(free_x - hinge_x);
-            let end = sign * std::f64::consts::FRAC_PI_2;
-            let sweep = {
-                let s = end - start;
-                if s > std::f64::consts::PI {
-                    s - std::f64::consts::TAU
-                } else if s < -std::f64::consts::PI {
-                    s + std::f64::consts::TAU
-                } else {
-                    s
-                }
-            };
-            items.push(Item {
-                shape: Shape::Arc { centre: pt(hinge_x, face), radius: w, start, sweep },
-                stroke: Some(Stroke::patterned(weights::FINE, LinePattern::Solid)),
-                fill: None,
-                layer: layer.into(),
-                source: None,
-            });
-        }
-        OpeningKind::Window => {
-            let layer = "window.symbol";
-            let mid = (yl + yr) / 2.0;
-            items.push(Item::line(pt(-w / 2.0, yl), pt(-w / 2.0, yr), thin.clone(), layer));
-            items.push(Item::line(pt(w / 2.0, yl), pt(w / 2.0, yr), thin.clone(), layer));
-            items.push(Item::line(pt(-w / 2.0, mid + 0.02), pt(w / 2.0, mid + 0.02), medium.clone(), layer));
-            items.push(Item::line(pt(-w / 2.0, mid - 0.02), pt(w / 2.0, mid - 0.02), medium, layer));
-        }
-        OpeningKind::Void => {
-            let layer = "opening.symbol";
-            items.push(Item::line(pt(-w / 2.0, yl), pt(w / 2.0, yr), thin.clone(), layer));
-            items.push(Item::line(pt(-w / 2.0, yr), pt(w / 2.0, yl), thin, layer));
-        }
-    }
-    items
+/// The definition an opening is drawn with: its style when that is a style of the opening's kind, else the
+/// default style of the kind.
+pub fn opening_def(o: &Opening) -> Option<&'static ObjectDef> {
+    find(&o.style)
+        .filter(|d| d.category.opening_kind() == Some(o.kind))
+        .or_else(|| find(default_style(o.kind)))
 }
 
-/// 3D parts of a door or window in local coordinates.
+/// Plan symbol of a door, window or void in local coordinates at 1:50.
+pub fn opening_symbol(ctx: &OpeningContext<'_>) -> Vec<Item> {
+    opening_symbol_at(ctx, 50.0)
+}
+
+/// Plan symbol of a door, window or void in local coordinates for a drawing at scale 1:`scale`.
+///
+/// Layers: `door.symbol*`, `window.symbol*` or `opening.symbol*` (see the crate documentation).
+pub fn opening_symbol_at(ctx: &OpeningContext<'_>, scale: f64) -> Vec<Item> {
+    let o = ctx.opening;
+    let (Some(def), Some(host)) = (opening_def(o), Host::new(ctx)) else {
+        return degenerate_opening_symbol(ctx, scale);
+    };
+    let p = P::new(def, &o.params);
+    let mut sym = Sym::new("opening.symbol", scale);
+    match def.category {
+        ObjectCategory::Door => doors::symbol(def.id, &mut sym, &host, &p),
+        ObjectCategory::Window => windows::symbol(def.id, &mut sym, &host, &p),
+        _ => voids::symbol(def.id, &mut sym, &host, &p),
+    }
+    host.finish_symbol(sym)
+}
+
+/// Jamb lines only, for openings too small to draw.
+fn degenerate_opening_symbol(ctx: &OpeningContext<'_>, scale: f64) -> Vec<Item> {
+    let w = ctx.opening.width.as_m();
+    let mut sym = Sym::new("opening.symbol", scale);
+    if w.is_finite() && w > 0.0 {
+        sym.line((-w / 2.0, ctx.left_face), (-w / 2.0, ctx.right_face), Pen::Fine);
+        sym.line((w / 2.0, ctx.left_face), (w / 2.0, ctx.right_face), Pen::Fine);
+    }
+    sym.into_items()
+}
+
+/// Plan symbol of an opening that lies wholly above the cut plane (a high window seen from below): the frame
+/// and glass, or for voids the wall faces, dashed on the `<kind>.symbol.above` layer.
+pub fn opening_symbol_overhead(ctx: &OpeningContext<'_>, scale: f64) -> Vec<Item> {
+    let o = ctx.opening;
+    let (Some(def), Some(host)) = (opening_def(o), Host::new(ctx)) else { return Vec::new() };
+    let p = P::new(def, &o.params);
+    let mut sym = Sym::new("opening.symbol.above", scale);
+    match def.category {
+        ObjectCategory::Door => windows::overhead_symbol(&mut sym, &host, &p, &windows::DOOR),
+        ObjectCategory::Window => windows::overhead_symbol(&mut sym, &host, &p, &windows::WINDOW),
+        _ => voids::overhead_symbol(&mut sym, &host),
+    }
+    host.finish_symbol(sym)
+}
+
+/// 3D parts of a door, window or void in local coordinates.
 pub fn opening_parts(ctx: &OpeningContext<'_>) -> Vec<Part> {
     let o = ctx.opening;
-    let w = o.width.as_m();
-    let h = o.height.as_m();
-    let def = find(&o.style);
-    let f = param(def, &o.params, "frame", 0.06);
-    let mid = (ctx.left_face + ctx.right_face) / 2.0;
-    let depth = 0.07;
-    let (y0, y1) = (mid - depth / 2.0, mid + depth / 2.0);
-    let mut parts = Vec::new();
-    if o.kind == OpeningKind::Void {
-        return parts;
+    let (Some(def), Some(host)) = (opening_def(o), Host::new(ctx)) else { return Vec::new() };
+    let p = P::new(def, &o.params);
+    let mut parts = Parts::new();
+    match def.category {
+        ObjectCategory::Door => doors::parts(def.id, &mut parts, &host, &p),
+        ObjectCategory::Window => windows::parts(def.id, &mut parts, &host, &p),
+        _ => voids::parts(def.id, &mut parts, &host, &p),
     }
-    let mut frame = Mesh::new();
-    frame.append(&cuboid(Point3::new(-w / 2.0, y0, 0.0), Point3::new(-w / 2.0 + f, y1, h)));
-    frame.append(&cuboid(Point3::new(w / 2.0 - f, y0, 0.0), Point3::new(w / 2.0, y1, h)));
-    frame.append(&cuboid(Point3::new(-w / 2.0, y0, h - f), Point3::new(w / 2.0, y1, h)));
-    if o.kind == OpeningKind::Window {
-        frame.append(&cuboid(Point3::new(-w / 2.0, y0, 0.0), Point3::new(w / 2.0, y1, f)));
-    }
-    parts.push(Part { mesh: frame, color: FRAME });
-    let inner = cuboid(
-        Point3::new(-w / 2.0 + f, mid - 0.01, if o.kind == OpeningKind::Window { f } else { 0.0 }),
-        Point3::new(w / 2.0 - f, mid + 0.01, h - f),
-    );
-    parts.push(Part { mesh: inner, color: if o.kind == OpeningKind::Door { LEAF } else { GLASS } });
-    parts
+    host.finish_parts(parts)
 }
 
-fn object_size(obj: &Object) -> (f64, f64, f64) {
-    let def = find(&obj.definition);
-    let w = param(def, &obj.params, "width", def.map(|d| d.width).unwrap_or(1.0));
-    let d = param(def, &obj.params, "depth", def.map(|d| d.depth).unwrap_or(1.0));
-    let h = param(def, &obj.params, "height", def.map(|d| d.height).unwrap_or(1.0));
-    (w, d, h)
+/// The definition of a free object, if its id is in the catalogue.
+pub fn object_def(obj: &Object) -> Option<&'static ObjectDef> {
+    find(&obj.definition)
 }
 
-/// Plan symbol of a free object in local coordinates (before its placement is applied), layer `object.symbol`.
+/// Width, depth and height of a free object: its `width`, `depth` and `height` parameters or the definition's
+/// defaults, limited to the definition's size range (1 m cube for unknown definitions).
+pub fn object_size(obj: &Object) -> (f64, f64, f64) {
+    let def = object_def(obj);
+    let get = |key: &str, i: usize, default: f64| {
+        let v = param(def, &obj.params, key, def.map(|_| default).unwrap_or(1.0));
+        let (lo, hi) = def
+            .map(|d| {
+                (d.min_size.get(i).copied().unwrap_or(0.01), d.max_size.get(i).copied().unwrap_or(100.0))
+            })
+            .unwrap_or((0.01, 100.0));
+        if v.is_finite() { v.max(lo).min(hi.max(lo)) } else { default }
+    };
+    match def {
+        Some(d) => (get("width", 0, d.width), get("depth", 1, d.depth), get("height", 2, d.height)),
+        None => (get("width", 0, 1.0), get("depth", 1, 1.0), get("height", 2, 1.0)),
+    }
+}
+
+/// The local footprint box of a free object, `(x0, y0, x1, y1)` and height.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Bx {
+    pub x0: f64,
+    pub y0: f64,
+    pub x1: f64,
+    pub y1: f64,
+    pub h: f64,
+}
+
+impl Bx {
+    fn of(obj: &Object, def: Option<&ObjectDef>) -> Bx {
+        let (w, d, h) = object_size(obj);
+        match def.map(|d| d.origin).unwrap_or_default() {
+            Origin::FrontCentre => Bx { x0: -w / 2.0, y0: 0.0, x1: w / 2.0, y1: d, h },
+            Origin::Centre => Bx { x0: -w / 2.0, y0: -d / 2.0, x1: w / 2.0, y1: d / 2.0, h },
+        }
+    }
+    /// Width.
+    pub(crate) fn w(&self) -> f64 {
+        self.x1 - self.x0
+    }
+    /// Depth.
+    pub(crate) fn d(&self) -> f64 {
+        self.y1 - self.y0
+    }
+    /// Centre x.
+    pub(crate) fn cx(&self) -> f64 {
+        (self.x0 + self.x1) / 2.0
+    }
+    /// Centre y.
+    pub(crate) fn cy(&self) -> f64 {
+        (self.y0 + self.y1) / 2.0
+    }
+}
+
+/// Plan symbol of a free object at 1:50, in local coordinates (before its placement is applied), on layers
+/// `object.symbol*`.
 pub fn object_symbol(obj: &Object) -> Vec<Item> {
-    let (w, d, _) = object_size(obj);
-    let stroke = Stroke::solid(weights::FINE);
-    vec![Item::polyline(
-        vec![pt(-w / 2.0, 0.0), pt(w / 2.0, 0.0), pt(w / 2.0, d), pt(-w / 2.0, d)],
-        true,
-        stroke,
-        "object.symbol",
-    )]
+    object_symbol_at(obj, 50.0)
+}
+
+/// Plan symbol of a free object for a drawing at scale 1:`scale`, in local coordinates. Parts above the cut
+/// plane (wall cabinets, a water heater, a parasol) are dashed on `object.symbol.above`.
+pub fn object_symbol_at(obj: &Object, scale: f64) -> Vec<Item> {
+    let def = object_def(obj);
+    let b = Bx::of(obj, def);
+    let mut sym = Sym::new("object.symbol", scale);
+    let drawn = def.is_some_and(|def| {
+        let p = P::new(def, &obj.params);
+        furniture::symbol(def.id, &mut sym, &b, &p)
+            || kitchen::symbol(def.id, &mut sym, &b, &p)
+            || bathroom::symbol(def.id, &mut sym, &b, &p)
+            || outdoor::symbol(def.id, &mut sym, &b, &p)
+    });
+    if !drawn {
+        // Unknown definition: its box with a cross.
+        sym.rect(b.x0, b.y0, b.x1, b.y1, Pen::Fine);
+        sym.line((b.x0, b.y0), (b.x1, b.y1), Pen::Detail);
+        sym.line((b.x0, b.y1), (b.x1, b.y0), Pen::Detail);
+    }
+    sym.into_items()
 }
 
 /// 3D parts of a free object in local coordinates.
 pub fn object_parts(obj: &Object) -> Vec<Part> {
-    let (w, d, h) = object_size(obj);
-    vec![Part {
-        mesh: cuboid(Point3::new(-w / 2.0, 0.0, 0.0), Point3::new(w / 2.0, d, h)),
-        color: Rgba::rgb(200, 195, 185),
-    }]
+    let def = object_def(obj);
+    let b = Bx::of(obj, def);
+    let mut parts = Parts::new();
+    let built = def.is_some_and(|def| {
+        let p = P::new(def, &obj.params);
+        furniture::parts(def.id, &mut parts, &b, &p)
+            || kitchen::parts(def.id, &mut parts, &b, &p)
+            || bathroom::parts(def.id, &mut parts, &b, &p)
+            || outdoor::parts(def.id, &mut parts, &b, &p)
+    });
+    if !built {
+        parts.add(
+            cuboid(Point3::new(b.x0, b.y0, 0.0), Point3::new(b.x1, b.y1, b.h)),
+            Rgba::rgb(200, 195, 185),
+        );
+    }
+    parts.into_parts()
+}
+
+/// The local plan extent of a free object's symbol, including parts beyond its nominal size (chairs around a
+/// table, the swing of a shower door, a parasol).
+pub fn object_footprint(obj: &Object) -> Rect {
+    let b = Bx::of(obj, object_def(obj));
+    let mut r = Rect { min: pt(b.x0, b.y0), max: pt(b.x1, b.y1) };
+    let d = Drawing { items: object_symbol(obj), ..Drawing::model(50.0) };
+    if let Some(s) = d.bounds() {
+        r = r.union(&s);
+    }
+    r
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn catalogue_ids_are_unique_and_named() {
-        let mut ids: Vec<&str> = catalogue().iter().map(|d| d.id).collect();
-        ids.sort_unstable();
-        let n = ids.len();
-        ids.dedup();
-        assert_eq!(ids.len(), n);
-        for kind in [OpeningKind::Door, OpeningKind::Window, OpeningKind::Void] {
-            assert!(find(default_style(kind)).is_some());
-        }
-    }
-}
+mod tests;

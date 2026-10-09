@@ -27,7 +27,9 @@ pub fn cursor_icon(hint: CursorHint) -> CursorIcon {
 /// Draws the glyph of a snap kind centred on `p`. Each kind has its own shape so the reason for a snap can be read
 /// without the label: square (end), triangle (middle), corner bracket (corner), circle (centre), cross
 /// (intersection), diamond (on edge), right-angle mark (perpendicular), plus (extension), wedge (angle lock), small
-/// grid cross (grid).
+/// grid cross (grid), two slanted strokes (parallel), circle on a line (alignment), bracketed line (wall face),
+/// dash-dot line (centreline), three lines (layer boundary), crossed square (insertion point), padlock (locked
+/// direction).
 pub fn snap_glyph(painter: &egui::Painter, p: Pos2, hint: SnapHint, color: Color32) {
     let s = 5.5;
     let st = Stroke::new(1.6, color);
@@ -74,6 +76,45 @@ pub fn snap_glyph(painter: &egui::Painter, p: Pos2, hint: SnapHint, color: Color
         SnapHint::Grid => {
             lines.push([p + vec2(-s * 0.6, 0.0), p + vec2(s * 0.6, 0.0)]);
             lines.push([p + vec2(0.0, -s * 0.6), p + vec2(0.0, s * 0.6)]);
+        }
+        SnapHint::Parallel => {
+            lines.push([p + vec2(-s, s * 0.6), p + vec2(-s * 0.1, -s)]);
+            lines.push([p + vec2(s * 0.1, s), p + vec2(s, -s * 0.6)]);
+        }
+        SnapHint::Alignment => {
+            circle = Some(s * 0.7);
+            lines.push([p + vec2(-s * 1.4, 0.0), p + vec2(s * 1.4, 0.0)]);
+        }
+        SnapHint::Face => {
+            lines.push([p + vec2(-s, 0.0), p + vec2(s, 0.0)]);
+            lines.push([p + vec2(-s, -s * 0.6), p + vec2(-s, s * 0.6)]);
+            lines.push([p + vec2(s, -s * 0.6), p + vec2(s, s * 0.6)]);
+        }
+        SnapHint::Centreline => {
+            lines.push([p + vec2(-s * 1.3, 0.0), p + vec2(-s * 0.45, 0.0)]);
+            lines.push([p + vec2(-s * 0.1, 0.0), p + vec2(s * 0.1, 0.0)]);
+            lines.push([p + vec2(s * 0.45, 0.0), p + vec2(s * 1.3, 0.0)]);
+        }
+        SnapHint::LayerBoundary => {
+            for dy in [-s * 0.6, 0.0, s * 0.6] {
+                lines.push([p + vec2(-s, dy), p + vec2(s, dy)]);
+            }
+        }
+        SnapHint::Insertion => {
+            poly = Some(vec![p + vec2(-s, -s), p + vec2(s, -s), p + vec2(s, s), p + vec2(-s, s)]);
+            lines.push([p + vec2(-s, -s), p + vec2(s, s)]);
+            lines.push([p + vec2(-s, s), p + vec2(s, -s)]);
+        }
+        SnapHint::Locked => {
+            poly = Some(vec![
+                p + vec2(-s * 0.8, -s * 0.1),
+                p + vec2(s * 0.8, -s * 0.1),
+                p + vec2(s * 0.8, s),
+                p + vec2(-s * 0.8, s),
+            ]);
+            lines.push([p + vec2(-s * 0.45, -s * 0.1), p + vec2(-s * 0.45, -s * 0.7)]);
+            lines.push([p + vec2(-s * 0.45, -s * 0.7), p + vec2(s * 0.45, -s * 0.7)]);
+            lines.push([p + vec2(s * 0.45, -s * 0.7), p + vec2(s * 0.45, -s * 0.1)]);
         }
     }
     for l in &lines {
