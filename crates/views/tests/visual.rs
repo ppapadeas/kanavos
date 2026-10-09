@@ -86,3 +86,49 @@ fn house_views_render() {
     common::save_png(&persp, "perspective.png");
     assert!(layers(&persp, "wall.edge") > 0);
 }
+
+#[test]
+fn grid_lines_and_notes_render() {
+    use kanavos_geom::{Angle, Point2};
+    use kanavos_model::{Element, ElementKind, GridLine, TextAlign, TextNote};
+    let h = common::house();
+    let mut doc = h.doc.clone();
+    let grids = [
+        ("Α", (0.0, -2.5), (0.0, 11.5)),
+        ("Β", (6.0, -2.5), (6.0, 11.5)),
+        ("Γ", (12.0, -2.5), (12.0, 11.5)),
+        ("1", (-2.5, 0.0), (14.5, 0.0)),
+        ("2", (-2.5, 9.0), (14.5, 9.0)),
+    ];
+    for (label, a, b) in grids {
+        let (d, id) = doc.with_new_id();
+        let mut e = Element::on_storey(
+            id,
+            h.ground,
+            ElementKind::Grid(GridLine {
+                label: label.into(),
+                start: Point2::new(a.0, a.1),
+                end: Point2::new(b.0, b.1),
+            }),
+        );
+        e.storey = None;
+        doc = d.with_element(e);
+    }
+    let (d, id) = doc.with_new_id();
+    doc = d.with_element(Element::on_storey(
+        id,
+        h.ground,
+        ElementKind::Text(TextNote {
+            position: Point2::new(1.0, -4.6),
+            content: "Σημείωση: οι διαστάσεις σε μέτρα\nΤα υλικά κατά τη μελέτη".into(),
+            size_mm: 2.5,
+            rotation: Angle::ZERO,
+            align: TextAlign::Left,
+            bold: false,
+        }),
+    ));
+    let d = plan(&doc, h.ground, &PlanOptions { scale: 100.0, ..PlanOptions::default() }).unwrap();
+    common::save_png(&d, "plan-grid-100.png");
+    assert_eq!(layers(&d, "grid.bubble"), 10);
+    assert!(texts(&d).iter().any(|t| t == "Τα υλικά κατά τη μελέτη"));
+}
