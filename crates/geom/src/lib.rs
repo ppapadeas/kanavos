@@ -15,6 +15,7 @@
 //!   [`offset_polyline`], [`stroke_polyline`]).
 //! - Segment, line and circle intersections ([`segment_intersection`], [`line_circle`], [`circle_circle`]).
 //! - Half-plane clipping ([`HalfPlane`], [`clip_convex`], [`clip_by_half_plane`]) and convex hulls.
+//! - The weighted straight skeleton ([`weighted_straight_skeleton`]), the basis of hip and valley roofs.
 
 mod adjacency;
 mod boolean;
@@ -26,6 +27,7 @@ mod intersect;
 mod offset;
 mod polygon;
 mod predicates;
+mod skeleton;
 
 pub use adjacency::{SharedEdge, shared_boundaries};
 pub use boolean::{
@@ -40,6 +42,7 @@ pub use intersect::{SegmentIntersection, circle_circle, line_circle, segment_int
 pub use offset::{CapStyle, JoinStyle, offset_polygon, offset_polygons, offset_polyline, stroke_polyline};
 pub use polygon::{Containment, Polygon2, PolygonWithHoles};
 pub use predicates::{cross3, orient2d};
+pub use skeleton::{Skeleton, SkeletonArc, SkeletonFace, straight_skeleton, weighted_straight_skeleton};
 
 pub use kanavos_units::{Angle, Area, Length, Tolerance};
 
