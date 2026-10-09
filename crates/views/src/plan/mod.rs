@@ -11,7 +11,7 @@ mod stair;
 use std::collections::BTreeSet;
 
 use kanavos_drawing::{Affine, Drawing, Item, LinePattern, Pt, Shape, Stroke};
-use kanavos_elements::{OpeningPlacement, opening_placement, plan_parts};
+use kanavos_elements::{OpeningPlacement, opening_placement, plan_parts, stair_layout};
 use kanavos_geom::{Point2, Polygon2, PolygonWithHoles, Segment2, Vec2};
 use kanavos_model::{Document, Element, ElementKind, Id, ViewKind};
 use kanavos_objects::{OpeningContext, object_symbol_at, opening_symbol_at, opening_symbol_overhead};
@@ -255,10 +255,20 @@ pub fn plan(doc: &Document, storey: Id, opts: &PlanOptions) -> Result<Drawing, V
 
     d.extend(stair_labels);
 
-    // Space stamps.
+    // Space stamps, kept off stairs when they have no position of their own.
+    let mut stairs_here: Vec<poly::Shape> = Vec::new();
+    let lower = doc.storey_below(storey).map(|s| s.id);
+    for e in doc.elements() {
+        if matches!(e.kind, ElementKind::Stair(_))
+            && (e.storey == Some(storey) || (e.storey.is_some() && e.storey == lower))
+            && let Ok(l) = stair_layout(doc, e.id)
+        {
+            stairs_here.extend(l.outline.iter().map(poly::shape_of_polygon));
+        }
+    }
     for e in &on {
         if let ElementKind::Space(s) = &e.kind {
-            space::stamp(&mut d, &ctx, st, e, s, opts);
+            space::stamp(&mut d, &ctx, st, e, s, opts, &stairs_here);
         }
     }
 
@@ -307,6 +317,20 @@ pub fn plan(doc: &Document, storey: Id, opts: &PlanOptions) -> Result<Drawing, V
     Ok(d)
 }
 
+/// Visible edges of roofs seen from straight above, with the depth `−z` of each piece.
+fn roof_segments(items: &[ProjItem<'_>]) -> Vec<crate::hlr::Visible> {
+    // Looking down: x = X, y = Y, depth = −Z.
+    let proj = Projection {
+        eye: Eye::Parallel([0.0, 0.0, -1.0]),
+        rows: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]],
+        clips: Vec::new(),
+        perspective: None,
+    };
+    let projected = project(items, &proj, 15.0);
+    let (vis, _) = visible(&projected, &[], &[], 1e-6);
+    merge_collinear(vis)
+}
+
 /// Roof edges seen from above (eaves, ridges, hips, valleys, parapets): solid where the roof is below the cut,
 /// dashed above it.
 fn roof_lines(d: &mut Drawing, ctx: &Ctx, doc: &Document, roofs: &[&Element], cut: f64) {
@@ -324,16 +348,7 @@ fn roof_lines(d: &mut Drawing, ctx: &Ctx, doc: &Document, roofs: &[&Element], cu
             meshes: its.iter().map(|i| &i.mesh).collect(),
         })
         .collect();
-    // Looking down: x = X, y = Y, depth = −Z.
-    let proj = Projection {
-        eye: Eye::Parallel([0.0, 0.0, -1.0]),
-        rows: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0]],
-        clips: Vec::new(),
-        perspective: None,
-    };
-    let projected = project(&proj_items, &proj, 15.0);
-    let (vis, _) = visible(&projected, &[], &[], 1e-6);
-    for s in merge_collinear(vis) {
+    for s in roof_segments(&proj_items) {
         let Some(it) = proj_items.get(s.tag as usize) else { continue };
         let z = -s.depth;
         let (stroke, layer) = if z > cut {
@@ -351,5 +366,41 @@ fn roof_lines(d: &mut Drawing, ctx: &Ctx, doc: &Document, roofs: &[&Element], cu
             )
             .with_source(it.element.0),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kanavos_geom::Point3;
+    use kanavos_model::{Category, Phase};
+    use kanavos_solid::Mesh;
+
+    #[test]
+    fn a_hip_roof_shows_eaves_and_hips_from_above() {
+        // A pyramid roof over a 4 × 4 m square, 2 m high, with a flat underside.
+        let mut m = Mesh::new();
+        let c = [
+            Point3::new(0.0, 0.0, 3.0),
+            Point3::new(4.0, 0.0, 3.0),
+            Point3::new(4.0, 4.0, 3.0),
+            Point3::new(0.0, 4.0, 3.0),
+        ];
+        let apex = m.push_vertex(Point3::new(2.0, 2.0, 5.0));
+        let ids: Vec<u32> = c.iter().map(|p| m.push_vertex(*p)).collect();
+        for i in 0..4 {
+            m.push_triangle(ids[i], ids[(i + 1) % 4], apex);
+        }
+        m.push_triangle(ids[0], ids[2], ids[1]);
+        m.push_triangle(ids[0], ids[3], ids[2]);
+        let items =
+            [ProjItem { element: Id(1), category: Category::Roof, phase: Phase::New, meshes: vec![&m] }];
+        let segs = roof_segments(&items);
+        // Four eaves and four hips; opposite hips are collinear through the apex and merge into the diagonals.
+        assert_eq!(segs.len(), 6, "{segs:?}");
+        let diagonals =
+            segs.iter().filter(|s| (s.b[0] - s.a[0]).abs() > 3.9 && (s.b[1] - s.a[1]).abs() > 3.9).count();
+        assert_eq!(diagonals, 2);
+        assert!(segs.iter().all(|s| s.depth <= -3.0 + 1e-9));
     }
 }

@@ -13,9 +13,9 @@ use std::collections::BTreeMap;
 
 use kanavos_geom::{Angle, Length, Point2, Point3, Polygon2, PolygonWithHoles};
 use kanavos_model::{
-    Camera, Column, Document, Element, ElementKind, Id, LevelMark, Object, Opening, OpeningKind, Parapet,
-    Profile, Railing, RailingInfill, ReferenceLine, Roof, RoofShape, Slab, Space, SpaceCategory, Stair,
-    StairShape, Structure, View, ViewKind, Wall, starter,
+    Beam, Camera, Column, Document, Element, ElementKind, Id, LevelMark, Object, Opening, OpeningKind,
+    Parapet, Profile, Railing, RailingInfill, ReferenceLine, Roof, RoofShape, Slab, Space, SpaceCategory,
+    Stair, StairShape, Structure, View, ViewKind, Wall, starter,
 };
 
 /// A fixture house and the ids tests need.
@@ -336,6 +336,17 @@ pub fn house() -> House {
                     thickness: Length::m(0.15),
                     material: concrete,
                     base_offset: Length::ZERO,
+                }),
+            );
+            // A downstand beam under the first floor, between the middle columns.
+            b.add(
+                Some(storey),
+                ElementKind::Beam(Beam {
+                    start: Point2::new(6.0, 0.235),
+                    end: Point2::new(6.0, 8.765),
+                    profile: Profile::Rectangle { width: Length::m(0.25), depth: Length::m(0.5) },
+                    material: concrete,
+                    top_offset: Length::m(3.2 - 0.06),
                 }),
             );
             // Ground slab.

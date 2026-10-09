@@ -86,6 +86,17 @@ A section of a house of about 300 elements and 100 000 triangles must be derived
 current desktop in a release build. Element meshes are reused between document versions when the element and
 everything its geometry depends on are unchanged.
 
+Measured with `cargo test --release -p kanavos-views --test perf` (six copies of the fixture house: 406
+elements, 49 000 triangles; the dense variant splits every triangle in four, 196 000 triangles), on the
+development desktop:
+
+| Step | Time |
+| --- | --- |
+| Scene of the whole model, cold / from the cache | 6 ms / 1 ms |
+| Section, 2 300 drawing items | 17 ms (dense: 45 ms) |
+| Elevation | 13 ms (dense: 47 ms) |
+| Plan of a 201-element storey | 8 ms |
+
 ## Edge cases
 
 - Interpenetrating solids: the line where one solid's face enters another is not computed (it appears once

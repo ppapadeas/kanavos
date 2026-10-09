@@ -39,6 +39,7 @@ fn house_views_render() {
     assert!(layers(&ground, "window.symbol.above") > 0, "the high kitchen window is dashed");
     assert!(layers(&ground, "stair.break") > 0);
     assert!(layers(&ground, "slab.above") > 0, "the balcony above is dashed");
+    assert!(layers(&ground, "beam.above") > 0, "the beam above the cut is dashed");
     let tx = texts(&ground);
     assert!(tx.iter().any(|s| s == "ΑΝ"));
     assert!(tx.iter().any(|s| s == "18×17,8/28"));

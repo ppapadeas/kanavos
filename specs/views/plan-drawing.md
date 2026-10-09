@@ -79,8 +79,12 @@ are opaque, so lines that lie under walls disappear.
 
 - Optional tint by use category (κύρια χρήση, βοηθητικοί χώροι, κλιμακοστάσιο, ημιυπαίθριοι, εξώστες …), pale
   enough for black-and-white printing.
-- Stamp centred on the stamp point (or the centroid): name in bold, number, net area as `Ε = 24,50 m²`;
-  optionally perimeter `Π = 20,10 m` and clear height `Υ = 2,90 m`. Numbers use the locale's decimal separator.
+- Stamp centred on the stamp point: name in bold, number, net area as `Ε = 24,50 m²`; optionally perimeter
+  `Π = 20,10 m` and clear height `Υ = 2,90 m`. Numbers use the locale's decimal separator. Text heights are
+  3,0 / 2,0 / 2,5 mm (name / number and extras / area) at 1:50 and larger, 2,5 / 1,8 / 2,0 mm at smaller scales.
+- Without a stamp point, the stamp goes to the space's centroid; if the stamp would overlap a stair of the
+  storey (or one arriving from below), it moves to the point of a 13 × 13 grid over the space where it overlaps
+  stairs and the outside of the space least, nearest the centroid among equals.
 
 ### View markers and north arrow
 
