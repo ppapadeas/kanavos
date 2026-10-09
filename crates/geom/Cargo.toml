@@ -15,6 +15,7 @@ workspace = true
 kanavos-units = { path = "../units" }
 serde.workspace = true
 schemars.workspace = true
+i_overlay = "9.0.1"
 
 [dev-dependencies]
 serde_json.workspace = true

@@ -1,12 +1,13 @@
 //! Validation, plan parts and 3D solids for every element kind.
 
-use kanavos_geom::{Point2, Point3, Polygon2, PolygonWithHoles, Segment2, Vec2};
+use kanavos_geom::{Point2, Polygon2, PolygonWithHoles, Segment2, Vec2};
 use kanavos_model::{Beam, Column, Document, Element, ElementKind, Id, Profile, RoofShape};
-use kanavos_solid::{Mesh, cuboid, cylinder, extrude, extrude_polygon};
+use kanavos_solid::{cylinder, extrude, extrude_polygon};
 use kanavos_units::Length;
 
-use crate::wall::{band_piece, face_segments, solid_intervals, wall_layout};
-use crate::{CutArea, ElementSolid, GeometryError, PlanParts, SolidPart, dir, element, stair_layout};
+use crate::junction::WallInfo;
+use crate::wall::{wall_layout, wall_plan_parts, wall_solids};
+use crate::{CutArea, ElementSolid, GeometryError, PlanParts, SolidPart, element};
 
 /// Absolute elevation of an element's base: its storey's floor plus the element's own base offset (walls,
 /// columns, stairs, railings), or the storey floor for other kinds.
@@ -72,6 +73,14 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
             }
             structure(&w.structure)?;
             positive(w.height, "height")?;
+            // An arc must be wider than the wall on its concave side.
+            if let (Some(arc), Some(t)) = (w.arc(), doc.structure_thickness(&w.structure)) {
+                let (left, right) = w.face_offsets(t);
+                let inner = if arc.sweep.as_rad() > 0.0 { left } else { -right };
+                if arc.radius.as_m() <= inner + 0.01 {
+                    return Err(invalid(id, "bulge", "bends the wall tighter than its thickness"));
+                }
+            }
         }
         ElementKind::Slab(s) => {
             if !s.outline.outer.is_valid(&tol) {
@@ -160,6 +169,11 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
                         return Err(invalid(id, "slopes", "pitches must be between 0° and 89°"));
                     }
                 }
+                // The planes must resolve (e.g. gables must not enclose a part no plane can reach).
+                crate::roof::roof_geometry(doc, e).map_err(|err| match err {
+                    GeometryError::Invalid { field, reason, .. } => invalid(id, field, reason),
+                    other => other,
+                })?;
             }
         }
         ElementKind::Railing(r) => {
@@ -262,50 +276,21 @@ fn storey_elevation(doc: &Document, e: &Element) -> f64 {
 }
 
 /// How an element appears in a plan cut at `cut` (absolute elevation).
+///
+/// Walls use their junction-clean layer bands, with gaps where doors and windows span the cut plane, the wall
+/// seen below window sills, and openings above the cut (high windows) in `above`. Roofs give their cut band and
+/// their ridge, hip, valley, eave and verge lines below or above the cut. Stairs give treads, landings and the
+/// cut section of their flights; railings a thin band or their edge lines.
 pub fn plan_parts(doc: &Document, id: Id, cut: Length) -> Result<PlanParts, GeometryError> {
     let e = element(doc, id)?;
     let cut = cut.as_m();
     let mut parts = PlanParts::default();
     let floor = storey_elevation(doc, e);
     match &e.kind {
-        ElementKind::Wall(w) => {
+        ElementKind::Wall(_) => {
+            let info = WallInfo::new(doc, e)?;
             let layout = wall_layout(doc, id)?;
-            if layout.base < cut && cut < layout.top {
-                if w.arc().is_some() {
-                    for l in &layout.layers {
-                        parts
-                            .cut
-                            .push(CutArea { region: l.region.clone().into(), material: Some(l.material) });
-                    }
-                } else {
-                    let (left, right) = w.face_offsets(layout.thickness);
-                    let intervals = solid_intervals(doc, id, w, cut);
-                    for (t0, t1) in &intervals {
-                        let mut d = left;
-                        for l in doc.structure_layers(&w.structure).unwrap_or_default() {
-                            let next = d - l.thickness.as_m();
-                            parts.cut.push(CutArea {
-                                region: band_piece(w, d, next, *t0, *t1).into(),
-                                material: Some(l.material),
-                            });
-                            d = next;
-                        }
-                    }
-                    // Through window openings the wall below the sill is seen from above.
-                    for (_, o) in doc.openings_in(id) {
-                        let sill = floor + o.sill.as_m();
-                        if sill < cut && sill > layout.base + 1e-6 && cut < sill + o.height.as_m() {
-                            let c = o.offset.as_m();
-                            let h = o.width.as_m() / 2.0;
-                            parts.below.extend(face_segments(w, left, right, c - h, c + h));
-                        }
-                    }
-                }
-            } else if layout.top <= cut {
-                parts.below.extend(ring_edges(&layout.outline));
-            } else {
-                parts.above.extend(ring_edges(&layout.outline));
-            }
+            return Ok(wall_plan_parts(doc, &info, &layout, cut));
         }
         ElementKind::Slab(s) => {
             let top = floor + s.top_offset.as_m();
@@ -315,6 +300,7 @@ pub fn plan_parts(doc: &Document, id: Id, cut: Length) -> Result<PlanParts, Geom
                     region: s.outline.clone(),
                     material: doc.structure_core_material(&s.structure),
                 });
+                parts.outline = vec![s.outline.clone()];
             } else if top <= cut {
                 parts.below.extend(region_edges(&s.outline));
             } else {
@@ -325,6 +311,7 @@ pub fn plan_parts(doc: &Document, id: Id, cut: Length) -> Result<PlanParts, Geom
             let base = floor + c.base_offset.as_m();
             let profile = column_profile(c);
             if base < cut && cut < base + c.height.as_m() {
+                parts.outline = vec![profile.clone().into()];
                 parts.cut.push(CutArea { region: profile.into(), material: Some(c.material) });
             } else if base + c.height.as_m() <= cut {
                 parts.below.extend(ring_edges(&profile));
@@ -337,6 +324,7 @@ pub fn plan_parts(doc: &Document, id: Id, cut: Length) -> Result<PlanParts, Geom
                 let top = floor + b.top_offset.as_m();
                 let bottom = top - beam_depth(b);
                 if bottom < cut && cut < top {
+                    parts.outline = vec![fp.clone().into()];
                     parts.cut.push(CutArea { region: fp.into(), material: Some(b.material) });
                 } else if top <= cut {
                     parts.below.extend(ring_edges(&fp));
@@ -345,31 +333,9 @@ pub fn plan_parts(doc: &Document, id: Id, cut: Length) -> Result<PlanParts, Geom
                 }
             }
         }
-        ElementKind::Stair(_) => {
-            let layout = stair_layout(doc, id)?;
-            for f in &layout.flights {
-                for (i, tread) in f.treads.iter().enumerate() {
-                    let z = layout.tread_elevations.get(f.first_riser + i).copied().unwrap_or(floor);
-                    let target = if z <= cut { &mut parts.below } else { &mut parts.above };
-                    target.extend(ring_edges(tread));
-                }
-            }
-            for l in &layout.landings {
-                parts.below.extend(ring_edges(l));
-            }
-        }
-        ElementKind::Roof(r) => {
-            let base = floor + r.base.as_m();
-            let target = if base <= cut { &mut parts.below } else { &mut parts.above };
-            target.extend(ring_edges(&r.outline));
-        }
-        ElementKind::Railing(r) => {
-            for w in r.path.windows(2) {
-                if let [a, b] = w {
-                    parts.below.push(Segment2::new(*a, *b));
-                }
-            }
-        }
+        ElementKind::Stair(_) => return crate::stair::stair_plan_parts(doc, e, cut),
+        ElementKind::Roof(_) => return crate::roof::roof_plan_parts(doc, e, cut),
+        ElementKind::Railing(_) => return crate::railing::railing_plan_parts(doc, e, cut),
         _ => {}
     }
     Ok(parts)
@@ -379,7 +345,12 @@ fn solid_err(id: Id) -> impl Fn(kanavos_solid::SolidError) -> GeometryError {
     move |err| GeometryError::Invalid { id: Some(id), field: "geometry", reason: err.to_string() }
 }
 
-/// The 3D solids of an element in world coordinates. Annotation and spaces have none.
+/// The 3D solids of an element in world coordinates (closed meshes). Annotation, spaces and objects have none
+/// here (objects come from `kanavos-objects`).
+///
+/// Walls give one solid per layer with true holes for their openings, clipped to the underside of roofs on their
+/// storey; slabs and roofs one per layer (roofs with thickness perpendicular to their planes); stairs one per
+/// flight (steps on a sloped waist) and per landing; railings their posts, rails and infill.
 pub fn solids(doc: &Document, id: Id) -> Result<Vec<ElementSolid>, GeometryError> {
     let e = element(doc, id)?;
     let floor = storey_elevation(doc, e);
@@ -387,14 +358,9 @@ pub fn solids(doc: &Document, id: Id) -> Result<Vec<ElementSolid>, GeometryError
     let mut out = Vec::new();
     match &e.kind {
         ElementKind::Wall(_) => {
+            let info = WallInfo::new(doc, e)?;
             let layout = wall_layout(doc, id)?;
-            for (i, l) in layout.layers.iter().enumerate() {
-                out.push(ElementSolid {
-                    mesh: extrude_polygon(&l.region, layout.base, layout.top).map_err(&err)?,
-                    material: Some(l.material),
-                    part: SolidPart::Layer(i),
-                });
-            }
+            return wall_solids(doc, &info, &layout);
         }
         ElementKind::Slab(s) => {
             let top = floor + s.top_offset.as_m();
@@ -437,80 +403,9 @@ pub fn solids(doc: &Document, id: Id) -> Result<Vec<ElementSolid>, GeometryError
                 });
             }
         }
-        ElementKind::Stair(s) => {
-            let layout = stair_layout(doc, id)?;
-            let base = floor + s.base_offset.as_m();
-            for f in &layout.flights {
-                for (i, tread) in f.treads.iter().enumerate() {
-                    let top = layout.tread_elevations.get(f.first_riser + i).copied().unwrap_or(base);
-                    let bottom = (top - layout.riser_height.as_m() - s.thickness.as_m()).max(base);
-                    if top - bottom > 1e-6 {
-                        out.push(ElementSolid {
-                            mesh: extrude_polygon(tread, bottom, top).map_err(&err)?,
-                            material: Some(s.material),
-                            part: SolidPart::Flight,
-                        });
-                    }
-                }
-            }
-            for (l, z) in layout.landings.iter().zip(&layout.landing_elevations) {
-                out.push(ElementSolid {
-                    mesh: extrude_polygon(l, z - s.thickness.as_m(), *z).map_err(&err)?,
-                    material: Some(s.material),
-                    part: SolidPart::Landing,
-                });
-            }
-        }
-        ElementKind::Roof(r) => {
-            let top = floor + r.base.as_m();
-            let t = doc
-                .structure_thickness(&r.structure)
-                .ok_or_else(|| GeometryError::MissingReference { id, what: "build-up".into() })?
-                .as_m();
-            let material = doc.structure_core_material(&r.structure);
-            out.push(ElementSolid {
-                mesh: extrude_polygon(&r.outline, top - t, top).map_err(&err)?,
-                material,
-                part: SolidPart::Body,
-            });
-            if let RoofShape::Flat { parapet: Some(p) } = &r.shape {
-                let ring = r.outline.to_ccw();
-                for edge in ring.edges() {
-                    let d = dir(edge.start, edge.end);
-                    let n = d.perp() * p.thickness.as_m();
-                    let poly = Polygon2::new(vec![edge.start, edge.end, edge.end + n, edge.start + n]);
-                    out.push(ElementSolid {
-                        mesh: extrude_polygon(&poly, top, top + p.height.as_m()).map_err(&err)?,
-                        material,
-                        part: SolidPart::Parapet,
-                    });
-                }
-            }
-        }
-        ElementKind::Railing(r) => {
-            let base = floor + r.base_offset.as_m();
-            let top = base + r.height.as_m();
-            let post = 0.04;
-            let mut mesh = Mesh::new();
-            for w in r.path.windows(2) {
-                let [a, b] = w else { continue };
-                let len = a.distance(*b).as_m();
-                let n = ((len / r.post_spacing.as_m().max(0.1)).ceil() as usize).max(1);
-                let d = dir(*a, *b);
-                for i in 0..=n {
-                    let p = *a + d * (len * i as f64 / n as f64);
-                    let [x, y] = p.xy();
-                    mesh.append(&cuboid(
-                        Point3::new(x - post / 2.0, y - post / 2.0, base),
-                        Point3::new(x + post / 2.0, y + post / 2.0, top),
-                    ));
-                }
-                let n2 = d.perp() * 0.025;
-                let rail = Polygon2::new(vec![*a - n2, *b - n2, *b + n2, *a + n2]);
-                mesh.append(&extrude_polygon(&rail, top - 0.05, top).map_err(&err)?);
-            }
-            out.push(ElementSolid { mesh, material: Some(r.material), part: SolidPart::Rail });
-        }
+        ElementKind::Stair(_) => return crate::stair::stair_solids(doc, e),
+        ElementKind::Roof(_) => return crate::roof::roof_solids(doc, e),
+        ElementKind::Railing(_) => return crate::railing::railing_solids(doc, e),
         _ => {}
     }
     Ok(out)

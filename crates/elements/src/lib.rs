@@ -7,10 +7,26 @@
 //! exports and tools build on these functions; none of them computes element geometry on its own.
 //!
 //! Coordinates: plan metres; 3D metres with Z = absolute elevation above project zero (±0.00).
+//!
+//! Main entry points:
+//! - Walls: [`wall_layout`] (junction-clean outline and layer bands), [`StoreyGeometry`] (all walls of a storey
+//!   in one pass), [`Junction`] kinds L, T, X, continuation and node.
+//! - Roofs: [`roof_planes`], [`roof_lines`].
+//! - Stairs: [`stair_layout`], [`stair_checks`]; railings: [`railing_checks`].
+//! - Spaces and outlines: [`detect_space`], [`detect_all_spaces`], [`storey_footprint`], [`outline_from_walls`].
+//! - Every element: [`plan_parts`], [`solids`], [`quantities`], [`detailed_quantities`], [`footprint`],
+//!   [`snap_geometry`], [`validate`].
 
 mod build;
+mod checks;
+mod junction;
 mod quantities;
+mod railing;
+mod region;
+mod roof;
+mod space;
 mod stair;
+mod storey;
 mod wall;
 
 use kanavos_geom::{Point2, PolygonWithHoles, Segment2, Vec2};
@@ -18,10 +34,22 @@ use kanavos_model::{Document, Element, ElementKind, Id};
 use kanavos_solid::Mesh;
 use kanavos_units::{Area, Length, Volume};
 
+pub use build::plan_parts;
 pub use build::{base_elevation, solids, validate};
-pub use quantities::quantities;
+pub use checks::{
+    Check, CheckLevel, GOING_MIN, GOING_MIN_TYPE_I, GUARD_GAP_MAX, GUARD_MIN, LANDING_MIN_TYPE_II,
+    MAX_FLIGHT_RISE, RISER_MAX, RISER_MAX_TYPE_I, RISER_MIN, SOLID_GUARD_MAX, STEP_RULE, WIDTH_MIN_DWELLING,
+    WIDTH_MIN_TYPE_II, railing_checks, stair_checks,
+};
+pub use junction::{JUNCTION_TOLERANCE, Junction, JunctionKind, WallJoin};
+pub use quantities::{DetailedQuantities, LayerVolume, PlaneArea, detailed_quantities, quantities};
+pub use roof::{RoofLine, RoofLineKind, RoofPlane, roof_lines, roof_planes};
+pub use space::{
+    OutlineFace, detect_all_spaces, detect_space, outline_from_walls, outline_with_overhang, storey_footprint,
+};
 pub use stair::{StairFlight, StairLayout, stair_layout};
-pub use wall::{LayerBand, OpeningPlacement, WallLayout, opening_placement, plan_parts, wall_layout};
+pub use storey::StoreyGeometry;
+pub use wall::{LayerBand, OpeningPlacement, WallLayout, opening_placement, wall_layout};
 
 /// Why geometry could not be computed. Messages are shown to users next to the failing element.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +118,9 @@ pub struct PlanParts {
     pub below: Vec<Segment2>,
     /// Edges above the cut plane (overhead): drawn dashed.
     pub above: Vec<Segment2>,
+    /// Outer contour of the cut regions (the union of `cut`), for the heavy outline; boundaries between layers
+    /// inside it are drawn thin.
+    pub outline: Vec<PolygonWithHoles>,
 }
 
 /// Which part of an element a solid is.
@@ -139,8 +170,12 @@ pub struct Quantities {
     pub gross_area: Option<Area>,
     /// Perimeter (slabs, spaces).
     pub perimeter: Option<Length>,
-    /// Volume.
+    /// Volume (walls, slabs, roofs, stairs and railings: sum of their exact solids).
     pub volume: Option<Volume>,
+    /// Walls: net area of the left face (after junction clean-up, minus openings).
+    pub face_area_left: Option<Area>,
+    /// Walls: net area of the right face.
+    pub face_area_right: Option<Area>,
 }
 
 /// Kind of a snap point offered by an element.
@@ -231,6 +266,13 @@ pub fn snap_geometry(doc: &Document, id: Id) -> SnapGeometry {
             for edge in r.outline.edges() {
                 seg(&mut g, edge);
             }
+            if let Ok(lines) = roof_lines(doc, id) {
+                for l in lines {
+                    if matches!(l.kind, RoofLineKind::Ridge | RoofLineKind::Hip | RoofLineKind::Valley) {
+                        seg(&mut g, l.segment);
+                    }
+                }
+            }
         }
         ElementKind::Space(s) => {
             for edge in s.boundary.outer.edges() {
@@ -286,14 +328,6 @@ pub fn snap_geometry(doc: &Document, id: Id) -> SnapGeometry {
         ElementKind::Dimension(_) | ElementKind::Opening(_) | ElementKind::Underlay(_) => {}
     }
     g
-}
-
-/// Finds the region bounded by walls around `point` on a storey: the boundary of a new space.
-///
-/// Failure modes: the point is inside a wall, or the region is not closed by walls.
-pub fn detect_space(doc: &Document, storey: Id, point: Point2) -> Result<PolygonWithHoles, GeometryError> {
-    let _ = (doc, storey, point);
-    Err(GeometryError::Unsupported("automatic space detection".into()))
 }
 
 /// Unit vector along a segment, or +X for degenerate segments.

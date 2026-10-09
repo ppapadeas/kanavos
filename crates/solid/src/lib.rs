@@ -7,9 +7,22 @@
 //!
 //! Conventions: metres, Z up, counter-clockwise triangles seen from outside (outward normals), closed meshes for
 //! anything that represents a physical volume.
+//!
+//! Builders: [`cuboid`], [`extrude`] (prisms with through-holes in plan), [`extrude_between`] and
+//! [`extrude_planar`] (sloped slabs), [`column_solid`] and [`prism_with_through_holes`] (walls with door and window
+//! holes and sloped tops, as one closed mesh), [`sweep`] (rails along a polyline), [`cylinder`].
+//! Operations: [`Mesh::welded`], normals ([`Mesh::vertex_normals`], [`Mesh::split_creases`]), [`section`] of a
+//! mesh by a plane (polygons with holes in plane coordinates) and [`clip`] (the part behind a plane, capped).
 
+mod column;
+mod section;
+mod sweep;
 mod triangulate;
+mod weld;
 
+pub use column::{ColumnPiece, ThroughHole, ZPlane, column_solid, prism_with_through_holes};
+pub use section::{PlaneFrame, clip, section};
+pub use sweep::{rect_profile, sweep};
 pub use triangulate::triangulate;
 
 use kanavos_geom::{Bbox3, Point2, Point3, Polygon2, PolygonWithHoles, Vec3};
@@ -261,9 +274,25 @@ pub fn extrude_between(
     Ok(m)
 }
 
+/// A slanted prism between two planes over a plan profile (sloped slabs, roof planes, stair waists).
+///
+/// Failure modes: as for [`extrude_between`]; `bottom` must be below `top` over the whole profile.
+pub fn extrude_planar(profile: &PolygonWithHoles, bottom: ZPlane, top: ZPlane) -> Result<Mesh, SolidError> {
+    extrude_between(profile, |p| bottom.at(p), |p| top.at(p))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn planar_extrusion_volume() {
+        let sq = PolygonWithHoles::from(Polygon2::from_m(&[(0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (0.0, 2.0)]));
+        let bottom = ZPlane::through(Point2::ORIGIN, 3.0, kanavos_geom::Vec2::new(0.0, 0.5));
+        let m = extrude_planar(&sq, bottom, bottom.shifted(0.2)).unwrap();
+        assert!((m.volume() - 8.0 * 0.2).abs() < 1e-9);
+        assert!(m.is_closed(1e-9));
+    }
 
     #[test]
     fn cuboid_volume_and_orientation() {

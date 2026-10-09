@@ -110,7 +110,11 @@ pub trait Command {
   Apache‑2.0). Exact B-rep (NURBS) can be added behind the same façade for curved work (ADR‑0003).
 - **Tolerances** are explicit and project-wide (default 0.1 mm), never ad hoc epsilons.
 - **Junctions** (walls meeting walls, slabs meeting walls) are resolved by our own priority rules defined in specs,
-  recomputed locally around changed elements.
+  recomputed locally around changed elements (`specs/elements/wall-junctions.md`). A whole storey resolves in one
+  pass (`StoreyGeometry`), a single wall from its neighbours only, with identical results.
+- **Element solids without general CSG**: walls with door and window holes and roof-clipped tops are built directly
+  as closed meshes from plan pieces with vertical intervals; roofs come from the weighted straight skeleton; 2D
+  Booleans run on one fixed project-wide integer grid so that pieces cut in separate operations meet exactly.
 
 ## 6. Files
 
@@ -162,6 +166,7 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Blocking on GPU futures (headless) | pollster | Apache‑2.0 OR MIT |
 | UI | egui / eframe, with AccessKit | MIT OR Apache‑2.0 |
 | Mesh booleans | manifold-rust (pure-Rust port of Manifold) | Apache‑2.0 |
+| 2D polygon Booleans and offsets (adopted in `kanavos-geom`) | i_overlay 9 (with i_float, i_shape, i_tree, i_key_sort, libm) | MIT OR Apache‑2.0; dependencies MIT |
 | B-rep (later) | truck / monstertruck | Apache‑2.0 |
 | STEP parsing | ruststep, or own Part 21 parser | Apache‑2.0 |
 | Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
