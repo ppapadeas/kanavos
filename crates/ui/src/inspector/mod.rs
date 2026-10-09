@@ -532,10 +532,19 @@ fn nok_panel(ui: &mut Ui, state: &AppState, nok: &NokView<'_>, actions: &mut Vec
             format!("{} / {}", format_decimal(v.used.as_m3(), 2, locale), VolumeDisplay(v.allowed, locale));
         meter(ui, &tr(locale, "ui.nok.volume"), &value, v.ratio(), &margin_text, !v.within_limit());
     }
-    for note in report.notes.iter().filter(|n| n.as_str() != "rules.note.no_plot") {
+    // Findings with their values filled in, most severe first; the missing-plot note has its own box above.
+    let mut findings: Vec<&kanavos_rules_gr::Finding> =
+        report.findings.iter().filter(|f| f.key != "rules.note.no_plot").collect();
+    findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
+    for f in findings {
+        let (icon, color) = match f.severity {
+            kanavos_rules_gr::Severity::Violation => (Icon::Error, t.error),
+            kanavos_rules_gr::Severity::Warning => (Icon::Warning, t.warning),
+            kanavos_rules_gr::Severity::Info => (Icon::Info, t.text_muted),
+        };
         ui.horizontal_wrapped(|ui| {
-            icons::inline(ui, Icon::Info, t.text_muted);
-            ui.label(RichText::new(tr(locale, note)).small().color(t.text_muted));
+            icons::inline(ui, icon, color);
+            ui.label(RichText::new(f.message(locale)).small().color(color));
         });
     }
     // Areas per storey.
