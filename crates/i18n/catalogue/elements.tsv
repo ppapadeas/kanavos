@@ -11,6 +11,7 @@ elements.check.stair.width_dwelling_only	Ελεύθερο πλάτος {value} m
 elements.check.stair.flight_rise	Υψομετρική διαφορά {value} m χωρίς πλατύσκαλο: μεγαλύτερη από {limit} m ({source})	Rise of {value} m without a landing exceeds {limit} m ({source})
 elements.check.stair.landing_short	Μήκος πλατύσκαλου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Landing length {value} m is below the minimum of {limit} m ({source})
 elements.check.stair.riser_count	Πολλά ρίχτια ({value}) για το ύψος της κλίμακας: το πολύ {limit} ({source})	Too many risers ({value}) for the stair's rise: at most {limit} ({source})
+elements.check.stair.rise_mismatch	Η κλίμακα ανεβαίνει {value} m, ενώ ο επόμενος όροφος είναι {limit} m ψηλότερα	The stair rises {value} m while the next storey is {limit} m higher
 elements.check.railing.low	Ύψος στηθαίου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Guard height {value} m is below the minimum of {limit} m ({source})
 elements.check.railing.solid_high	Συμπαγές στηθαίο ύψους {value} m: μεγαλύτερο από το επιτρεπόμενο {limit} m ({source})	Solid guard height {value} m exceeds the permitted {limit} m ({source})
 elements.junction.corner	Γωνία	Corner

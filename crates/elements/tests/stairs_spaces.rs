@@ -88,8 +88,15 @@ fn stair_plan_cuts_the_flight_at_the_cut_plane() {
 #[test]
 fn stair_checks_follow_the_regulation() {
     let mut f = fx();
-    let good = f.stair(StairShape::Straight, 18, 3.06, 0.28, 1.0);
-    assert!(stair_checks(&f.doc, good).unwrap().is_empty());
+    // 18 risers up to the first floor at +3.20: 0.178 m risers, 0.28 m goings.
+    let good = f.stair(StairShape::Straight, 18, 3.2, 0.28, 1.0);
+    assert!(stair_checks(&f.doc, good).unwrap().is_empty(), "{:?}", stair_checks(&f.doc, good));
+    // A stair that stops short of the next floor gets a note.
+    let short = f.stair(StairShape::Straight, 18, 3.06, 0.28, 1.0);
+    let c = stair_checks(&f.doc, short).unwrap();
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0].code, "stair.rise_mismatch");
+    assert!(c[0].message(Locale::En).contains("3.20"));
     // Steep: 15 risers of 0.204 m and 0.22 m treads.
     let steep = f.stair(StairShape::Straight, 15, 3.06, 0.22, 0.8);
     let c = stair_checks(&f.doc, steep).unwrap();

@@ -152,6 +152,13 @@ pub fn stair_checks(doc: &Document, id: Id) -> Result<Vec<Check>, GeometryError>
             KK_STAIRS,
         );
     }
+    // The stair should arrive at the floor of the storey above.
+    if let Some(above) = e.storey.and_then(|st| doc.storey_above(st)) {
+        let needed = above.elevation.as_m() - layout.base;
+        if (s.rise.as_m() - needed).abs() > 0.01 {
+            push("stair.rise_mismatch", CheckLevel::Note, s.rise.as_m(), needed, "");
+        }
+    }
     Ok(out)
 }
 

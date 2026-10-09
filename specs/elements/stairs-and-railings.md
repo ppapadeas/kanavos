@@ -54,6 +54,7 @@ and note where type I would not be met:
 | Clear width below 0.90 m | enough only inside one dwelling (§2) | note |
 | Rise between landings | ≤ 3.60 m | warning |
 | Landing length along the flight | ≥ 0.90 m (type II) | warning |
+| Total rise against the storey above | within 1 cm of the floor-to-floor height | note |
 
 Each check carries its value, limit and source; messages exist in Greek and English.
 
@@ -79,7 +80,8 @@ Each check carries its value, limit and source; messages exist in Greek and Engl
 3. A half-turn landing of width 1.0 and gap 0.1 covers 1.0 × 2.1 m.
 4. Flight and landing solids are closed; a flight's volume lies between its steps alone and steps plus waist.
 5. Cut at 1.10 m on a straight 18-riser stair: six treads below, eleven above, a cut section.
-6. 0.17 / 0.28 / 1.00 m: no remarks. 0.204 / 0.22 / 0.80 m: riser and going warnings and a width note; messages
+6. 18 risers up to the first floor at +3.20 m, going 0.28, width 1.00 m: no remarks; the same stair rising only
+   3.06 m gets the rise note. 0.204 / 0.22 / 0.80 m: riser and going warnings and a width note; messages
    show "0,20" in Greek and "0.20" in English. 22 risers over 3.80 m straight: rise-between-landings warning.
 7. Railings with bars, glass and solid infill have solids and no remarks at 1.00 m; at 0.90 m a height warning.
    Cut at 0.50 m, bars and glass give their edge lines, a solid panel a cut band.
