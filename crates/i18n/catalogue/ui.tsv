@@ -338,8 +338,14 @@ ui.notice.csv_needs_table	Ανοίξτε πρώτα έναν πίνακα για
 ui.notice.draw_elevation	Σχεδιάστε τη γραμμή όψης στην κάτοψη: δύο κλικ, με τη ματιά προς τα αριστερά της γραμμής.	Draw the elevation line in the plan: two clicks, looking to the left of the line.
 ui.notice.draw_section	Σχεδιάστε τη γραμμή τομής στην κάτοψη: δύο κλικ, με τη ματιά προς τα αριστερά της γραμμής.	Draw the section line in the plan: two clicks, looking to the left of the line.
 ui.notice.export_failed	Η εξαγωγή απέτυχε: {why}	Export failed: {why}
+ui.notice.export_warnings	{n} προειδοποιήσεις	{n} warnings
 ui.notice.exported	Εξήχθη: {name}	Exported: {name}
+ui.notice.exporting	Εξαγωγή σε εξέλιξη…	Exporting…
 ui.notice.import_failed	Η εισαγωγή απέτυχε: {why}	Import failed: {why}
+ui.notice.import_plot	ορίστηκε το οικόπεδο	plot boundary set
+ui.notice.import_skipped	{n} παραλείφθηκαν	{n} left out
+ui.notice.import_terrain	{n} υψομετρικά σημεία	{n} terrain points
+ui.notice.imported	Εισήχθησαν {n} στοιχεία	Imported {n} items
 ui.notice.new_project	Νέο έργο	New project
 ui.notice.not_available	«{what}» δεν είναι ακόμη διαθέσιμο σε αυτή την έκδοση.	“{what}” is not available in this build yet.
 ui.notice.open_failed	Το έργο δεν άνοιξε: {why}	The project could not be opened: {why}

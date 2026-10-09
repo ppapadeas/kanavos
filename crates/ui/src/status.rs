@@ -11,15 +11,18 @@ use crate::names::tr;
 use crate::state::AppState;
 use crate::theme::Tokens;
 
-/// Converts project coordinates to grid coordinates (easting, northing) with the project's georeference.
-///
-/// **Adapter**: `kanavos-geo` owns ΕΓΣΑ87 transformations; when it provides this conversion, call it here.
-/// The georeference states the grid position of the project origin and the rotation from project +Y to grid
-/// north (counter-clockwise positive), so `E = E₀ + x·cos θ + y·sin θ`, `N = N₀ − x·sin θ + y·cos θ`.
+/// Converts project coordinates to grid coordinates (easting, northing) with the project's georeference,
+/// through `kanavos_geo::GridPlacement`.
 pub fn to_grid(georef: &Georef, p: Point2) -> (f64, f64) {
-    let (s, c) = georef.rotation.as_rad().sin_cos();
+    let placement = kanavos_geo::GridPlacement {
+        easting: georef.easting,
+        northing: georef.northing,
+        rotation: georef.rotation.as_rad(),
+        altitude: georef.altitude,
+    };
     let [x, y] = p.xy();
-    (georef.easting + x * c + y * s, georef.northing - x * s + y * c)
+    let [e, n] = placement.project_to_grid(x, y);
+    (e, n)
 }
 
 /// Formats a grid coordinate with thousands grouping by a thin space and two decimals.

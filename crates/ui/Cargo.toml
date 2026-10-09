@@ -27,6 +27,13 @@ kanavos-geom = { path = "../geom" }
 kanavos-units = { path = "../units" }
 kanavos-i18n = { path = "../i18n" }
 kanavos-format = { path = "../format" }
+kanavos-pdf = { path = "../pdf" }
+kanavos-dxf = { path = "../dxf" }
+kanavos-raster = { path = "../raster" }
+kanavos-ifc = { path = "../ifc" }
+kanavos-gltf = { path = "../gltf" }
+kanavos-fonts = { path = "../fonts" }
+kanavos-geo = { path = "../geo" }
 # egui's bundled fonts are not on the licence allow-list: default features stay off and fonts come from the
 # system at run time.
 eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "x11", "wayland"] }

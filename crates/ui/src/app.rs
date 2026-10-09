@@ -19,9 +19,9 @@ use kanavos_units::Locale;
 use crate::actions::{Action, Panel, TabTarget, Window};
 use crate::ctxbar::ContextBar;
 use crate::dialogs::{self, Answer, Dialogs, Pending};
-use crate::exports::{self, ExportError, ExportKind, ExportSource};
+use crate::exports::{self, ExportKind, ExportSource, ExportSummary};
 use crate::icons::{self, Icon};
-use crate::imports::{self, ImportError, Imported};
+use crate::imports::{self, ImportError, ImportSummary, Imported};
 use crate::inspector::{Inspector, NokView, Page};
 use crate::jobs::Background;
 use crate::menu::{self, MenuContext};
@@ -68,6 +68,10 @@ pub struct KanavosApp {
     screenshot: Option<ScreenshotHook>,
     applied_style: Option<(Theme, f32)>,
     autosave: Autosave,
+    /// Exports running on a worker thread.
+    exporting: Vec<Receiver<(PathBuf, Result<ExportSummary, String>)>>,
+    /// Manifest of the open project file (keeps its creation time when saving again).
+    manifest: Option<kanavos_format::Manifest>,
     notice_seen: Option<(Notice, Instant)>,
     allow_close: bool,
     persist: bool,
@@ -83,14 +87,16 @@ impl KanavosApp {
         let mut prefs = if persist { Prefs::load() } else { Prefs::default() };
         let mut notice = None;
         let mut file = None;
+        let mut manifest = None;
         let doc = if let Some(doc) = startup.document {
             doc
         } else if let Some(path) = startup.file.filter(|_| persist) {
             match persist::load(&path) {
-                Ok(doc) => {
+                Ok(opened) => {
                     prefs.add_recent(&path);
                     file = Some(path);
-                    doc
+                    manifest = opened.manifest;
+                    opened.document
                 }
                 Err(e) => {
                     notice = Some(Notice::error(trf(
@@ -133,6 +139,8 @@ impl KanavosApp {
             screenshot,
             applied_style: None,
             autosave: Autosave { last: Instant::now(), revision, running: None },
+            exporting: Vec::new(),
+            manifest,
             notice_seen: None,
             allow_close: false,
             persist,
@@ -162,7 +170,13 @@ impl KanavosApp {
 
     // ----- Documents ---------------------------------------------------------------------------------------
 
-    fn set_document(&mut self, doc: Document, file: Option<PathBuf>) {
+    fn set_document(
+        &mut self,
+        doc: Document,
+        file: Option<PathBuf>,
+        manifest: Option<kanavos_format::Manifest>,
+    ) {
+        self.manifest = manifest;
         self.state.replace_document(doc, file);
         self.work = Workspace::with_defaults(self.state.doc(), self.state.active_storey, self.prefs.split);
         self.nok.invalidate();
@@ -175,12 +189,17 @@ impl KanavosApp {
 
     fn open_path(&mut self, path: PathBuf) {
         match persist::load(&path) {
-            Ok(doc) => {
+            Ok(opened) => {
                 self.prefs.add_recent(&path);
                 self.save_prefs();
                 let name = path.display().to_string();
-                self.set_document(doc, Some(path));
-                self.notify(trf(self.state.locale, "ui.notice.opened", &[("name", &name)]));
+                self.set_document(opened.document, Some(path), opened.manifest);
+                let mut text = trf(self.state.locale, "ui.notice.opened", &[("name", &name)]);
+                for w in opened.warnings {
+                    text.push_str(" · ");
+                    text.push_str(&w);
+                }
+                self.notify(text);
             }
             Err(e) => {
                 self.prefs.recent.retain(|p| p != &path);
@@ -191,8 +210,9 @@ impl KanavosApp {
 
     /// Saves to `path`; returns whether it worked.
     fn save_to(&mut self, path: PathBuf) -> bool {
-        match persist::save(&path, self.state.doc()) {
-            Ok(()) => {
+        match persist::save(&path, self.state.doc(), self.manifest.as_ref()) {
+            Ok(manifest) => {
+                self.manifest = Some(manifest);
                 self.state.session.mark_saved();
                 self.state.recovered = false;
                 self.prefs.add_recent(&path);
@@ -228,7 +248,7 @@ impl KanavosApp {
     fn continue_pending(&mut self, ctx: &egui::Context, pending: Pending) {
         match pending {
             Pending::New => {
-                self.set_document(kanavos_model::starter(), None);
+                self.set_document(kanavos_model::starter(), None, None);
                 self.notify(tr(self.state.locale, "ui.notice.new_project"));
             }
             Pending::Open(None) => {
@@ -241,7 +261,7 @@ impl KanavosApp {
             Pending::Open(Some(p)) => self.open_path(p),
             Pending::OpenSample => {
                 let doc = crate::sample::sample_house(self.state.locale);
-                self.set_document(doc, None);
+                self.set_document(doc, None, None);
             }
             Pending::Exit => {
                 self.allow_close = true;
@@ -291,7 +311,7 @@ impl KanavosApp {
         }
     }
 
-    fn export(&mut self, kind: ExportKind) {
+    fn export(&mut self, ctx: &egui::Context, kind: ExportKind) {
         let locale = self.state.locale;
         if !kind.available() {
             self.notify(trf(locale, "ui.notice.not_available", &[("what", &tr(locale, kind.label_key()))]));
@@ -305,9 +325,10 @@ impl KanavosApp {
                     return;
                 }
             },
-            ExportKind::SheetsPdf => {
-                ExportSource::Sheets(self.state.doc().sheets().iter().map(|s| s.id).collect())
-            }
+            ExportKind::SheetsPdf => match self.work.focused().map(|t| t.target) {
+                Some(TabTarget::Sheet(id)) => ExportSource::Sheet(id),
+                _ => ExportSource::Sheets(self.state.doc().sheets().iter().map(|s| s.id).collect()),
+            },
             ExportKind::Ifc | ExportKind::Gltf => ExportSource::Model,
             ExportKind::Dxf | ExportKind::Svg | ExportKind::Png => {
                 match self.work.focused().map(|t| t.target) {
@@ -325,16 +346,39 @@ impl KanavosApp {
             return;
         }
         let Some(path) = dialogs::pick_export(locale, kind, &suggested) else { return };
-        match exports::export(kind, self.state.doc(), &source, locale, &path) {
-            Ok(()) => {
-                self.notify(trf(locale, "ui.notice.exported", &[("name", &path.display().to_string())]))
+        let wake = ctx.clone();
+        let doc = self.state.doc().clone();
+        let rx = exports::spawn(kind, doc, source, locale, path, move || wake.request_repaint());
+        self.exporting.push(rx);
+        self.notify(tr(locale, "ui.notice.exporting"));
+    }
+
+    /// Reports finished exports.
+    fn poll_exports(&mut self) {
+        let locale = self.state.locale;
+        let mut done = Vec::new();
+        self.exporting.retain(|rx| match rx.try_recv() {
+            Ok(r) => {
+                done.push(r);
+                false
             }
-            Err(ExportError::NotAvailable) => self.notify(trf(
-                locale,
-                "ui.notice.not_available",
-                &[("what", &tr(locale, kind.label_key()))],
-            )),
-            Err(e) => self.fail(trf(locale, "ui.notice.export_failed", &[("why", &e.to_string())])),
+            Err(std::sync::mpsc::TryRecvError::Empty) => true,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
+        });
+        for (path, r) in done {
+            match r {
+                Ok(summary) => {
+                    let mut text =
+                        trf(locale, "ui.notice.exported", &[("name", &path.display().to_string())]);
+                    if summary.warnings > 0 {
+                        let n = summary.warnings.to_string();
+                        text.push_str(" · ");
+                        text.push_str(&trf(locale, "ui.notice.export_warnings", &[("n", &n)]));
+                    }
+                    self.notify(text);
+                }
+                Err(why) => self.fail(trf(locale, "ui.notice.export_failed", &[("why", &why)])),
+            }
         }
     }
 
@@ -349,13 +393,19 @@ impl KanavosApp {
         }
         let Some(path) = dialogs::pick_import(locale, kind) else { return };
         match imports::import(kind, &path, self.state.doc(), self.state.active_storey) {
-            Ok(Imported::Commands(c)) => {
+            Ok(Imported::Commands(c, summary)) => {
                 let label = tr(locale, kind.label_key());
-                let _ = self.state.run_all(c, label);
+                if self.state.run_all(c, label).is_ok() {
+                    self.notify(import_notice(locale, &summary));
+                    self.work.zoom_extents();
+                }
             }
-            Ok(Imported::Document(doc)) => {
+            Ok(Imported::Document(doc, summary)) => {
                 let _ = ctx;
-                self.set_document(doc, None);
+                self.set_document(*doc, None, None);
+                // An imported model is not saved anywhere yet.
+                self.state.recovered = true;
+                self.notify(import_notice(locale, &summary));
             }
             Err(ImportError::NotAvailable) => self.notify(trf(
                 locale,
@@ -380,7 +430,7 @@ impl KanavosApp {
             Action::SaveAs => {
                 self.save(true);
             }
-            Action::Export(k) => self.export(k),
+            Action::Export(k) => self.export(ctx, k),
             Action::Import(k) => self.import(ctx, k),
             Action::Exit => self.guard(ctx, Pending::Exit),
             Action::Undo => self.state.undo(),
@@ -818,6 +868,7 @@ impl eframe::App for KanavosApp {
         }
         self.apply_style(&ctx);
         self.nok.poll();
+        self.poll_exports();
         self.close_request(&ctx);
         self.shortcuts(&ctx);
         self.sync_after_change(&ctx);
@@ -853,7 +904,7 @@ impl eframe::App for KanavosApp {
             .show(ui, |ui| self.ctxbar.ui(ui, &mut self.state, &mut actions));
         // Status bar.
         let show_notice = self.notice_visible();
-        let busy = self.nok.busy() || self.autosave.running.is_some();
+        let busy = self.nok.busy() || self.autosave.running.is_some() || !self.exporting.is_empty();
         egui::Panel::bottom("status")
             .exact_size(26.0)
             .frame(
@@ -1033,6 +1084,7 @@ impl eframe::App for KanavosApp {
         if let Some((recover, rec)) = self.dialogs.recovery_ui(&ctx, locale) {
             if recover {
                 // The recovery copy stays on disk until the project is saved.
+                self.manifest = None;
                 self.state.replace_document(rec.document, rec.original);
                 self.state.recovered = true;
                 self.work =
@@ -1063,6 +1115,24 @@ impl eframe::App for KanavosApp {
             }
         }
     }
+}
+
+/// The notice after an import.
+fn import_notice(locale: Locale, s: &ImportSummary) -> String {
+    let mut text = trf(locale, "ui.notice.imported", &[("n", &s.items.to_string())]);
+    if s.skipped > 0 {
+        text.push_str(" · ");
+        text.push_str(&trf(locale, "ui.notice.import_skipped", &[("n", &s.skipped.to_string())]));
+    }
+    if s.plot {
+        text.push_str(" · ");
+        text.push_str(&tr(locale, "ui.notice.import_plot"));
+    }
+    if s.terrain_points > 0 {
+        text.push_str(" · ");
+        text.push_str(&trf(locale, "ui.notice.import_terrain", &[("n", &s.terrain_points.to_string())]));
+    }
+    text
 }
 
 /// The empty-storey hint over a plan with no elements (docs/ux.md §5).

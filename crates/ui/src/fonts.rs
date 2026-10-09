@@ -5,7 +5,8 @@
 //! - `Monospace`: a fixed-width face for coordinates, then the regular face.
 //! - `Name("strong")`: a semibold face for headings and totals, falling back to the regular face.
 //!
-//! `KANAVOS_FONT` overrides the regular face.
+//! The regular face is the one `kanavos-fonts` finds for the exporters, so screen and paper match.
+//! `KANAVOS_FONT` overrides it.
 
 use std::sync::Arc;
 
@@ -60,26 +61,37 @@ fn first_readable<'a>(candidates: impl IntoIterator<Item = &'a str>) -> Option<(
 /// when no usable font was found (the interface then shows no text).
 pub fn install(ctx: &egui::Context) -> Option<String> {
     let custom = std::env::var("KANAVOS_FONT").ok();
-    let regular = first_readable(custom.iter().map(String::as_str).chain(REGULAR.iter().copied()))?;
+    // The same face the exporters use (kanavos-fonts), unless overridden; then our own candidates.
+    let shared = custom
+        .is_none()
+        .then(|| kanavos_fonts::Fonts::system().regular_bytes())
+        .flatten()
+        .map(|(bytes, index)| ("system".to_owned(), bytes.to_vec(), index));
+    let regular = shared.or_else(|| {
+        first_readable(custom.iter().map(String::as_str).chain(REGULAR.iter().copied()))
+            .map(|(p, b)| (p, b, 0))
+    })?;
     let mut fonts = FontDefinitions::empty();
-    let mut add = |name: &str, bytes: Vec<u8>| {
-        fonts.font_data.insert(name.to_owned(), Arc::new(FontData::from_owned(bytes)));
+    let mut add = |name: &str, bytes: Vec<u8>, index: u32| {
+        let mut data = FontData::from_owned(bytes);
+        data.index = index;
+        fonts.font_data.insert(name.to_owned(), Arc::new(data));
     };
-    add("ui", regular.1);
+    add("ui", regular.1, regular.2);
     let strong = first_readable(STRONG.iter().copied()).map(|(_, b)| b);
     let has_strong = strong.is_some();
     if let Some(b) = strong {
-        add("ui-strong", b);
+        add("ui-strong", b, 0);
     }
     let mono = first_readable(MONO.iter().copied()).map(|(_, b)| b);
     let has_mono = mono.is_some();
     if let Some(b) = mono {
-        add("ui-mono", b);
+        add("ui-mono", b, 0);
     }
     let symbols = first_readable(SYMBOLS.iter().copied()).map(|(_, b)| b);
     let has_symbols = symbols.is_some();
     if let Some(b) = symbols {
-        add("ui-symbols", b);
+        add("ui-symbols", b, 0);
     }
     let with_symbols = |mut v: Vec<String>| {
         if has_symbols {

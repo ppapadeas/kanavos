@@ -1,31 +1,31 @@
 //! Saving, opening and crash recovery: the adapter between the interface and the native file format.
 //!
-//! **Temporary implementation.** Until `kanavos-format` (the `.kanavos` ZIP container) is merged, projects are
-//! written as a JSON envelope around the model (`{"format": "kanavos-preview-json", "version": 1, "document":
-//! …}`). To switch, replace the bodies of [`save`] and [`load`] with `kanavos_format::save` / `kanavos_format::load`;
-//! nothing else in the interface reads or writes project files.
+//! Projects are `.kanavos` containers written by `kanavos-format` (atomic writes, a `.bak` of the previous file,
+//! schema migration on load). Files written by earlier preview builds of the interface (a JSON envelope around
+//! the model) are still read, and saving writes them in the native format.
 //!
-//! Recovery: [`write_recovery`] stores the document every autosave interval in the data directory, and
+//! Recovery: [`write_recovery`] stores a recovery copy in the data directory every autosave interval, and
 //! [`read_recovery`] offers it on the next start when the previous session did not end cleanly.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
+use kanavos_format::{LoadOptions, Manifest, SaveOptions, Validation};
 use kanavos_model::Document;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// File extension of Kanavos projects.
-pub const EXTENSION: &str = "kanavos";
+pub const EXTENSION: &str = kanavos_format::FILE_EXTENSION;
 
-const FORMAT: &str = "kanavos-preview-json";
+const PREVIEW_FORMAT: &str = "kanavos-preview-json";
 
-/// Why a project could not be saved or opened.
+/// Why a project could not be saved or opened. Messages come from the format crate and are written for users.
 #[derive(Debug)]
 pub enum PersistError {
     /// Reading or writing the file failed.
     Io(std::io::Error),
-    /// The file is not a Kanavos project or is damaged.
+    /// The file is not a Kanavos project, is damaged, or is from a newer version.
     Format(String),
 }
 
@@ -46,57 +46,69 @@ impl From<std::io::Error> for PersistError {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Envelope {
+impl From<kanavos_format::FormatError> for PersistError {
+    fn from(e: kanavos_format::FormatError) -> Self {
+        PersistError::Format(e.to_string())
+    }
+}
+
+/// The current time as RFC 3339 (UTC), for file timestamps.
+pub fn now_rfc3339() -> String {
+    let d = kanavos_pdf::PdfDate::now();
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", d.year, d.month, d.day, d.hour, d.minute, d.second)
+}
+
+/// A project read from disk.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Opened {
+    /// The document, upgraded to the current schema.
+    pub document: Document,
+    /// The manifest, when the file is a native container (keep it to preserve the creation time on save).
+    pub manifest: Option<Manifest>,
+    /// Things worth telling the user (upgrades, ignored entries).
+    pub warnings: Vec<String>,
+}
+
+/// Saves a project. `previous` is the manifest of the file the document came from, so the creation time is kept.
+/// Returns the manifest written.
+pub fn save(path: &Path, doc: &Document, previous: Option<&Manifest>) -> Result<Manifest, PersistError> {
+    let now = now_rfc3339();
+    let options = match previous {
+        Some(m) if m.created.is_some() => SaveOptions::resave(m, now),
+        _ => SaveOptions { created: Some(now.clone()), modified: Some(now), ..SaveOptions::default() },
+    };
+    Ok(kanavos_format::save(path, doc, &options)?)
+}
+
+#[derive(Deserialize)]
+struct PreviewEnvelope {
     format: String,
-    version: u32,
     document: Document,
 }
 
-#[derive(Serialize)]
-struct EnvelopeRef<'a> {
-    format: &'a str,
-    version: u32,
-    document: &'a Document,
+/// Reads a JSON envelope written by preview builds.
+fn decode_preview(bytes: &[u8]) -> Option<Document> {
+    let env: PreviewEnvelope = serde_json::from_slice(bytes).ok()?;
+    (env.format == PREVIEW_FORMAT && env.document.validate().is_ok()).then_some(env.document)
 }
 
-fn encode(doc: &Document) -> Result<Vec<u8>, PersistError> {
-    serde_json::to_vec_pretty(&EnvelopeRef { format: FORMAT, version: 1, document: doc })
-        .map_err(|e| PersistError::Format(e.to_string()))
-}
-
-fn decode(bytes: &[u8]) -> Result<Document, PersistError> {
-    if bytes.starts_with(b"PK") {
-        return Err(PersistError::Format(
-            "this project uses the packaged .kanavos format, which this build cannot read yet".into(),
-        ));
+fn decode(bytes: &[u8], validation: Validation) -> Result<Opened, PersistError> {
+    if bytes.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{') {
+        return decode_preview(bytes)
+            .map(|document| Opened { document, manifest: None, warnings: Vec::new() })
+            .ok_or_else(|| PersistError::Format("the file is not a Kanavos project".into()));
     }
-    let env: Envelope = serde_json::from_slice(bytes).map_err(|e| PersistError::Format(e.to_string()))?;
-    if env.format != FORMAT {
-        return Err(PersistError::Format(format!("unknown format '{}'", env.format)));
-    }
-    env.document.validate().map_err(|e| PersistError::Format(e.to_string()))?;
-    Ok(env.document)
-}
-
-/// Writes bytes next to `path` and renames them into place, so a failed write never damages the old file.
-fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), PersistError> {
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
-    let tmp = PathBuf::from(tmp);
-    std::fs::write(&tmp, bytes)?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
-}
-
-/// Saves a project.
-pub fn save(path: &Path, doc: &Document) -> Result<(), PersistError> {
-    write_atomically(path, &encode(doc)?)
+    let loaded = kanavos_format::from_bytes_with(bytes, &LoadOptions { validation })?;
+    Ok(Opened {
+        document: loaded.document,
+        manifest: Some(loaded.manifest),
+        warnings: loaded.warnings.iter().map(ToString::to_string).collect(),
+    })
 }
 
 /// Opens a project.
-pub fn load(path: &Path) -> Result<Document, PersistError> {
-    decode(&std::fs::read(path)?)
+pub fn load(path: &Path) -> Result<Opened, PersistError> {
+    decode(&std::fs::read(path)?, Validation::Strict)
 }
 
 /// `path` with the project extension added when it has none.
@@ -104,21 +116,15 @@ pub fn with_extension(path: PathBuf) -> PathBuf {
     if path.extension().is_some() { path } else { path.with_extension(EXTENSION) }
 }
 
-/// A recovery file found at start-up.
+/// A recovery copy found at start-up.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Recovery {
     /// The recovered document.
     pub document: Document,
     /// File the document belonged to, if it had been saved.
     pub original: Option<PathBuf>,
-    /// When it was written (seconds since 1970).
+    /// When it was written (seconds since 1970; 0 when unknown).
     pub written: u64,
-}
-
-#[derive(Serialize, Deserialize)]
-struct RecoveryMeta {
-    original: Option<PathBuf>,
-    written: u64,
 }
 
 fn recovery_dir() -> Option<PathBuf> {
@@ -127,25 +133,30 @@ fn recovery_dir() -> Option<PathBuf> {
 
 /// Writes a recovery copy into `dir` (blocking; call from a background thread).
 pub fn write_recovery_in(dir: &Path, doc: &Document, original: Option<&Path>) -> Result<(), PersistError> {
-    std::fs::create_dir_all(dir)?;
-    let written = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    let meta = RecoveryMeta { original: original.map(Path::to_path_buf), written };
-    let meta = serde_json::to_vec(&meta).map_err(|e| PersistError::Format(e.to_string()))?;
-    write_atomically(&dir.join("autosave.kanavos"), &encode(doc)?)?;
-    write_atomically(&dir.join("autosave.json"), &meta)
+    let options = SaveOptions {
+        backup: false,
+        modified: Some(now_rfc3339()),
+        recovery_of: original.map(|p| p.display().to_string()),
+        ..SaveOptions::default()
+    };
+    kanavos_format::autosave_with(dir, doc, &options)?;
+    Ok(())
 }
 
-/// Reads a recovery copy from `dir`, if there is a readable one.
+/// Reads a recovery copy from `dir`, if there is a readable one. Damaged documents are loaded leniently: a
+/// partly consistent copy is better than none.
 pub fn read_recovery_in(dir: &Path) -> Option<Recovery> {
-    let document = load(&dir.join("autosave.kanavos")).ok()?;
-    let meta: Option<RecoveryMeta> =
-        std::fs::read(dir.join("autosave.json")).ok().and_then(|b| serde_json::from_slice(&b).ok());
-    let (original, written) = meta.map(|m| (m.original, m.written)).unwrap_or((None, 0));
-    Some(Recovery { document, original, written })
+    let found = kanavos_format::find_recovery(dir).ok().flatten()?;
+    let opened = std::fs::read(&found.path).ok().and_then(|b| decode(&b, Validation::Lenient).ok())?;
+    let original = found.manifest.as_ref().and_then(|m| m.recovery_of.clone()).map(PathBuf::from);
+    let written =
+        found.file_modified.and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+    Some(Recovery { document: opened.document, original, written })
 }
 
-/// Removes the recovery copy in `dir`.
+/// Removes the recovery copy in `dir` (and copies left by preview builds).
 pub fn clear_recovery_in(dir: &Path) {
+    let _ = kanavos_format::discard_recovery(dir);
     let _ = std::fs::remove_file(dir.join("autosave.kanavos"));
     let _ = std::fs::remove_file(dir.join("autosave.json"));
 }
@@ -157,7 +168,7 @@ pub fn write_recovery(
 ) -> std::sync::mpsc::Receiver<Result<(), String>> {
     let (tx, rx) = std::sync::mpsc::channel();
     // When the thread cannot start, the sender is dropped with the closure and the receiver reports a
-    // disconnect, which the caller treats as a failed autosave.
+    // disconnect, which the caller treats as a finished autosave.
     let _ = std::thread::Builder::new().name("kanavos-autosave".into()).spawn(move || {
         let r = match recovery_dir() {
             Some(dir) => write_recovery_in(&dir, &doc, original.as_deref()).map_err(|e| e.to_string()),
@@ -192,16 +203,36 @@ mod tests {
     }
 
     #[test]
-    fn save_then_load_gives_the_same_document() {
+    fn save_then_load_gives_the_same_document_and_keeps_the_creation_time() {
         let dir = temp("rt");
         let path = dir.join("house.kanavos");
         let doc = kanavos_model::starter();
-        save(&path, &doc).unwrap();
-        assert_eq!(load(&path).unwrap(), doc);
-        // Saving again is byte-identical (deterministic output).
-        let first = std::fs::read(&path).unwrap();
-        save(&path, &load(&path).unwrap()).unwrap();
-        assert_eq!(std::fs::read(&path).unwrap(), first);
+        let first = save(&path, &doc, None).unwrap();
+        let opened = load(&path).unwrap();
+        assert_eq!(opened.document, doc);
+        let manifest = opened.manifest.unwrap();
+        assert_eq!(manifest.created, first.created);
+        let again = save(&path, &opened.document, Some(&manifest)).unwrap();
+        assert_eq!(again.created, first.created);
+        assert!(path.with_extension("kanavos.bak").exists() || dir.join("house.kanavos.bak").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn timestamps_are_rfc3339() {
+        assert!(kanavos_format::is_rfc3339(&now_rfc3339()));
+    }
+
+    #[test]
+    fn preview_json_files_still_open() {
+        let dir = temp("preview");
+        let path = dir.join("old.kanavos");
+        let doc = kanavos_model::starter();
+        let json = serde_json::json!({ "format": PREVIEW_FORMAT, "version": 1, "document": doc });
+        std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+        let opened = load(&path).unwrap();
+        assert_eq!(opened.document, doc);
+        assert!(opened.manifest.is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -225,6 +256,7 @@ mod tests {
         let r = read_recovery_in(&dir).unwrap();
         assert_eq!(r.document, doc);
         assert_eq!(r.original.as_deref(), Some(Path::new("C:/projects/house.kanavos")));
+        assert!(r.written > 0);
         clear_recovery_in(&dir);
         assert!(read_recovery_in(&dir).is_none());
         let _ = std::fs::remove_dir_all(&dir);
