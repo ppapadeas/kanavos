@@ -1,10 +1,17 @@
 //! Kanavos desktop application.
-//!
-//! Placeholder until the first interface lands in milestone M1 (see ROADMAP.md and ADR-0004).
 
-fn main() {
-    println!(
-        "Kanavos {} — the desktop interface is not built yet. Try `kanavos-cli demo`.",
-        env!("CARGO_PKG_VERSION")
-    );
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    match kanavos_ui::run(kanavos_model_starter()) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("kanavos: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn kanavos_model_starter() -> kanavos_ui::Document {
+    kanavos_ui::starter_document()
 }

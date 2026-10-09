@@ -15,3 +15,22 @@ workspace = true
 kanavos-engine = { path = "../engine" }
 kanavos-tools = { path = "../tools" }
 kanavos-render = { path = "../render" }
+kanavos-model = { path = "../model" }
+kanavos-views = { path = "../views" }
+kanavos-sheets = { path = "../sheets" }
+kanavos-schedules = { path = "../schedules" }
+kanavos-rules-gr = { path = "../rules-gr" }
+kanavos-elements = { path = "../elements" }
+kanavos-objects = { path = "../objects" }
+kanavos-drawing = { path = "../drawing" }
+kanavos-geom = { path = "../geom" }
+kanavos-units = { path = "../units" }
+kanavos-i18n = { path = "../i18n" }
+kanavos-format = { path = "../format" }
+# egui's bundled fonts are not on the licence allow-list: default features stay off and fonts come from the
+# system at run time.
+eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "x11", "wayland"] }
+egui = { version = "0.36", default-features = false }
+egui-wgpu = "0.36"
+serde.workspace = true
+serde_json.workspace = true

@@ -13,4 +13,3 @@ workspace = true
 
 [dependencies]
 kanavos-ui = { path = "../../crates/ui" }
-kanavos-engine = { path = "../../crates/engine" }
