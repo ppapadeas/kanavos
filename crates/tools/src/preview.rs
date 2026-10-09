@@ -106,6 +106,28 @@ pub(crate) fn ghost(ctx: &ToolContext<'_>, new: &[Element], context: &[Id], view
     Ghost { drawing: render(&doc, ctx.storey, &show, ctx, color), problem }
 }
 
+/// Ghost of elements of another document (e.g. the document after a preview command), drawn with the elements
+/// they depend on.
+pub(crate) fn ghost_of(ctx: &ToolContext<'_>, src: &Document, ids: &BTreeSet<Id>, color: Rgba) -> Drawing {
+    let mut doc = base(src);
+    let add = |doc: Document, id: Id| match src.element(id) {
+        Some(e) => doc.with_element(e.clone()),
+        None => doc,
+    };
+    for id in ids {
+        doc = add(doc, *id);
+        if let Some(ElementKind::Opening(o)) = src.element(*id).map(|e| &e.kind) {
+            doc = add(doc, o.host);
+        }
+        let hosted: Vec<Id> = src.openings_in(*id).map(|(o, _)| o).collect();
+        for o in hosted {
+            doc = add(doc, o);
+        }
+    }
+    let show: BTreeSet<u64> = ids.iter().map(|i| i.0).collect();
+    render(&doc, ctx.storey, &show, ctx, color)
+}
+
 fn render(doc: &Document, storey: Id, show: &BTreeSet<u64>, ctx: &ToolContext<'_>, color: Rgba) -> Drawing {
     let scale = plan_scale(ctx.doc, storey);
     let opts = PlanOptions { scale, locale: ctx.locale, hidden_layers: BTreeSet::new(), space_fill: true };

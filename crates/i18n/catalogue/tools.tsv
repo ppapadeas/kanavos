@@ -97,6 +97,18 @@ tools.ref.underlay.of	υποβάθρου {n}	of underlay {n}
 tools.ref.underlay.to	στο υπόβαθρο {n}	to underlay {n}
 
 tools.select.prompt	Επιλέξτε στοιχεία· σύρετε για μετακίνηση, Delete για διαγραφή	Select elements; drag to move, Delete to remove
+tools.select.selected	{n} επιλεγμένα· σύρετε για μετακίνηση, χρησιμοποιήστε τις λαβές για αλλαγή σχήματος	{n} selected; drag to move, use the handles to reshape
+tools.select.window	Επιλογή όσων βρίσκονται ολόκληρα μέσα στο πλαίσιο	Selecting what lies fully inside the box
+tools.select.crossing	Επιλογή όσων αγγίζει το πλαίσιο	Selecting what the box touches
+tools.select.moving	Μετακίνηση· πληκτρολογήστε απόσταση, Ctrl για αντίγραφο	Moving; type a distance, Ctrl to copy
+tools.select.copying	Αντιγραφή· αφήστε το κουμπί για να τοποθετηθεί το αντίγραφο	Copying; release the button to place the copy
+tools.select.move_enter	Πατήστε Enter για μετακίνηση κατά την απόσταση που πληκτρολογήσατε	Press Enter to move by the typed distance
+tools.select.handle	Σύρετε τη λαβή· πληκτρολογήστε μήκος για ακρίβεια	Drag the handle; type a length for precision
+tools.select.rotate_centre	Περιστροφή: κάντε κλικ στο κέντρο	Rotate: click the centre
+tools.select.rotate_reference	Περιστροφή: κάντε κλικ στην αρχική κατεύθυνση ή πληκτρολογήστε μοίρες	Rotate: click the reference direction or type degrees
+tools.select.rotate_target	Περιστροφή: κάντε κλικ στη νέα κατεύθυνση· Ctrl για αντίγραφο	Rotate: click the new direction; Ctrl to copy
+tools.select.mirror_a	Κατοπτρισμός: κάντε κλικ στο πρώτο σημείο του άξονα	Mirror: click the first point of the axis
+tools.select.mirror_b	Κατοπτρισμός: κάντε κλικ στο δεύτερο σημείο του άξονα· Ctrl για αντίγραφο	Mirror: click the second point of the axis; Ctrl to copy
 
 tools.wall.start	Κάντε κλικ στην αρχή του τοίχου	Click the start of the wall
 tools.wall.next	Κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	Click the next point or type a length; Enter to finish
@@ -171,3 +183,5 @@ tools.measure.area	Εμβαδόν	Area
 tools.measure.result	Εμβαδόν {area}, περίμετρος {perimeter}	Area {area}, perimeter {perimeter}
 
 tools.history.wall_rectangle	Τοίχοι ορθογωνίου	Rectangle of walls
+tools.history.handle	Αλλαγή με λαβή	Edit with handle
+tools.history.flip	Αναστροφή ανοιγμάτων	Flip openings
