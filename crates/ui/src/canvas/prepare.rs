@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use kanavos_drawing::{Drawing, DrawingUnits, Fill, Item, Pt, Rect, Rgba, Shape, Text, pt};
 use kanavos_geom::{Point2, Polygon2, PolygonWithHoles};
 
-use super::hatch::{HATCH_WEIGHT_MM, hatch_segments, inside};
+use super::hatch::{hatch_area, inside};
 
 /// Segments used for a circle fill (its outline is tessellated per zoom).
 const CIRCLE_FILL_SEGMENTS: usize = 72;
@@ -38,6 +38,8 @@ pub struct PHatch {
     pub coverage: f64,
     /// Background colour under the hatch, if any.
     pub background: Option<Rgba>,
+    /// Pen width of the hatch lines, paper millimetres.
+    pub weight_mm: f64,
 }
 
 /// Geometry of a stroke.
@@ -347,13 +349,14 @@ fn area(fill: &Fill, rings: &[Vec<Pt>], paper_unit: f64) -> (Option<PFill>, Opti
     let (color, hatch) = match fill {
         Fill::Solid(c) => (*c, None),
         Fill::Hatch { pattern, color, background, scale, angle } => {
-            let h = hatch_segments(*pattern, *scale, *angle, rings, paper_unit);
+            let h = hatch_area(*pattern, *scale, *angle, rings, paper_unit);
             let hatch = (h.coverage > 0.0).then_some(PHatch {
                 segments: h.segments,
                 color: *color,
                 spacing: h.spacing,
                 coverage: h.coverage,
                 background: *background,
+                weight_mm: h.weight_mm,
             });
             (background.unwrap_or(Rgba::TRANSPARENT), hatch)
         }
@@ -466,9 +469,6 @@ pub fn text_bounds(t: &Text, paper_unit: f64) -> Rect {
     rect_of(corners).unwrap_or(Rect { min: t.position, max: t.position })
 }
 
-/// Weight of hatch lines (re-exported for the tessellator).
-pub const HATCH_WEIGHT: f64 = HATCH_WEIGHT_MM;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -509,8 +509,8 @@ mod tests {
         assert_eq!(f.tris.len(), 2);
         let h = wall.hatch.as_ref().unwrap();
         assert!(!h.segments.is_empty());
-        // 1:50 masonry spacing 1 mm → 0.05 m.
-        assert!((h.spacing - 0.05).abs() < 1e-9);
+        // 1:50 masonry spacing 0.8 mm → 0.04 m.
+        assert!((h.spacing - 0.04).abs() < 1e-9);
         assert_eq!(wall.strokes.len(), 1);
     }
 

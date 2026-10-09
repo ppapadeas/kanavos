@@ -7,6 +7,7 @@ reviewer: pending
 sources:
   - docs/ux.md §6 (visual design), docs/architecture.md §7 (performance budgets)
   - ISO 128-20:1996 (line widths), ISO 128-50:2001 (areas on cuts and sections)
+  - SPEC-drawing-001 (hatch patterns), specs/drawing/line-patterns.md (line patterns)
   - Own professional drafting practice
 ---
 
@@ -30,21 +31,14 @@ spacing, text height) are given in paper millimetres.
    points-per-paper-mm = zoom × N / 1000 for model views (zoom in points per metre) and = zoom for sheets. The width
    is clamped to `[0.5 + 1.5·w, 2 + 8·w]` points so that thin pens never vanish when zoomed out, thick pens never
    become slabs when zoomed in, and a heavier pen is never drawn thinner than a lighter one.
-3. **Dashes.** Dash patterns are measured in paper millimetres and run continuously along a polyline, across its
-   vertices. When a pattern period would be shorter than 6 points on screen it is stretched to 6 points, so dashed
+3. **Dashes.** Dash patterns (`specs/drawing/line-patterns.md`) are measured in paper millimetres and run
+   continuously along a polyline, across its vertices. When a pattern period would be shorter than 6 points on screen it is stretched to 6 points, so dashed
    lines stay recognisably dashed. Zero-length dashes are drawn as dots.
 4. **Fills.** Closed areas are filled with their colour; the first ring is the outline and further rings are holes
    (even-odd). Concave outlines and holes are filled exactly (triangulated), not approximated by their hull.
-5. **Hatches.** A hatch fill is drawn as its background colour (if any) plus hatch lines in its line colour at
-   0.13 mm. Patterns (spacings in paper mm, multiplied by the fill's scale, rotated by its angle):
-   - diagonal: 45° lines every 2.0; masonry: 45° lines every 1.0; reinforced concrete: ±45° lines every 1.5;
-   - timber: horizontal lines every 1.2; glass/water: horizontal lines every 0.8; tiles: square grid of 3.0;
-   - earth: 45° dashed lines (1.2 on, 1.6 off) every 2.0, staggered from line to line;
-   - plaster: dots on a jittered 1.0 grid; plain concrete: small triangles and dots on a jittered 3.0 grid; gravel:
-     small rings on a jittered 2.2 grid (marks are kept only where they lie wholly inside the area);
-   - soft insulation: a rounded zigzag running along the area's longest edge, as high as the area is thick (at
-     most 6 mm per row).
-   Hatch lines are clipped exactly to the area, holes excluded.
+5. **Hatches.** A hatch fill is drawn as its background colour (if any) plus the hatch lines of its pattern in its
+   line colour, exactly as specified for every output in `specs/drawing/hatch-patterns.md` (SPEC-drawing-001):
+   the same segments are drawn on screen as are printed. Hatch lines are clipped exactly to the area, holes excluded.
 6. **Level of detail.** When hatch lines would be closer than 3 points on screen, the area is drawn as a flat tone
    instead: the line colour spread over the background in proportion to the printed ink coverage. Text whose cap
    height is below 2.8 points is not drawn. Items smaller than a third of a point are skipped.
@@ -70,17 +64,17 @@ spacing, text height) are given in paper millimetres.
 - Degenerate rings (fewer than three points), non-finite coordinates: the item is drawn as far as possible or
   skipped; never a crash.
 - A polygon the triangulator rejects (self-intersecting) is filled as a fan from its first vertex.
-- Patterns that would need more than 4 000 lines (or 20 000 marks) in one area are drawn as a tone at every zoom.
+- Areas whose hatch would need more than 60 000 segments are drawn as a tone at every zoom.
 - An empty plan shows a short hint on how to start (draw a wall).
 
 ## Acceptance tests
 
 1. Given a 1:50 plan at 80 points per metre, when a 0.25 mm stroke is drawn, then it is 1 point wide (true width),
    and a 0.13 mm hatch line is drawn at its 0.7 point minimum.
-2. Given a 10 × 10 mm square with a diagonal hatch, then every hatch segment lies inside the square, the segments are
-   at 45° and their total length is about area ÷ spacing.
-3. Given a square with a square hole and a horizontal hatch, then no hatch segment crosses the hole.
-4. Given an L-shaped area with a reinforced-concrete hatch, then every segment's midpoint is inside the L.
+2. Given a 10 × 10 mm square and any line or motif pattern, then hatch segments are drawn and every segment's
+   midpoint lies inside the square.
+3. Given a 1:50 drawing and a diagonal hatch at scale 2, then its line spacing on screen corresponds to 0.2 m.
+4. Given an area that would need more than 60 000 segments, then it is drawn as a tone.
 5. Given a hatched wall at a zoom where the hatch spacing is under 3 points, then it is drawn as a tone with far
    fewer vertices than when zoomed in.
 6. Given a 10-unit line with a 3 on / 1 off pattern, then it is drawn as three dashes of total length 8; an L of

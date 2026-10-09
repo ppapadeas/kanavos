@@ -13,7 +13,6 @@
 //! Behaviour is specified in `specs/ui/canvas-*.md`.
 
 mod actions;
-mod dash;
 pub mod demo;
 mod hatch;
 mod overlay;

@@ -12,8 +12,9 @@ use egui::epaint::{Mesh, PathShape, PathStroke, TessellationOptions, Tessellator
 use egui::{Color32, Pos2, pos2};
 use kanavos_drawing::{Pt, Rect, Rgba};
 
-use super::dash::dash_polyline;
-use super::prepare::{HATCH_WEIGHT, PItem, PPath, PStroke, Prepared, color32};
+use kanavos_drawing::dash::dash_polyline;
+
+use super::prepare::{PItem, PPath, PStroke, Prepared, color32};
 use super::view::intersects;
 
 /// Hatches whose lines would be closer than this on screen (points) are drawn as a flat tone instead.
@@ -160,7 +161,7 @@ impl Builder {
                     }
                 }
             } else {
-                let width = stroke_width(HATCH_WEIGHT, self.pt_per_mm);
+                let width = stroke_width(h.weight_mm, self.pt_per_mm);
                 let color = color32(h.color);
                 for [a, b] in &h.segments {
                     self.segment(*a, *b, width, color, out);
@@ -244,7 +245,7 @@ impl Builder {
             let period_pt = period * self.params.zoom;
             let k = if period_pt < DASH_MIN_PERIOD_PT { DASH_MIN_PERIOD_PT / period_pt } else { 1.0 };
             let pattern: Vec<f64> = pattern.iter().map(|v| v * k).collect();
-            for piece in dash_polyline(&points, closed, &pattern) {
+            for piece in dash_polyline(&points, closed, &pattern, 0.0) {
                 let pts: Vec<Pos2> = piece.iter().map(|p| self.params.to_mesh(*p)).collect();
                 if let (Some(a), Some(b)) = (pts.first(), pts.last())
                     && pts.len() == 2
