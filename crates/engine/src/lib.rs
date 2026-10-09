@@ -10,6 +10,7 @@
 //! Other modules:
 //! - [`derived`]: plans, sections, sheets, the 3D scene, the ΝΟΚ report and schedules computed off the interface
 //!   thread, keyed by document revision.
+//! - [`sample`]: a complete two-storey sample house built only through commands.
 //! - [`io`] and [`export`]: the single place where file formats and exporters are connected.
 //! - [`geo`]: plan geometry derived from walls (rooms, outlines, dimension chains) that commands need.
 
@@ -20,6 +21,7 @@ pub mod geo;
 pub mod io;
 mod labels;
 pub mod log;
+pub mod sample;
 
 use std::fmt;
 
