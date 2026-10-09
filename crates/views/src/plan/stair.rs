@@ -318,7 +318,7 @@ pub(super) fn stair_up(
     }
 }
 
-/// "ΑΝ" before the first riser and the riser note along the first flight, beside the walking line.
+/// «ΑΝ» beside the start of the walking line and the riser note along the first flight.
 fn labels_up(
     labels: &mut Drawing,
     ctx: &Ctx,
@@ -328,14 +328,16 @@ fn labels_up(
     span: Option<Segment2>,
     src: u64,
 ) {
-    label(labels, start - dir * ctx.mm(3.5), t(ctx.locale, "views.stair.up"), 2.5, true, 0.0, src);
-    let Some(span) = span else { return };
-    // Beside the walking line, on the side away from a second flight (stairs turning left put it on the right).
+    // The note goes beside the walking line on the side away from a second flight (stairs turning left put it on
+    // the right); «ΑΝ» goes beside the start dot on the other side, just past the first riser.
     let side = if matches!(s.shape, StairShape::QuarterTurnRight | StairShape::HalfTurnRight) {
         dir.perp()
     } else {
         -dir.perp()
     };
+    let up_at = start + dir * ctx.mm(2.0) - side * ctx.mm(3.5);
+    label(labels, up_at, t(ctx.locale, "views.stair.up"), 2.5, true, 0.0, src);
+    let Some(span) = span else { return };
     let at = span.midpoint() + side * (s.width.as_m() * 0.25);
     let (angle, _) = crate::annot::readable(dir.angle().as_rad());
     label(labels, at, riser_note(ctx, s), 2.0, false, angle, src);

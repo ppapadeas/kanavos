@@ -23,28 +23,30 @@ pub(super) fn tint(d: &mut Drawing, e: &Element, s: &Space) {
 pub(super) fn stamp(d: &mut Drawing, ctx: &Ctx, storey: &Storey, e: &Element, s: &Space, opts: &PlanOptions) {
     let at = s.stamp.or_else(|| s.boundary.outer.centroid()).unwrap_or(Point2::ORIGIN);
     let loc = ctx.locale;
+    // Text heights (paper mm): smaller at 1:100 and below, where rooms are half as large on paper.
+    let (name_h, area_h, small_h) = if ctx.scale <= 50.0 { (3.0, 2.5, 2.0) } else { (2.5, 2.0, 1.8) };
     let mut lines: Vec<(String, f64, bool)> = Vec::new();
     if !s.name.is_empty() {
-        lines.push((s.name.clone(), 3.0, true));
+        lines.push((s.name.clone(), name_h, true));
     }
     if !s.number.is_empty() {
-        lines.push((s.number.clone(), 2.0, false));
+        lines.push((s.number.clone(), small_h, false));
     }
     lines.push((
         format!("{} = {}", t(loc, "views.space.area"), AreaDisplay(s.boundary.area(), loc)),
-        2.5,
+        area_h,
         false,
     ));
     if opts.space_perimeter {
         lines.push((
             format!("{} = {}", t(loc, "views.space.perimeter"), LengthDisplay(s.boundary.perimeter(), loc)),
-            2.0,
+            small_h,
             false,
         ));
     }
     if opts.space_height {
         let h = s.height.unwrap_or(storey.height);
-        lines.push((format!("{} = {}", t(loc, "views.space.height"), LengthDisplay(h, loc)), 2.0, false));
+        lines.push((format!("{} = {}", t(loc, "views.space.height"), LengthDisplay(h, loc)), small_h, false));
     }
     let gap = |size: f64| size * 1.55;
     let total: f64 = lines.iter().map(|(_, size, _)| gap(*size)).sum();
