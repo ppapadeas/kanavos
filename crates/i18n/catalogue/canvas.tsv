@@ -47,3 +47,5 @@ ui.viewport3d.fit	Προβολή όλων	Zoom to fit
 ui.viewport3d.empty	Το μοντέλο δεν έχει ακόμη δομικά στοιχεία	The model has no building parts yet
 ui.viewport3d.hint	Αριστερό σύρσιμο: περιστροφή · μεσαίο ή δεξί: μετατόπιση · ροδέλα: εστίαση · κλικ: επιλογή	Left drag: orbit · middle or right drag: pan · wheel: zoom · click: select
 ui.viewport3d.triangles	{n} τρίγωνα	{n} triangles
+ui.viewport3d.backend.gpu	GPU: {adapter}	GPU: {adapter}
+ui.viewport3d.backend.software	απόδοση με λογισμικό ({reason})	software rendering ({reason})

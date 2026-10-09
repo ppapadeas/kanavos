@@ -79,6 +79,8 @@ pub struct Builder {
     params: TessParams,
     pt_per_mm: f64,
     paper_unit: f64,
+    /// Width of the anti-aliasing fringe, points (one physical pixel).
+    feather: f32,
     /// Number of items tessellated (statistics).
     pub items: usize,
 }
@@ -102,6 +104,7 @@ impl Builder {
             params,
             pt_per_mm: params.zoom * paper_unit,
             paper_unit,
+            feather: 1.0 / ppp,
             items: 0,
         }
     }
@@ -203,13 +206,7 @@ impl Builder {
             );
             return;
         }
-        let shape = PathShape {
-            points: vec![pa, pb],
-            closed: false,
-            fill: Color32::TRANSPARENT,
-            stroke: PathStroke::new(width, color),
-        };
-        self.tess.tessellate_path(&shape, out);
+        line_quad(out, pa, pb, width, color, self.feather);
     }
 
     fn stroke(&mut self, s: &PStroke, color: Color32, extra: f32, out: &mut Mesh) {
@@ -282,6 +279,46 @@ impl Builder {
             stroke: PathStroke::new(width, color),
         };
         self.tess.tessellate_path(&shape, out);
+    }
+}
+
+/// A straight line as a quad with anti-aliased sides and butt ends (cheaper than a general path for the many
+/// short hatch segments). Lines thinner than the fringe are drawn one fringe wide with proportionally less
+/// opacity, as egui does.
+pub fn line_quad(out: &mut Mesh, a: Pos2, b: Pos2, width: f32, color: Color32, feather: f32) {
+    let d = b - a;
+    let len = d.length();
+    if !(len > 1e-6 && len.is_finite()) {
+        return;
+    }
+    let n = egui::vec2(-d.y, d.x) / len;
+    let clear = Color32::TRANSPARENT;
+    let base = out.vertices.len() as u32;
+    let mut v = |p: Pos2, c: Color32| out.vertices.push(Vertex { pos: p, uv: WHITE_UV, color: c });
+    if width <= feather {
+        let c = color.gamma_multiply(width / feather.max(1e-6));
+        for p in [a, b] {
+            v(p - n * feather, clear);
+            v(p, c);
+            v(p + n * feather, clear);
+        }
+        for k in 0..2 {
+            out.add_triangle(base + k, base + k + 1, base + 3 + k);
+            out.add_triangle(base + k + 1, base + 4 + k, base + 3 + k);
+        }
+    } else {
+        let core = (width - feather) * 0.5;
+        let outer = core + feather;
+        for p in [a, b] {
+            v(p - n * outer, clear);
+            v(p - n * core, color);
+            v(p + n * core, color);
+            v(p + n * outer, clear);
+        }
+        for k in 0..3 {
+            out.add_triangle(base + k, base + k + 1, base + 4 + k);
+            out.add_triangle(base + k + 1, base + 5 + k, base + 4 + k);
+        }
     }
 }
 

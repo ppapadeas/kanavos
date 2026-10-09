@@ -19,7 +19,16 @@ drawings.
 
 ## Behaviour
 
-### Display
+### Renderers
+
+- The viewport draws on the GPU (`kanavos-render`, ADR-0007) when the application runs on wgpu and the renderer
+  can be created; otherwise, or when `KANAVOS_3D_SOFTWARE` is set, it draws with the software renderer described
+  below. Camera, navigation, picking semantics, the storey filter and the section box are the same on both; the
+  status line names the renderer (and why the software one is used).
+- On the GPU, hover picks run asynchronously and a click picks synchronously; selection uses the same blue as the
+  drawings, and hidden parts of the selection show as dashed edges.
+
+### Display (software renderer)
 
 - Every building part of the model is shown with its material colour, flat-shaded per face from a soft light from
   the sky above, a darker bounce from the ground and a sun from the south-west; faces turned to the sun are lighter.

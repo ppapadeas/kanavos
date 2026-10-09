@@ -1,18 +1,20 @@
 //! The 3D viewport: the model as shaded solids with orbit, pan, zoom, standard views, picking, a storey filter and
 //! a section box.
 //!
-//! Until `kanavos-render` (GPU) is integrated, the viewport draws with the software renderer in [`soft`]: the
-//! scene from `kanavos_views::scene` is prepared once per revision ([`scene`]), and every frame its triangles are
-//! culled, clipped, sorted back to front and submitted as one egui mesh. [`soft::SceneRenderer`] is the seam for
-//! the GPU path.
+//! The model comes from `kanavos_views::scene` once per revision. It is drawn on the GPU by `kanavos-render`
+//! ([`gpu`]) when the application runs on wgpu, and otherwise by the software renderer ([`soft`]): the scene is
+//! prepared once per revision ([`scene`]), and every frame its triangles are culled, clipped, sorted back to front
+//! and submitted as one egui mesh. Camera, navigation, standard views, the storey filter and the section box are
+//! shared by both paths.
 //!
 //! Behaviour is specified in `specs/ui/viewport-3d.md`.
 
 pub mod camera;
+pub mod gpu;
 pub mod scene;
 pub mod soft;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -135,6 +137,30 @@ impl Viewport3d {
     pub fn stats(&self) -> Viewport3dStats {
         self.inner.stats
     }
+
+    /// Whether the GPU renderer draws this viewport (`false` before the first frame and on the software path).
+    pub fn uses_gpu(&self) -> bool {
+        matches!(self.inner.backend, Backend::Gpu(_))
+    }
+}
+
+/// The model's scene for one revision, shared by both renderers.
+struct SceneData {
+    revision: u64,
+    scene: Arc<kanavos_views::Scene>,
+    /// Element, storey and bounds of every scene item.
+    items: Vec<(Id, Option<Id>, Aabb)>,
+    bounds: Option<Aabb>,
+}
+
+/// Which renderer draws the viewport.
+enum Backend {
+    /// Not decided yet (decided on the first frame).
+    Undecided,
+    /// `kanavos-render` on the application's GPU device.
+    Gpu(Box<gpu::GpuView>),
+    /// The software renderer, with the reason the GPU path is not used.
+    Software(String),
 }
 
 /// The viewport's state.
@@ -142,14 +168,16 @@ struct Inner {
     camera: OrbitCamera,
     target_camera: Option<OrbitCamera>,
     fitted: bool,
-    scene: Option<(u64, Arc<Prepared3d>)>,
+    data: Option<SceneData>,
+    soft_scene: Option<(u64, Arc<Prepared3d>)>,
     renderer: SoftwareRenderer,
+    backend: Backend,
     edges: bool,
     storeys: StoreyFilter,
     section_box: Option<Aabb>,
     moving: bool,
     hover_set: bool,
-    visible: Vec<bool>,
+    hidden: HashSet<Id>,
     caps: Option<(u64, Aabb, Arc<Vec<scene::Cap>>)>,
     stats: Viewport3dStats,
 }
@@ -160,14 +188,16 @@ impl Inner {
             camera: OrbitCamera::default(),
             target_camera: None,
             fitted: false,
-            scene: None,
+            data: None,
+            soft_scene: None,
             renderer: SoftwareRenderer::default(),
+            backend: Backend::Undecided,
             edges: true,
             storeys: StoreyFilter::All,
             section_box: None,
             moving: false,
             hover_set: false,
-            visible: Vec::new(),
+            hidden: HashSet::new(),
             caps: None,
             stats: Viewport3dStats::default(),
         }
@@ -233,64 +263,79 @@ impl Inner {
         self.fitted = true;
     }
 
-    fn prepared(&mut self, state: &AppState) -> Arc<Prepared3d> {
+    /// The scene of the current revision.
+    fn sync_data(&mut self, state: &AppState) {
         let rev = state.session.revision();
-        if let Some((r, s)) = &self.scene
-            && *r == rev
-        {
-            return s.clone();
+        if self.data.as_ref().is_some_and(|d| d.revision == rev) {
+            return;
         }
         let started = Instant::now();
-        let sc = kanavos_views::scene(state.doc(), &kanavos_views::SceneOptions::default());
-        let p = Arc::new(Prepared3d::new(&sc));
-        self.stats.prepare_ms = started.elapsed().as_secs_f32() * 1000.0;
-        self.stats.scene_triangles = p.tris.len();
-        self.scene = Some((rev, p.clone()));
-        p
-    }
-
-    /// Which items pass the storey filter.
-    fn visibility(&self, scene: &Prepared3d, state: &AppState) -> Vec<bool> {
-        let doc = state.doc();
-        let elevation = |id: Id| doc.storey(id).map(|s| s.elevation.as_m());
-        scene
+        let scene = kanavos_views::scene(state.doc(), &kanavos_views::SceneOptions::default());
+        let items: Vec<(Id, Option<Id>, Aabb)> = scene
             .items
             .iter()
-            .map(|it| match self.storeys {
-                StoreyFilter::All => true,
-                StoreyFilter::Only(s) => it.storey == Some(s),
-                StoreyFilter::UpTo(s) => match (it.storey.and_then(elevation), elevation(s)) {
-                    (Some(e), Some(limit)) => e <= limit + 1e-6,
-                    _ => false,
+            .filter_map(|it| {
+                let b = Aabb::from_points(it.mesh.positions.iter().map(|p| v3(p.x, p.y, p.z)))?;
+                Some((it.element, it.storey, b))
+            })
+            .collect();
+        let bounds = items.iter().map(|(_, _, b)| *b).reduce(|a, b| a.union(&b));
+        self.stats.prepare_ms = started.elapsed().as_secs_f32() * 1000.0;
+        self.data = Some(SceneData { revision: rev, scene: Arc::new(scene), items, bounds });
+    }
+
+    /// The software renderer's prepared scene (built on first use per revision).
+    fn soft_prepared(&mut self) -> Option<Arc<Prepared3d>> {
+        let data = self.data.as_ref()?;
+        if let Some((r, s)) = &self.soft_scene
+            && *r == data.revision
+        {
+            return Some(s.clone());
+        }
+        let started = Instant::now();
+        let p = Arc::new(Prepared3d::new(&data.scene));
+        self.stats.prepare_ms += started.elapsed().as_secs_f32() * 1000.0;
+        self.stats.scene_triangles = p.tris.len();
+        self.soft_scene = Some((data.revision, p.clone()));
+        Some(p)
+    }
+
+    /// Elements hidden by the storey filter.
+    fn hidden_by_filter(&self, state: &AppState) -> HashSet<Id> {
+        let doc = state.doc();
+        let elevation = |id: Id| doc.storey(id).map(|s| s.elevation.as_m());
+        let Some(data) = &self.data else { return HashSet::new() };
+        data.items
+            .iter()
+            .filter(|(_, storey, _)| match self.storeys {
+                StoreyFilter::All => false,
+                StoreyFilter::Only(s) => *storey != Some(s),
+                StoreyFilter::UpTo(s) => match (storey.and_then(elevation), elevation(s)) {
+                    (Some(e), Some(limit)) => e > limit + 1e-6,
+                    _ => true,
                 },
             })
+            .map(|(id, _, _)| *id)
             .collect()
     }
 
-    /// Bounds of the items that passed the storey filter in the last frame (all items before the first frame).
+    /// Bounds of the items that pass the storey filter.
     fn visible_bounds(&self) -> Option<Aabb> {
-        let (_, scene) = self.scene.as_ref()?;
-        let mut b: Option<Aabb> = None;
-        for (i, it) in scene.items.iter().enumerate() {
-            if self.visible.get(i).copied().unwrap_or(true) {
-                b = Some(b.map_or(it.bounds, |x| x.union(&it.bounds)));
-            }
-        }
-        b.or(scene.bounds)
+        let data = self.data.as_ref()?;
+        data.items
+            .iter()
+            .filter(|(id, _, _)| !self.hidden.contains(id))
+            .map(|(_, _, b)| *b)
+            .reduce(|a, b| a.union(&b))
+            .or(data.bounds)
     }
 
-    /// The nearest visible item under a screen point, and the hit point.
-    fn pick(
-        &self,
-        scene: &Prepared3d,
-        proj: &camera::Projection,
-        visible: &[bool],
-        at: [f64; 2],
-    ) -> Option<(usize, V3)> {
+    /// The nearest visible item of the software scene under a screen point, and the hit point.
+    fn soft_pick(&self, scene: &Prepared3d, proj: &camera::Projection, at: [f64; 2]) -> Option<(Id, V3)> {
         let (o, d) = proj.ray(at);
         let mut best: Option<(f64, usize)> = None;
         for (ii, it) in scene.items.iter().enumerate() {
-            if !visible.get(ii).copied().unwrap_or(false) {
+            if self.hidden.contains(&it.element) {
                 continue;
             }
             if let Some(b) = &self.section_box
@@ -314,29 +359,74 @@ impl Inner {
                 }
             }
         }
-        best.map(|(tt, ii)| (ii, o + d * tt))
+        best.and_then(|(tt, ii)| scene.items.get(ii).map(|it| (it.element, o + d * tt)))
+    }
+
+    /// Chooses the renderer on the first frame: the GPU when the application runs on wgpu and the renderer can be
+    /// created, the software renderer otherwise (or when `KANAVOS_3D_SOFTWARE` is set).
+    fn decide_backend(&mut self, frame: &eframe::Frame) {
+        if !matches!(self.backend, Backend::Undecided) {
+            return;
+        }
+        self.backend = if std::env::var_os("KANAVOS_3D_SOFTWARE").is_some() {
+            Backend::Software("KANAVOS_3D_SOFTWARE".into())
+        } else {
+            match frame.wgpu_render_state() {
+                Some(rs) => match gpu::GpuView::new(rs) {
+                    Ok(g) => Backend::Gpu(Box::new(g)),
+                    Err(e) => Backend::Software(e),
+                },
+                None => Backend::Software("no wgpu device".into()),
+            }
+        };
+    }
+
+    /// Updates the selection from a click on an element (or on nothing).
+    fn click_select(state: &mut AppState, id: Option<Id>, m: egui::Modifiers) {
+        match id {
+            Some(id) if m.command => {
+                if !state.selection.remove(&id) {
+                    state.selection.insert(id);
+                }
+            }
+            Some(id) if m.shift => {
+                state.selection.insert(id);
+            }
+            Some(id) => state.selection = [id].into(),
+            None if !m.shift && !m.command => state.selection.clear(),
+            None => {}
+        }
     }
 
     /// Shows the viewport.
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &eframe::Frame, state: &mut AppState) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &eframe::Frame, state: &mut AppState) {
         let started = Instant::now();
         crate::canvas::shot::tick(ui.ctx(), Some(&mut *state));
-        let scene = self.prepared(state);
+        self.sync_data(state);
+        self.decide_backend(frame);
+        self.hidden = self.hidden_by_filter(state);
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let rect = response.rect;
         let ctx = ui.ctx().clone();
+        let ppp = ctx.pixels_per_point();
         if response.clicked() || response.drag_started() {
             response.request_focus();
         }
         if response.hovered() && ctx.memory(|m| m.focused().is_none()) {
             response.request_focus();
         }
-        paint_background(&painter, rect);
         let size = [f64::from(rect.width()), f64::from(rect.height())];
         let centre = [f64::from(rect.center().x), f64::from(rect.center().y)];
         let aspect = size[0] / size[1].max(1.0);
-        let visible = self.visibility(&scene, state);
-        self.visible.clone_from(&visible);
+        let size_px =
+            [(rect.width() * ppp).round().max(1.0) as u32, (rect.height() * ppp).round().max(1.0) as u32];
+        let to_px =
+            |p: egui::Pos2| [f64::from((p.x - rect.left()) * ppp), f64::from((p.y - rect.top()) * ppp)];
+        let rs = frame.wgpu_render_state();
+        let soft = match self.backend {
+            Backend::Gpu(_) => None,
+            _ => self.soft_prepared(),
+        };
 
         if !self.fitted {
             if let Some(b) = self.visible_bounds() {
@@ -369,7 +459,12 @@ impl Inner {
             if (factor - 1.0).abs() > 1e-6 {
                 let focus = response.hover_pos().and_then(|p| {
                     let at = [f64::from(p.x), f64::from(p.y)];
-                    self.pick(&scene, &proj, &visible, at).map(|(_, hit)| hit).or_else(|| {
+                    let hit = match (&self.backend, &soft) {
+                        (Backend::Gpu(g), _) => g.hover_point,
+                        (_, Some(s)) => self.soft_pick(s, &proj, at).map(|(_, hit)| hit),
+                        _ => None,
+                    };
+                    hit.or_else(|| {
                         // No hit: the point on the plane through the target facing the camera.
                         let (o, d) = proj.ray(at);
                         let denom = d.dot(proj.forward);
@@ -406,63 +501,88 @@ impl Inner {
         }
         self.moving = moving;
         let proj = self.camera.projection(size, centre);
+        let edges = self.edges;
+        let section_box = self.section_box;
+        let gpu_params = gpu::GpuView::params(&self.camera, size_px, ppp, edges, section_box);
+        let m = ui.input(|i| i.modifiers);
+        let pointer = response.hover_pos().filter(|_| response.contains_pointer());
+        let painter = painter.with_clip_rect(rect);
+        let render_started = Instant::now();
+        let mut triangles = 0;
+        let mut empty = self.data.as_ref().is_none_or(|d| d.items.is_empty());
 
-        // Picking and hover.
-        if response.clicked_by(PointerButton::Primary)
-            && let Some(p) = response.interact_pointer_pos()
-        {
-            let hit = self.pick(&scene, &proj, &visible, [f64::from(p.x), f64::from(p.y)]);
-            let id = hit.and_then(|(ii, _)| scene.items.get(ii)).map(|it| it.element);
-            let m = ui.input(|i| i.modifiers);
-            match id {
-                Some(id) if m.command => {
-                    if !state.selection.remove(&id) {
-                        state.selection.insert(id);
+        match (&mut self.backend, rs) {
+            (Backend::Gpu(g), Some(rs)) => {
+                if let Some(d) = &self.data {
+                    g.sync_scene(d.revision, &d.scene);
+                }
+                // Picking and hover.
+                if response.clicked_by(PointerButton::Primary)
+                    && let Some(p) = response.interact_pointer_pos()
+                {
+                    let id = g.pick(rs, &gpu_params, to_px(p)).map(|(id, _)| Id(id));
+                    Inner::click_select(state, id, m);
+                }
+                let busy = g.hover(rs, &gpu_params, pointer.filter(|_| !moving).map(to_px));
+                if busy {
+                    ctx.request_repaint();
+                }
+                if pointer.is_some() {
+                    state.hover = g.hover_id.map(Id);
+                    self.hover_set = true;
+                } else if self.hover_set {
+                    state.hover = None;
+                    self.hover_set = false;
+                }
+                let hidden: HashSet<u64> = self.hidden.iter().map(|i| i.0).collect();
+                let selected: HashSet<u64> = state.selection.iter().map(|i| i.0).collect();
+                g.set_state(hidden, selected, state.hover.map(|h| h.0));
+                g.paint(rs, &painter, rect, &gpu_params);
+                triangles = g.stats.triangles;
+                empty = g.stats.objects == 0;
+            }
+            _ => {
+                paint_background(&painter, rect);
+                if let Some(scene) = soft {
+                    if response.clicked_by(PointerButton::Primary)
+                        && let Some(p) = response.interact_pointer_pos()
+                    {
+                        let id =
+                            self.soft_pick(&scene, &proj, [f64::from(p.x), f64::from(p.y)]).map(|(id, _)| id);
+                        Inner::click_select(state, id, m);
                     }
+                    if !moving && let Some(p) = pointer {
+                        state.hover =
+                            self.soft_pick(&scene, &proj, [f64::from(p.x), f64::from(p.y)]).map(|(id, _)| id);
+                        self.hover_set = true;
+                    } else if self.hover_set && pointer.is_none() {
+                        state.hover = None;
+                        self.hover_set = false;
+                    }
+                    let selected: BTreeSet<Id> = state.selection.clone();
+                    let opts = RenderOptions {
+                        selected: scene.items.iter().map(|it| selected.contains(&it.element)).collect(),
+                        hover: state.hover.and_then(|h| scene.items.iter().position(|it| it.element == h)),
+                        visible: scene.items.iter().map(|it| !self.hidden.contains(&it.element)).collect(),
+                        edges: edges && !(moving && scene.tris.len() > EDGES_WHILE_MOVING_LIMIT),
+                        edge_resolution: if moving { 0.5 } else { 1.0 },
+                        occlusion: true,
+                        section_box,
+                        caps: self.caps_for(&scene, state.session.revision()),
+                    };
+                    if let Some(b) = self.visible_bounds() {
+                        paint_ground(&painter, &proj, &b);
+                    }
+                    let st = self.renderer.paint(&painter, rect, &scene, &proj, &opts);
+                    triangles = st.triangles;
+                    self.stats.edges = st.edges;
                 }
-                Some(id) if m.shift => {
-                    state.selection.insert(id);
-                }
-                Some(id) => state.selection = [id].into(),
-                None if !m.shift && !m.command => state.selection.clear(),
-                None => {}
             }
         }
-        if !moving
-            && response.contains_pointer()
-            && let Some(p) = response.hover_pos()
-        {
-            let hit = self.pick(&scene, &proj, &visible, [f64::from(p.x), f64::from(p.y)]);
-            state.hover = hit.and_then(|(ii, _)| scene.items.get(ii)).map(|it| it.element);
-            self.hover_set = true;
-        } else if self.hover_set && !response.contains_pointer() {
-            state.hover = None;
-            self.hover_set = false;
-        }
-
-        // The scene.
-        let selected: BTreeSet<Id> = state.selection.clone();
-        let opts = RenderOptions {
-            selected: scene.items.iter().map(|it| selected.contains(&it.element)).collect(),
-            hover: state.hover.and_then(|h| scene.items.iter().position(|it| it.element == h)),
-            visible,
-            edges: self.edges && !(moving && scene.tris.len() > EDGES_WHILE_MOVING_LIMIT),
-            edge_resolution: if moving { 0.5 } else { 1.0 },
-            occlusion: true,
-            section_box: self.section_box,
-            caps: self.caps_for(&scene, state.session.revision()),
-        };
-        let render_started = Instant::now();
-        let painter = painter.with_clip_rect(rect);
-        if let Some(b) = self.visible_bounds() {
-            paint_ground(&painter, &proj, &b);
-        }
-        let st = self.renderer.paint(&painter, rect, &scene, &proj, &opts);
         self.stats.render_ms = render_started.elapsed().as_secs_f32() * 1000.0;
-        self.stats.triangles = st.triangles;
-        self.stats.edges = st.edges;
+        self.stats.triangles = triangles;
 
-        if scene.items.is_empty() {
+        if empty {
             painter.text(
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
@@ -472,13 +592,19 @@ impl Inner {
             );
         }
         self.toolbar(ui, &ctx, rect, state, aspect);
+        let backend = match &self.backend {
+            Backend::Gpu(g) => tf(state.locale, "ui.viewport3d.backend.gpu", &[("adapter", &g.adapter)]),
+            Backend::Software(why) => tf(state.locale, "ui.viewport3d.backend.software", &[("reason", why)]),
+            Backend::Undecided => String::new(),
+        };
         painter.text(
             rect.left_bottom() + vec2(10.0, -8.0),
             egui::Align2::LEFT_BOTTOM,
             format!(
-                "{}    {}",
+                "{}    {}    {}",
                 t(state.locale, "ui.viewport3d.hint"),
-                tf(state.locale, "ui.viewport3d.triangles", &[("n", &st.triangles.to_string())])
+                tf(state.locale, "ui.viewport3d.triangles", &[("n", &triangles.to_string())]),
+                backend
             ),
             egui::FontId::proportional(11.5),
             Color32::from_gray(95),
@@ -528,7 +654,7 @@ impl Inner {
         let mut standard: Option<StandardView> = None;
         let mut fit = false;
         let mut toggle_box = false;
-        let bounds = self.scene.as_ref().and_then(|(_, s)| s.bounds);
+        let bounds = self.data.as_ref().and_then(|d| d.bounds);
         egui::Area::new(ui.id().with("viewport3d_toolbar"))
             .fixed_pos(rect.left_top() + vec2(8.0, 8.0))
             .order(egui::Order::Foreground)
@@ -652,11 +778,11 @@ impl Inner {
                 self.section_box = None;
             } else {
                 // Around the selection if any, otherwise the whole model cut at mid-height.
-                let sel = self.scene.as_ref().and_then(|(_, s)| {
-                    s.items
+                let sel = self.data.as_ref().and_then(|d| {
+                    d.items
                         .iter()
-                        .filter(|it| state.selection.contains(&it.element))
-                        .map(|it| it.bounds)
+                        .filter(|(id, _, _)| state.selection.contains(id))
+                        .map(|(_, _, b)| *b)
                         .reduce(|a, b| a.union(&b))
                 });
                 self.section_box = match (sel, bounds) {

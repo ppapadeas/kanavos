@@ -50,6 +50,8 @@ struct Shot {
     frames: u64,
     times: Vec<f32>,
     tess: Vec<f32>,
+    /// Whole-frame CPU time reported by eframe (everything but the wait for vsync), milliseconds.
+    app: Vec<f32>,
     started: std::time::Instant,
     first: bool,
 }
@@ -147,6 +149,7 @@ fn main() -> eframe::Result {
         frames,
         times: Vec::new(),
         tess: Vec::new(),
+        app: Vec::new(),
         started: std::time::Instant::now(),
         first: true,
     };
@@ -170,6 +173,11 @@ fn main() -> eframe::Result {
 impl eframe::App for Shot {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.frame += 1;
+        if self.frame > 6
+            && let Some(cpu) = frame.info().cpu_usage
+        {
+            self.app.push(cpu * 1000.0);
+        }
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| match self.scene {
             Scene::ThreeD(_) => self.viewport.ui(ui, frame, &mut self.state),
             Scene::Bench3d => {
@@ -186,6 +194,9 @@ impl eframe::App for Shot {
                 }
                 self.viewport.ui(ui, frame, &mut self.state);
                 let s = self.viewport.stats();
+                if self.frame == 5 {
+                    self.started = std::time::Instant::now();
+                }
                 if self.frame > 5 {
                     self.times.push(s.frame_ms);
                     self.tess.push(s.render_ms);
@@ -217,6 +228,9 @@ impl eframe::App for Shot {
                     }
                     c.ui(ui, &mut self.state);
                     let s = c.stats();
+                    if self.frame == 5 {
+                        self.started = std::time::Instant::now();
+                    }
                     if self.scene == Scene::Bench && self.frame > 5 {
                         self.times.push(s.frame_ms);
                         self.tess.push(s.tessellate_ms);
@@ -227,8 +241,17 @@ impl eframe::App for Shot {
         self.first = false;
         if matches!(self.scene, Scene::Bench | Scene::Bench3d) {
             ui.ctx().request_repaint();
-            if self.frame >= self.frames {
-                report(&self.times, &self.tess, self.started.elapsed().as_secs_f64(), self.frame);
+            if self.frame == self.frames {
+                report(&self.times, &self.tess, self.started.elapsed().as_secs_f64(), self.frame - 5);
+                let mut a = self.app.clone();
+                a.sort_by(f32::total_cmp);
+                let q = |f: f64| a.get(((a.len() as f64 - 1.0) * f) as usize).copied().unwrap_or(0.0);
+                eprintln!(
+                    "whole frame CPU (eframe, without vsync wait): median {:.2} ms, p95 {:.2}, max {:.2}",
+                    q(0.5),
+                    q(0.95),
+                    q(1.0)
+                );
                 if let Some(c) = &self.canvas {
                     eprintln!("last frame: {:?}", c.stats());
                 } else {
@@ -252,7 +275,7 @@ fn report(times: &[f32], tess: &[f32], wall: f64, frames: u64) {
     let rebuilds = tess.iter().filter(|t| **t > 0.0).count();
     let tmax = tess.iter().copied().fold(0.0, f32::max);
     eprintln!(
-        "canvas frame (CPU in Canvas::ui): avg {avg:.2} ms, median {:.2}, p95 {:.2}, max {:.2} over {n} frames; \
+        "frame CPU in the canvas/viewport ui: avg {avg:.2} ms, median {:.2}, p95 {:.2}, max {:.2} over {n} frames; \
          {rebuilds} re-tessellations, longest {tmax:.2} ms; whole app {:.1} fps",
         p(0.5),
         p(0.95),
