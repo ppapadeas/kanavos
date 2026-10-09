@@ -41,7 +41,8 @@ pub struct ImportOptions {
     /// Largest distance between a point and an elevation text for them to be paired, metres. Three text heights
     /// are always allowed.
     pub elevation_search_radius: f64,
-    /// Largest number of drawing items created; the rest of the file is skipped with a warning.
+    /// Largest number of drawing items created; the rest of the file is skipped with a warning. Block expansion
+    /// also stops after ten times as many entities have been processed.
     pub max_items: usize,
     /// Deepest block nesting expanded.
     pub max_block_depth: usize,
@@ -198,6 +199,8 @@ struct Importer<'a> {
     counts: BTreeMap<String, usize>,
     item_counts: HashMap<String, usize>,
     full: bool,
+    /// Entities processed, including every block expansion.
+    visits: usize,
 }
 
 /// Reads an ASCII DXF file (R12 to current versions).
@@ -251,6 +254,7 @@ pub fn read_dxf(data: &[u8], opts: &ImportOptions) -> Result<DxfImport, DxfError
         counts: BTreeMap::new(),
         item_counts: HashMap::new(),
         full: false,
+        visits: 0,
     };
     if let Some(s) = secs.iter().find(|s| s.name == "TABLES") {
         imp.tables(s.pairs);
@@ -670,6 +674,14 @@ impl<'a> Importer<'a> {
         if self.full {
             return;
         }
+        // Nested blocks can multiply without drawing anything (a block of ten inserts of a block of ten inserts…):
+        // bound the work, not only the output.
+        self.visits += 1;
+        if self.visits > self.opts.max_items.saturating_mul(10) {
+            self.full = true;
+            self.warn("block expansion too large: the rest of the file was skipped".to_owned());
+            return;
+        }
         self.count(&e.kind);
         if e.i(67) == Some(1) && ctx.depth == 0 && !self.opts.include_paper_space {
             return;
@@ -901,7 +913,7 @@ impl<'a> Importer<'a> {
             // Polygon mesh: M × N vertices, drawn as grid lines.
             let (m, n) = (e.i(71).unwrap_or(0).max(0) as usize, e.i(72).unwrap_or(0).max(0) as usize);
             let pts: Vec<Pt> = verts.iter().map(|(p, _, _)| pt(p[0], p[1])).collect();
-            if m * n == pts.len() && m > 0 && n > 0 {
+            if m.checked_mul(n) == Some(pts.len()) && m > 0 && n > 0 {
                 for i in 0..m {
                     let row: Vec<Pt> = (0..n).filter_map(|j| pts.get(i * n + j).copied()).collect();
                     self.emit(
@@ -1280,17 +1292,19 @@ fn hatch_paths(pairs: &[Pair<'_>], tol: f64) -> Vec<Vec<Pt>> {
         }
         None
     };
-    for _ in 0..count {
+    // Counts come from the file: never trust them beyond the number of pairs that could hold the data.
+    let limit = |v: Option<f64>| (v.unwrap_or(0.0).max(0.0) as usize).min(pairs.len());
+    for _ in 0..count.min(pairs.len()) {
         let Some(flags) = next(&mut i, 92) else { break };
         let flags = flags as i64;
         let mut ring: Vec<Pt> = Vec::new();
         if flags & 2 != 0 {
             let has_bulge = next(&mut i, 72).unwrap_or(0.0) != 0.0;
             let _closed = next(&mut i, 73);
-            let n = next(&mut i, 93).unwrap_or(0.0).max(0.0) as usize;
+            let n = limit(next(&mut i, 93));
             let mut verts: Vec<(Pt, f64)> = Vec::with_capacity(n);
             for _ in 0..n {
-                let x = next(&mut i, 10).unwrap_or(0.0);
+                let Some(x) = next(&mut i, 10) else { break };
                 let y = next(&mut i, 20).unwrap_or(0.0);
                 let b = if has_bulge && pairs.get(i).is_some_and(|p| p.code == 42) {
                     next(&mut i, 42).unwrap_or(0.0)
@@ -1308,10 +1322,10 @@ fn hatch_paths(pairs: &[Pair<'_>], tol: f64) -> Vec<Vec<Pt>> {
                 ring.extend(seg.into_iter().take(keep));
             }
         } else {
-            let edges = next(&mut i, 93).unwrap_or(0.0).max(0.0) as usize;
+            let edges = limit(next(&mut i, 93));
             for _ in 0..edges {
-                let kind = next(&mut i, 72).unwrap_or(1.0) as i64;
-                match kind {
+                let Some(kind) = next(&mut i, 72) else { break };
+                match kind as i64 {
                     1 => {
                         let a = pt(next(&mut i, 10).unwrap_or(0.0), next(&mut i, 20).unwrap_or(0.0));
                         let _b = pt(next(&mut i, 11).unwrap_or(0.0), next(&mut i, 21).unwrap_or(0.0));
@@ -1344,7 +1358,8 @@ fn hatch_paths(pairs: &[Pair<'_>], tol: f64) -> Vec<Vec<Pt>> {
                         } else if !ccw && sweep >= 0.0 {
                             sweep -= 360.0;
                         }
-                        let n = ((sweep.abs() / 5.0).ceil() as usize).max(4);
+                        let sweep = sweep.clamp(-360.0, 360.0);
+                        let n = ((sweep.abs() / 5.0).ceil() as usize).clamp(4, 72);
                         for k in 0..n {
                             let t = (s + sweep * k as f64 / n as f64).to_radians();
                             ring.push(pt(
@@ -1358,13 +1373,15 @@ fn hatch_paths(pairs: &[Pair<'_>], tol: f64) -> Vec<Vec<Pt>> {
                         let _deg = next(&mut i, 94);
                         let _rational = next(&mut i, 73);
                         let _periodic = next(&mut i, 74);
-                        let nk = next(&mut i, 95).unwrap_or(0.0).max(0.0) as usize;
-                        let nc = next(&mut i, 96).unwrap_or(0.0).max(0.0) as usize;
+                        let nk = limit(next(&mut i, 95));
+                        let nc = limit(next(&mut i, 96));
                         for _ in 0..nk {
-                            let _ = next(&mut i, 40);
+                            if next(&mut i, 40).is_none() {
+                                break;
+                            }
                         }
                         for _ in 0..nc {
-                            let x = next(&mut i, 10).unwrap_or(0.0);
+                            let Some(x) = next(&mut i, 10) else { break };
                             let y = next(&mut i, 20).unwrap_or(0.0);
                             ring.push(pt(x, y));
                         }
@@ -1376,7 +1393,7 @@ fn hatch_paths(pairs: &[Pair<'_>], tol: f64) -> Vec<Vec<Pt>> {
         // Skip the source object references.
         if pairs.get(i).is_some_and(|p| p.code == 97) {
             let n = pairs.get(i).and_then(Pair::i64).unwrap_or(0).max(0) as usize;
-            i += 1 + n;
+            i = i.saturating_add(1).saturating_add(n.min(pairs.len()));
         }
         ring.dedup_by(|a, b| a.distance(*b) < 1e-12);
         if ring.len() >= 3 {

@@ -116,3 +116,58 @@ fn sample_plan_dxf_round_trip() {
     let swatches = write_dxf(&hatch_swatches(), &DxfExportOptions::default());
     std::fs::write(dir.join("hatch_swatches.dxf"), &swatches).expect("write dxf");
 }
+
+/// Degenerate drawing content must never make an exporter fail or panic.
+#[test]
+fn degenerate_drawings_export_everywhere() {
+    use kanavos_drawing::{
+        Drawing, Fill, HatchPattern, Item, LinePattern, Rgba, Shape, Stroke, Text, pt, weights,
+    };
+    let nan = f64::NAN;
+    for scale in [50.0, 0.0, f64::NAN, -10.0] {
+        let mut d = Drawing::model(scale);
+        d.push(Item::line(pt(nan, 0.0), pt(1.0, 1.0), Stroke::solid(weights::THIN), "bad"));
+        d.push(Item::line(
+            pt(0.0, 0.0),
+            pt(0.0, 0.0),
+            Stroke::patterned(0.25, LinePattern::Custom(vec![])),
+            "bad",
+        ));
+        d.push(Item::polyline(vec![pt(0.0, 0.0)], true, Stroke::solid(-1.0), "bad"));
+        d.push(Item::polygon(
+            vec![vec![], vec![pt(0.0, 0.0), pt(1.0, 0.0)]],
+            Some(Fill::hatch(HatchPattern::Concrete, None)),
+            None,
+            "bad",
+        ));
+        d.push(Item::polygon(
+            vec![vec![pt(0.0, 0.0), pt(1e9, 0.0), pt(1e9, 1e9)]],
+            Some(Fill::hatch(HatchPattern::Masonry, Some(Rgba::LIGHT_GREY))),
+            Some(Stroke::patterned(0.5, LinePattern::Custom(vec![-1.0, f64::INFINITY]))),
+            "huge",
+        ));
+        for shape in [
+            Shape::Circle { centre: pt(0.0, 0.0), radius: 0.0 },
+            Shape::Circle { centre: pt(0.0, 0.0), radius: -2.0 },
+            Shape::Arc { centre: pt(0.0, 0.0), radius: 1.0, start: nan, sweep: 100.0 },
+            Shape::Arc { centre: pt(0.0, 0.0), radius: f64::INFINITY, start: 0.0, sweep: 1.0 },
+        ] {
+            d.push(Item {
+                shape,
+                stroke: Some(Stroke::solid(0.25)),
+                fill: None,
+                layer: "bad".into(),
+                source: None,
+            });
+        }
+        d.push(Item::text(Text::new(pt(0.0, 0.0), "", 2.5), "bad"));
+        d.push(Item::text(Text::new(pt(nan, 0.0), "Α", 2.5), "bad"));
+        d.push(Item::text(Text::new(pt(0.0, 0.0), "Ω\u{0}\u{7}<&>", 1e6).rotated(nan), "bad"));
+        let fonts = Fonts::builtin();
+        let _ = to_svg_with_fonts(&d, &SvgOptions::default(), &fonts);
+        let _ = write_pdf_with_fonts(&[PdfPage::new(d.clone(), 210.0, 297.0)], &PdfMeta::default(), &fonts);
+        let _ = render_png_with_fonts(&d, &RasterOptions::default(), &fonts);
+        let bytes = write_dxf(&d, &DxfExportOptions::default());
+        let _ = read_dxf(&bytes, &ImportOptions::default()).expect("own output reads back");
+    }
+}

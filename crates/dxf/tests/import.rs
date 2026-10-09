@@ -676,3 +676,108 @@ fn paper_drawings_round_trip() {
     assert_eq!(imp.closed_polylines.len(), 1);
     assert!((imp.closed_polylines[0].area - 0.4 * 0.277).abs() < 1e-9);
 }
+
+/// A small deterministic generator for mutations (64-bit linear congruential, Knuth's constants).
+struct Lcg(u64);
+
+impl Lcg {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        self.0 >> 33
+    }
+    fn below(&mut self, n: usize) -> usize {
+        (self.next() % n.max(1) as u64) as usize
+    }
+}
+
+/// Corrupted files must never panic, hang or allocate without bound: they import partially or fail with an error.
+#[test]
+fn corrupted_files_never_panic() {
+    let seeds = [survey_file(), write_dxf(&sample(), &DxfExportOptions::default())];
+    let bytes: &[u8] = b"0123456789-.eE\n\r \x00\xFF9999999999999999999-1e308ABC";
+    let mut rng = Lcg(42);
+    let opts = ImportOptions { max_items: 50_000, ..ImportOptions::default() };
+    for seed in &seeds {
+        for _ in 0..300 {
+            let mut data = seed.clone();
+            for _ in 0..1 + rng.below(8) {
+                let pos = rng.below(data.len());
+                let b = bytes[rng.below(bytes.len())];
+                match rng.below(3) {
+                    0 => data[pos] = b,
+                    1 => data.insert(pos, b),
+                    _ => {
+                        data.remove(pos);
+                    }
+                }
+            }
+            let _ = read_dxf(&data, &opts);
+        }
+        for cut in (0..seed.len()).step_by(seed.len() / 200 + 1) {
+            let _ = read_dxf(&seed[..cut], &opts);
+        }
+    }
+}
+
+/// Huge counts in a hatch boundary or a mesh must not allocate or loop on them.
+#[test]
+fn hostile_counts_are_bounded() {
+    let data = dxf(&[
+        (0, S("SECTION")),
+        (2, S("ENTITIES")),
+        (0, S("HATCH")),
+        (8, S("0")),
+        (10, S("0")),
+        (20, S("0")),
+        (30, S("0")),
+        (2, S("SOLID")),
+        (70, S("1")),
+        (91, S("9223372036854775807")),
+        (92, S("2")),
+        (72, S("0")),
+        (73, S("1")),
+        (93, S("1000000000000000")),
+        (10, S("0")),
+        (20, S("0")),
+        (97, S("99999999999999999")),
+        (0, S("POLYLINE")),
+        (8, S("0")),
+        (70, S("16")),
+        (71, S("4294967296")),
+        (72, S("4294967296")),
+        (0, S("VERTEX")),
+        (10, S("0")),
+        (20, S("0")),
+        (0, S("SEQEND")),
+        (0, S("ENDSEC")),
+        (0, S("EOF")),
+    ]);
+    let start = std::time::Instant::now();
+    assert!(read_dxf(&data, &ImportOptions::default()).is_ok());
+    assert!(start.elapsed().as_secs() < 5);
+}
+
+/// Blocks nested ten deep with twenty inserts each would expand to 20¹⁰ entities: import stops with a warning.
+#[test]
+fn exploding_block_nesting_is_cut_short() {
+    let names: Vec<String> = (0..=10).map(|i| format!("B{i}")).collect();
+    let mut pairs: Vec<(i32, V<'_>)> = vec![(0, S("SECTION")), (2, S("BLOCKS"))];
+    pairs.extend([(0, S("BLOCK")), (2, S(&names[0])), (10, S("0")), (20, S("0"))]);
+    pairs.extend([(0, S("POINT")), (10, S("0")), (20, S("0")), (0, S("ENDBLK"))]);
+    for level in 1..=10 {
+        pairs.extend([(0, S("BLOCK")), (2, S(&names[level])), (10, S("0")), (20, S("0"))]);
+        for _ in 0..20 {
+            pairs.extend([(0, S("INSERT")), (2, S(&names[level - 1])), (10, S("0")), (20, S("0"))]);
+        }
+        pairs.push((0, S("ENDBLK")));
+    }
+    pairs.extend([(0, S("ENDSEC")), (0, S("SECTION")), (2, S("ENTITIES"))]);
+    pairs.extend([(0, S("INSERT")), (2, S("B10")), (10, S("0")), (20, S("0"))]);
+    pairs.extend([(0, S("ENDSEC")), (0, S("EOF"))]);
+    let start = std::time::Instant::now();
+    let imp =
+        read_dxf(&dxf(&pairs), &ImportOptions { max_items: 10_000, ..ImportOptions::default() }).unwrap();
+    assert!(start.elapsed().as_secs() < 10);
+    assert!(imp.drawing.items.len() <= 10_000);
+    assert!(!imp.warnings.is_empty());
+}
