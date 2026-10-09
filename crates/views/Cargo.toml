@@ -20,3 +20,7 @@ kanavos-solid = { path = "../solid" }
 kanavos-geom = { path = "../geom" }
 kanavos-units = { path = "../units" }
 kanavos-i18n = { path = "../i18n" }
+i_overlay = "9.0.1"
+
+[dev-dependencies]
+kanavos-raster = { path = "../raster" }

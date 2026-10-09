@@ -1840,12 +1840,14 @@ dependencies = [
 name = "kanavos-views"
 version = "0.0.1"
 dependencies = [
+ "i_overlay",
  "kanavos-drawing",
  "kanavos-elements",
  "kanavos-geom",
  "kanavos-i18n",
  "kanavos-model",
  "kanavos-objects",
+ "kanavos-raster",
  "kanavos-solid",
  "kanavos-units",
 ]

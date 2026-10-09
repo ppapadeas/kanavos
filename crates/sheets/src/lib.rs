@@ -291,9 +291,25 @@ mod tests {
     }
 
     #[test]
-    fn three_d_viewport_gets_a_placeholder() {
+    fn three_d_viewport_draws_the_model() {
         let doc = starter();
         let three_d = doc.views().find(|v| matches!(v.kind, ViewKind::ThreeD { .. })).map(|v| v.id).unwrap();
+        let storey = doc.storeys()[0].id;
+        let (doc, wall) = doc.with_new_id();
+        let structure = kanavos_model::Structure::Layered { build_up: doc.defaults().exterior_wall.unwrap() };
+        let doc = doc.with_element(kanavos_model::Element::on_storey(
+            wall,
+            storey,
+            kanavos_model::ElementKind::Wall(kanavos_model::Wall {
+                start: kanavos_geom::Point2::new(0.0, 0.0),
+                end: kanavos_geom::Point2::new(6.0, 0.0),
+                bulge: 0.0,
+                reference: kanavos_model::ReferenceLine::Centre,
+                structure,
+                height: kanavos_units::Length::m(3.0),
+                base_offset: kanavos_units::Length::ZERO,
+            }),
+        ));
         let (doc, id) = doc.with_new_id();
         let doc = doc.with_sheet(Sheet {
             id,
@@ -310,6 +326,7 @@ mod tests {
             title_block: true,
         });
         let d = sheet_drawing(&doc, id, Locale::El).unwrap();
-        assert!(d.layer_items("sheet.placeholder").count() >= 2);
+        assert_eq!(d.layer_items("sheet.placeholder").count(), 0);
+        assert!(d.items.iter().any(|i| i.source == Some(wall.0)), "the wall is drawn in the 3D viewport");
     }
 }
