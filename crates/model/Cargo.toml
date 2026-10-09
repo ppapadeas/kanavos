@@ -15,3 +15,9 @@ workspace = true
 kanavos-units = { path = "../units" }
 kanavos-geom = { path = "../geom" }
 kanavos-geo = { path = "../geo" }
+kanavos-drawing = { path = "../drawing" }
+serde.workspace = true
+schemars.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

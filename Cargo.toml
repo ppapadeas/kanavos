@@ -10,6 +10,12 @@ rust-version = "1.90"
 license = "MIT OR Apache-2.0"
 authors = ["The Kanavos contributors"]
 
+# Shared third-party dependencies. Every entry is on the licence allow-list in deny.toml.
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+schemars = "1.2"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
@@ -27,3 +33,10 @@ float_cmp = "deny"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Geometry-heavy crates are slow unoptimised; keep debug builds usable.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev]
+opt-level = 1

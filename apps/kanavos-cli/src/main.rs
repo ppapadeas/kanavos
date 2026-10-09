@@ -63,11 +63,12 @@ fn demo() -> Result<(), kanavos_engine::CommandError> {
             storey,
             Point2::new(x, y),
             Point2::new(nx, ny),
+            kanavos_model::Id(1),
             Length::cm(25.0),
         ))?;
     }
     let doc = session.document();
-    let total = doc.walls_on(storey).fold(Length::ZERO, |acc, w| acc + w.length());
+    let total = doc.walls_on(storey).fold(Length::ZERO, |acc, (_, w)| acc + w.length());
     println!("Walls on storey: {}", doc.walls_on(storey).count());
     println!("Total wall length: {}", LengthDisplay(total, Locale::El));
     println!("Undo steps: {}", session.steps().len());

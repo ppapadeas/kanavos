@@ -14,3 +14,4 @@ workspace = true
 [dependencies]
 kanavos-geom = { path = "../geom" }
 kanavos-units = { path = "../units" }
+serde.workspace = true

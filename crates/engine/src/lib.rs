@@ -128,7 +128,8 @@ mod tests {
     fn undo_and_redo_restore_exact_versions() {
         let mut s = Session::default();
         let st = storey(&mut s);
-        let wall = CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(6.4, 0.0), Length::cm(25.0));
+        let wall =
+            CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(6.4, 0.0), Id(1), Length::cm(25.0));
         s.run(&wall).unwrap();
         assert_eq!(s.document().walls_on(st).count(), 1);
 
@@ -143,7 +144,8 @@ mod tests {
     fn new_command_after_undo_discards_redo() {
         let mut s = Session::default();
         let st = storey(&mut s);
-        let w = CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(3.0, 0.0), Length::cm(20.0));
+        let w =
+            CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(3.0, 0.0), Id(1), Length::cm(20.0));
         s.run(&w).unwrap();
         s.undo();
         s.run(&w).unwrap();
@@ -154,7 +156,13 @@ mod tests {
     #[test]
     fn failed_command_leaves_history_untouched() {
         let mut s = Session::default();
-        let bad = CreateWall::centred(Id(42), Point2::new(0.0, 0.0), Point2::new(3.0, 0.0), Length::cm(20.0));
+        let bad = CreateWall::centred(
+            Id(42),
+            Point2::new(0.0, 0.0),
+            Point2::new(3.0, 0.0),
+            Id(1),
+            Length::cm(20.0),
+        );
         assert_eq!(s.run(&bad), Err(CommandError::NotFound(Id(42))));
         assert_eq!(s.version(), 0);
     }

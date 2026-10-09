@@ -1,7 +1,7 @@
 //! Built-in commands. Each command's `name()` is part of the public control-protocol API.
 
 use kanavos_geom::Point2;
-use kanavos_model::{Document, Element, Id, ReferenceLine, Storey, Wall};
+use kanavos_model::{Document, Element, ElementKind, Id, ReferenceLine, Storey, Structure, Wall};
 use kanavos_units::Length;
 
 use crate::{Command, CommandError, Outcome};
@@ -39,12 +39,7 @@ impl Command for CreateStorey {
             });
         }
         let (doc, id) = doc.with_new_id();
-        let doc = doc.with_storey(Storey {
-            id,
-            name: self.name.trim().to_owned(),
-            elevation: self.elevation,
-            height: self.height,
-        });
+        let doc = doc.with_storey(Storey::new(id, self.name.trim(), self.elevation, self.height));
         Ok((doc, Outcome { created: vec![id] }))
     }
 }
@@ -60,16 +55,23 @@ pub struct CreateWall {
     pub end: Point2,
     /// Reference line position.
     pub reference: ReferenceLine,
-    /// Total thickness.
-    pub thickness: Length,
+    /// Material or build-up.
+    pub structure: Structure,
     /// Height from the storey floor; `None` uses the storey height.
     pub height: Option<Length>,
 }
 
 impl CreateWall {
-    /// A centred wall at the storey's full height.
-    pub fn centred(storey: Id, start: Point2, end: Point2, thickness: Length) -> Self {
-        CreateWall { storey, start, end, reference: ReferenceLine::Centre, thickness, height: None }
+    /// A centred single-material wall at the storey's full height.
+    pub fn centred(storey: Id, start: Point2, end: Point2, material: Id, thickness: Length) -> Self {
+        CreateWall {
+            storey,
+            start,
+            end,
+            reference: ReferenceLine::Centre,
+            structure: Structure::Basic { material, thickness },
+            height: None,
+        }
     }
 }
 
@@ -87,29 +89,37 @@ impl Command for CreateWall {
                 reason: "start and end are the same point".into(),
             });
         }
-        if tol.is_zero(self.thickness) || self.thickness.as_m() < 0.0 || !self.thickness.is_finite() {
+        let thickness = doc.structure_thickness(&self.structure).ok_or(CommandError::InvalidArgument {
+            field: "structure",
+            reason: "build-up not found".into(),
+        })?;
+        if !thickness.is_positive(&tol) {
             return Err(CommandError::InvalidArgument {
-                field: "thickness",
-                reason: "must be a positive length".into(),
+                field: "structure",
+                reason: "thickness must be a positive length".into(),
             });
         }
         let height = self.height.unwrap_or(storey.height);
-        if tol.is_zero(height) || height.as_m() < 0.0 || !height.is_finite() {
+        if !height.is_positive(&tol) {
             return Err(CommandError::InvalidArgument {
                 field: "height",
                 reason: "must be a positive length".into(),
             });
         }
         let (doc, id) = doc.with_new_id();
-        let doc = doc.with_element(Element::Wall(Wall {
+        let doc = doc.with_element(Element::on_storey(
             id,
-            storey: self.storey,
-            start: self.start,
-            end: self.end,
-            reference: self.reference,
-            thickness: self.thickness,
-            height,
-        }));
+            self.storey,
+            ElementKind::Wall(Wall {
+                start: self.start,
+                end: self.end,
+                bulge: 0.0,
+                reference: self.reference,
+                structure: self.structure.clone(),
+                height,
+                base_offset: Length::ZERO,
+            }),
+        ));
         Ok((doc, Outcome { created: vec![id] }))
     }
 }
@@ -142,7 +152,7 @@ mod tests {
             .apply(&Document::new())
             .unwrap();
         let p = Point2::new(1.0, 1.0);
-        let err = CreateWall::centred(out.created[0], p, p, Length::cm(20.0)).apply(&doc).unwrap_err();
+        let err = CreateWall::centred(out.created[0], p, p, Id(1), Length::cm(20.0)).apply(&doc).unwrap_err();
         assert!(matches!(err, CommandError::InvalidArgument { field: "end", .. }));
     }
 
@@ -153,11 +163,11 @@ mod tests {
             .unwrap();
         let st = out.created[0];
         let (doc, out) =
-            CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(4.0, 0.0), Length::cm(25.0))
+            CreateWall::centred(st, Point2::new(0.0, 0.0), Point2::new(4.0, 0.0), Id(1), Length::cm(25.0))
                 .apply(&doc)
                 .unwrap();
-        match doc.element(out.created[0]) {
-            Some(Element::Wall(w)) => assert!(doc.tolerance().equal(w.height, Length::m(3.2))),
+        match doc.element(out.created[0]).and_then(Element::as_wall) {
+            Some(w) => assert!(doc.tolerance().equal(w.height, Length::m(3.2))),
             other => panic!("expected a wall, got {other:?}"),
         }
     }
