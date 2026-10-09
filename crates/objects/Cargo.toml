@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Parametric object system for doors, windows and fixtures."
+description = "Parametric object library: doors, windows, voids, furniture and fixtures."
 publish = false
 
 [lints]
@@ -17,3 +17,6 @@ kanavos-geom = { path = "../geom" }
 kanavos-solid = { path = "../solid" }
 kanavos-drawing = { path = "../drawing" }
 kanavos-units = { path = "../units" }
+
+[dev-dependencies]
+kanavos-i18n = { path = "../i18n" }
