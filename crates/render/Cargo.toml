@@ -21,6 +21,13 @@ pollster = "1.0"
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "dx12", "metal", "vulkan", "gles"] }
 
 [dev-dependencies]
+# Interactive example only (examples/viewer.rs), on egui-winit + egui-wgpu directly: eframe always enables
+# egui-winit's clipboard support, whose Windows backend is BSL-1.0 (not on the allow-list). egui's bundled fonts
+# stay off for the same reason; the example loads a system font at run time.
+egui = { version = "0.36", default-features = false }
+egui-wgpu = { version = "0.36", default-features = false, features = ["winit", "x11", "wayland"] }
+egui-winit = { version = "0.36", default-features = false, features = ["x11", "wayland"] }
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"] }
 # Validates the WGSL shaders in plain unit tests, without a GPU (same version as wgpu's own shader compiler).
 naga = { version = "30.0.1", features = ["wgsl-in"] }
 png = "0.18"
