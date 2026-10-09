@@ -1473,11 +1473,12 @@ version = "0.0.1"
 dependencies = [
  "kanavos-control",
  "kanavos-engine",
- "kanavos-format",
- "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-mcp",
  "kanavos-model",
+ "kanavos-rules-gr",
  "kanavos-units",
+ "serde_json",
 ]
 
 [[package]]

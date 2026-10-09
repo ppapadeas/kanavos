@@ -16,3 +16,74 @@ cli.rpc.write_failed	Δεν ήταν δυνατή η εγγραφή στο {path
 cli.mcp.not_initialized	Ο διακομιστής δεν έχει αρχικοποιηθεί· στείλτε πρώτα initialize	The server is not initialized; send initialize first
 cli.mcp.unknown_tool	Άγνωστο εργαλείο: {tool}	Unknown tool: {tool}
 cli.mcp.instructions	Το Kanavos είναι εφαρμογή BIM για αρχιτέκτονες. Ανοίξτε ή δημιουργήστε έγγραφο (new_document, open_document), δείτε τις εντολές (list_commands) και εκτελέστε τες (run_command, run_batch): κάθε αλλαγή είναι μια εντολή με αναίρεση. Μήκη σε μέτρα, γωνίες σε ακτίνια εκτός αν αναφέρεται αλλιώς, σημεία [x, y].	Kanavos is a BIM application for architects. Open or create a document (new_document, open_document), look up the commands (list_commands) and run them (run_command, run_batch): every change is an undoable command. Lengths in metres, angles in radians unless stated, points as [x, y].
+#
+# Command-line interface (kanavos-cli).
+cli.error	σφάλμα	error
+cli.warning	προειδοποίηση	warning
+cli.err.see_help	Δείτε: kanavos-cli help	See: kanavos-cli help
+cli.err.unknown_command	Άγνωστη εντολή: {command}	Unknown command: {command}
+cli.err.unknown_option	Άγνωστη επιλογή: {option}	Unknown option: {option}
+cli.err.needs_value	Η επιλογή --{option} χρειάζεται τιμή	The option --{option} needs a value
+cli.err.missing	Λείπει: {what}	Missing: {what}
+cli.err.too_many	Πάρα πολλά ορίσματα	Too many arguments
+cli.err.bad_lang	Άγνωστη γλώσσα «{value}»· χρησιμοποιήστε el ή en	Unknown language '{value}'; use el or en
+cli.err.exists	Το {path} υπάρχει ήδη· δώστε --force για αντικατάσταση	{path} already exists; pass --force to replace it
+cli.err.unknown_template	Άγνωστο πρότυπο «{template}»· ένα από starter, empty, sample	Unknown template '{template}'; one of starter, empty, sample
+cli.err.one_target	Δώστε το πολύ ένα από --view, --sheet, --sheets, --model	Give at most one of --view, --sheet, --sheets, --model
+cli.err.read	Δεν ήταν δυνατή η ανάγνωση του {path}: {reason}	Cannot read {path}: {reason}
+cli.err.serve_stdio	Υποστηρίζεται μόνο το serve --stdio	Only serve --stdio is supported
+cli.what.file	αρχείο έργου	project file
+cli.what.script_and_file	αρχείο εντολών και αρχείο έργου	command file and project file
+cli.new.done	Δημιουργήθηκε το {path} (πρότυπο {template}, {elements} στοιχεία)	Created {path} (template {template}, {elements} elements)
+cli.export.wrote	Γράφτηκε {path}	Wrote {path}
+cli.run.parse_error	Γραμμή {line}: {path}: {reason}	Line {line}: {path}: {reason}
+cli.run.failed	Γραμμή {line}: η εντολή {command} απέτυχε: {reason}· το έργο δεν αποθηκεύτηκε	Line {line}: command {command} failed: {reason}; the project was not saved
+cli.run.new_file	Το {path} δεν υπάρχει· ξεκινά από το βασικό πρότυπο	{path} does not exist; starting from the starter template
+cli.run.done	{n} εντολές εκτελέστηκαν (νέα {created}, αλλαγμένα {changed}, διαγραμμένα {deleted})· αποθηκεύτηκε στο {path}	{n} commands applied (created {created}, changed {changed}, deleted {deleted}); saved to {path}
+cli.run.checked	{n} εντολές ελέγχθηκαν (νέα {created}, αλλαγμένα {changed}, διαγραμμένα {deleted})· τίποτα δεν αποθηκεύτηκε	{n} commands checked (created {created}, changed {changed}, deleted {deleted}); nothing saved
+cli.demo.built	Το δείγμα κατοικίας χτίστηκε με {n} εντολές· οι τελευταίες:	The sample house was built with {n} commands; the last ones:
+cli.info.title	Έργο	Project
+cli.info.file	Αρχείο	File
+cli.info.designer	Μελετητής	Designer
+cli.info.storeys	Επίπεδα	Storeys
+cli.info.height	ύψος	height
+cli.info.elements_short	στοιχεία	elements
+cli.info.elements	Στοιχεία	Elements
+cli.info.views	Όψεις σχεδίου	Views
+cli.info.sheets	φύλλα	sheets
+cli.info.plot	Οικόπεδο	Plot
+cli.info.coverage	Κάλυψη	Coverage
+cli.info.floor_area	Δόμηση	Floor area
+cli.info.building_height	Ύψος	Height
+cli.info.within_terms	Εντός των όρων δόμησης	Within the building terms
+cli.info.over_terms	ΥΠΕΡΒΑΙΝΕΙ τους όρους δόμησης	EXCEEDS the building terms
+cli.category.wall	τοίχοι	walls
+cli.category.slab	πλάκες	slabs
+cli.category.column	υποστυλώματα	columns
+cli.category.beam	δοκοί	beams
+cli.category.door	πόρτες	doors
+cli.category.window	παράθυρα	windows
+cli.category.opening	ανοίγματα	openings
+cli.category.stair	σκάλες	stairs
+cli.category.roof	στέγες	roofs
+cli.category.railing	κιγκλιδώματα	railings
+cli.category.space	χώροι	spaces
+cli.category.object	αντικείμενα	objects
+cli.category.dimension	διαστάσεις	dimensions
+cli.category.text	κείμενα	texts
+cli.category.level	στάθμες	level marks
+cli.category.drafting	γραμμές	lines
+cli.category.grid	άξονες	grid lines
+cli.category.underlay	υπόβαθρα	underlays
+#
+# Help texts.
+cli.help.main	kanavos-cli: το Kanavos χωρίς γραφικό περιβάλλον\n\nΧΡΗΣΗ:\n    kanavos-cli [--lang el|en] <ΕΝΤΟΛΗ> [ΟΡΙΣΜΑΤΑ]\n\nΕΝΤΟΛΕΣ:\n    new <αρχείο>        Νέο έργο από πρότυπο (--template starter|empty|sample)\n    sample <αρχείο>     Το δείγμα διώροφης κατοικίας με τα σχέδια άδειας\n    info <αρχείο>       Στοιχεία, επίπεδα, πλήθη και όροι δόμησης (--json)\n    export <αρχείο>     Εξαγωγή όψης, φύλλου ή μοντέλου σε pdf, svg, dxf, png, ifc, gltf, csv, json\n    run <εντολές> <αρχείο>  Εκτέλεση εντολών (μία JSON ανά γραμμή) και αποθήκευση\n    commands            Οι εντολές του εγγράφου (--markdown, --json)\n    serve --stdio       Πρωτόκολλο ελέγχου JSON-RPC στην τυπική είσοδο/έξοδο\n    mcp                 Διακομιστής MCP στην τυπική είσοδο/έξοδο\n    demo                Χτίζει το δείγμα και δείχνει τα στοιχεία του\n    version             Έκδοση\n    help [ΕΝΤΟΛΗ]       Βοήθεια\n\nΓΛΩΣΣΑ: --lang el|en, αλλιώς από KANAVOS_LANG ή LANG (προεπιλογή el).\nΚΩΔΙΚΟΙ ΕΞΟΔΟΥ: 0 επιτυχία, 1 αποτυχία, 2 λάθος χρήση, 3 μη διαθέσιμο σε αυτή την έκδοση.\n	kanavos-cli: Kanavos without a window\n\nUSAGE:\n    kanavos-cli [--lang el|en] <COMMAND> [ARGS]\n\nCOMMANDS:\n    new <file>          New project from a template (--template starter|empty|sample)\n    sample <file>       The sample two-storey house with its permit drawings\n    info <file>         Project data, storeys, counts and building terms (--json)\n    export <file>       Export a view, sheet or the model as pdf, svg, dxf, png, ifc, gltf, csv, json\n    run <script> <file> Apply commands (one JSON per line) and save\n    commands            The document commands (--markdown, --json)\n    serve --stdio       JSON-RPC control protocol on standard input/output\n    mcp                 MCP server on standard input/output\n    demo                Build the sample and show its figures\n    version             Version\n    help [COMMAND]      Help\n\nLANGUAGE: --lang el|en, otherwise from KANAVOS_LANG or LANG (default el).\nEXIT CODES: 0 success, 1 failure, 2 usage error, 3 not available in this build.\n
+cli.help.new	kanavos-cli new <αρχείο> [--template starter|empty|sample] [--force]\n\nΔημιουργεί νέο έργο. Το starter έχει υλικά, διαστρωματώσεις, δύο επίπεδα και τις συνήθεις όψεις σχεδίου.\nΔεν αντικαθιστά υπάρχον αρχείο χωρίς --force.\n	kanavos-cli new <file> [--template starter|empty|sample] [--force]\n\nCreates a new project. The starter template has materials, build-ups, two storeys and the usual views.\nDoes not replace an existing file without --force.\n
+cli.help.sample	kanavos-cli sample <αρχείο> [--force]\n\nΓράφει το δείγμα: διώροφη κατοικία σε οικόπεδο 500 m² με χώρους, κουφώματα, σκάλα, στέγη, τομές, όψεις και φύλλα άδειας.\n	kanavos-cli sample <file> [--force]\n\nWrites the sample: a two-storey house on a 500 m² plot with spaces, doors and windows, stair, roof, sections, elevations and permit sheets.\n
+cli.help.info	kanavos-cli info <αρχείο> [--json]\n\nΔείχνει τίτλο, επίπεδα, πλήθη στοιχείων, όψεις, φύλλα και τα μεγέθη του ΝΟΚ.\n	kanavos-cli info <file> [--json]\n\nShows the title, storeys, element counts, views, sheets and the ΝΟΚ figures.\n
+cli.help.export	kanavos-cli export <αρχείο> [--view <όνομα|id> | --sheet <αριθμός|id> | --sheets | --model]\n                    [--format pdf|svg|dxf|png|ifc|gltf|csv|json] --out <διαδρομή>\n\nΕξάγει μια όψη σχεδίου, ένα φύλλο, όλα τα φύλλα ή το μοντέλο (ifc, gltf). Η μορφή προκύπτει από την κατάληξη του --out όταν δεν δίνεται.\nΤο pdf βάζει όλα τα φύλλα σε ένα αρχείο· οι άλλες μορφές γράφουν ένα αρχείο ανά φύλλο στον φάκελο --out.\n\nΠαράδειγμα: kanavos-cli export σπίτι.kanavos --sheets --out άδεια.pdf\n	kanavos-cli export <file> [--view <name|id> | --sheet <number|id> | --sheets | --model]\n                    [--format pdf|svg|dxf|png|ifc|gltf|csv|json] --out <path>\n\nExports a view, a sheet, every sheet or the model (ifc, gltf). Without --format the format follows the extension of --out.\nPDF puts all sheets in one file; other formats write one file per sheet into the --out directory.\n\nExample: kanavos-cli export house.kanavos --sheets --out permit.pdf\n
+cli.help.run	kanavos-cli run <εντολές.jsonl|-> <αρχείο> [--out <αρχείο>] [--dry-run]\n\nΕκτελεί εντολές, μία ανά γραμμή ως {"name": …, "args": …} (γραμμές με # είναι σχόλια), και αποθηκεύει.\nΑν το αρχείο δεν υπάρχει, ξεκινά από το βασικό πρότυπο. Σε σφάλμα δείχνει τη γραμμή και δεν αποθηκεύει.\nΟι εντολές περιγράφονται στο docs/commands.md και με: kanavos-cli commands\n	kanavos-cli run <commands.jsonl|-> <file> [--out <file>] [--dry-run]\n\nApplies commands, one per line as {"name": …, "args": …} (lines starting with # are comments), and saves.\nWhen the file does not exist it starts from the starter template. On an error it names the line and does not save.\nCommands are described in docs/commands.md and by: kanavos-cli commands\n
+cli.help.commands	kanavos-cli commands [--markdown | --json]\n\nΑπαριθμεί τις εντολές με ετικέτα και περιγραφή. --markdown: ο πλήρης οδηγός (docs/commands.md). --json: με σχήματα JSON και παραδείγματα.\n	kanavos-cli commands [--markdown | --json]\n\nLists the commands with label and description. --markdown: the full reference (docs/commands.md). --json: with JSON schemas and examples.\n
+cli.help.serve	kanavos-cli serve --stdio [<αρχείο>]\n\nΠρωτόκολλο ελέγχου JSON-RPC 2.0 (docs/control-protocol.md): ένα μήνυμα JSON ανά γραμμή στην τυπική είσοδο και έξοδο.\n	kanavos-cli serve --stdio [<file>]\n\nJSON-RPC 2.0 control protocol (docs/control-protocol.md): one JSON message per line on standard input and output.\n
+cli.help.mcp	kanavos-cli mcp [<αρχείο>]\n\nΔιακομιστής Model Context Protocol στην τυπική είσοδο/έξοδο, για αυτοματισμούς και βοηθούς.\n	kanavos-cli mcp [<file>]\n\nModel Context Protocol server on standard input/output, for automation clients and assistants.\n
+cli.help.demo	kanavos-cli demo\n\nΧτίζει το δείγμα κατοικίας μόνο με εντολές και δείχνει τα τελευταία βήματα και τα μεγέθη του.\n	kanavos-cli demo\n\nBuilds the sample house through commands only and shows its last steps and figures.\n
