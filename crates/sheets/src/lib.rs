@@ -14,7 +14,7 @@ mod layout;
 mod permit;
 mod title_block;
 
-use kanavos_drawing::table::TableStyle;
+use kanavos_drawing::table::{Table, TableStyle};
 use kanavos_drawing::{
     Affine, Anchor, Drawing, DrawingUnits, Item, LinePattern, Rect, Stroke, Text, pt, weights,
 };
@@ -62,12 +62,39 @@ impl From<ViewError> for SheetError {
     }
 }
 
-/// Stacks paper-space tables vertically with a gap, top-left at the origin.
-fn stack_tables(tables: &[kanavos_drawing::table::Table], locale: Locale) -> Drawing {
+/// Visible extent of a drawing in its own coordinates, with text measured by its full box in the fonts it will be
+/// printed with (`kanavos_drawing::page::content_bounds`).
+pub(crate) fn extent(d: &Drawing) -> Option<Rect> {
+    kanavos_drawing::page::content_bounds(d, kanavos_drawing::fonts::Fonts::system())
+}
+
+/// Widens table columns so that headers and cells fit their text (measured, with 1.5 mm padding each side).
+pub fn fit_columns(table: &mut Table, style: &TableStyle, locale: Locale) {
+    let measure = |s: &str, bold: bool| kanavos_drawing::text::measure_mm(s, style.text_mm, bold) + 3.0;
+    for (i, c) in table.columns.iter_mut().enumerate() {
+        let mut w = measure(&c.header, true);
+        for row in &table.rows {
+            if let Some(cell) = row.get(i) {
+                w = w.max(measure(&cell.display(locale), false));
+            }
+        }
+        for row in &table.footer {
+            if let Some(cell) = row.get(i) {
+                w = w.max(measure(&cell.display(locale), true));
+            }
+        }
+        c.width_mm = c.width_mm.max(w);
+    }
+}
+
+/// Stacks paper-space tables vertically with a gap, top-left at the origin, columns widened to their text.
+fn stack_tables(tables: &[Table], locale: Locale) -> Drawing {
     let style = TableStyle::default();
     let mut d = Drawing::paper();
     let mut y = 0.0;
     for table in tables {
+        let mut table = table.clone();
+        fit_columns(&mut table, &style, locale);
         d.extend(table.to_drawing(pt(0.0, y), &style, locale));
         y -= table.height_mm(&style) + 8.0;
     }
@@ -126,7 +153,7 @@ pub fn viewport_drawing(doc: &Document, vp: &Viewport, locale: Locale) -> Result
 /// Map from a view's drawing coordinates to sheet millimetres for a viewport: the centre of the drawing's
 /// bounds goes to the viewport centre, at the viewport's scale (or the view's).
 pub fn viewport_map(drawing: &Drawing, vp: &Viewport, view: &View) -> Affine {
-    let bounds = drawing.bounds();
+    let bounds = extent(drawing);
     match drawing.units {
         DrawingUnits::Metres => {
             let scale = f64::from(vp.scale.unwrap_or(view.scale)).max(1.0);
@@ -145,7 +172,7 @@ pub fn viewport_map(drawing: &Drawing, vp: &Viewport, view: &View) -> Affine {
 fn viewport_label(d: &mut Drawing, x: f64, bottom: f64, title: &str, scale: Option<u32>, locale: Locale) {
     let mut text = Text::new(pt(x, bottom - 4.0), title, 3.5).anchored(Anchor::TopCentre);
     text.bold = true;
-    let half = (text.approx_width_mm() / 2.0).max(10.0);
+    let half = (text.width_mm() / 2.0 + 1.0).max(10.0);
     d.push(Item::text(text, "sheet.viewport_title"));
     let y = bottom - 9.0;
     d.push(Item::line(
@@ -219,7 +246,7 @@ pub fn sheet_drawing(doc: &Document, sheet: Id, locale: Locale) -> Result<Drawin
         };
         let m = viewport_map(&drawing, vp, view);
         let placed = drawing.transformed(&m);
-        let bounds = placed.bounds();
+        let bounds = extent(&placed);
         let bottom = bounds.map(|b| b.min.y).unwrap_or(vp.centre[1]);
         let is_model = drawing.units == DrawingUnits::Metres;
         d.items.extend(placed.items);

@@ -137,15 +137,33 @@ pub fn north_arrow(at: Pt, radius: f64, rotation: f64, locale: Locale) -> Drawin
     d
 }
 
-/// A paper-space table placed in a model-space drawing with its top-left corner at `top_left` (drawing units).
-/// Returns the table's height in drawing units.
-pub fn inset_table(d: &mut Drawing, table: &Table, top_left: Pt, locale: Locale) -> f64 {
+/// Widens table columns so that headers and cells fit their text, measured with the printing fonts (1.5 mm padding
+/// each side).
+pub fn fit_columns(table: &mut Table, style: &TableStyle, locale: Locale) {
+    let measure = |s: &str, bold: bool| kanavos_drawing::text::measure_mm(s, style.text_mm, bold) + 3.0;
+    for (i, c) in table.columns.iter_mut().enumerate() {
+        let mut w = measure(&c.header, true);
+        for (row, bold) in table.rows.iter().map(|r| (r, false)).chain(table.footer.iter().map(|r| (r, true)))
+        {
+            if let Some(cell) = row.get(i) {
+                w = w.max(measure(&cell.display(locale), bold));
+            }
+        }
+        c.width_mm = c.width_mm.max(w);
+    }
+}
+
+/// A paper-space table placed in a model-space drawing with its top-left corner at `top_left` (drawing units),
+/// columns widened to their text. Returns the table's width and height in drawing units.
+pub fn inset_table(d: &mut Drawing, table: &Table, top_left: Pt, locale: Locale) -> (f64, f64) {
     let style = TableStyle::default();
+    let mut table = table.clone();
+    fit_columns(&mut table, &style, locale);
     let paper = table.to_drawing(pt(0.0, 0.0), &style, locale);
     let k = d.paper_mm(1.0);
     let m = Affine::scale_translate(k, top_left.x, top_left.y);
     d.extend(paper.transformed(&m));
-    table.height_mm(&style) * k
+    (table.width_mm() * k, table.height_mm(&style) * k)
 }
 
 /// The outward (right-hand) unit normal of the edge `a → b` of a counter-clockwise ring.

@@ -1,26 +1,35 @@
-//! Project ↔ national grid (ΕΓΣΑ87, EPSG:2100) coordinates for the plot coordinate table.
+//! Project ↔ national grid (ΕΓΣΑ87, EPSG:2100) coordinates for the plot and building coordinate tables, through
+//! `kanavos-geo`.
 //!
-//! **Local stand-in** for the conversion that `kanavos-geo` will offer: a rigid transform (rotation about the
-//! project origin, then translation), exact for the planar grid. Grid convergence between grid north and true
-//! north is not applied; the north arrow therefore shows grid north.
+//! Grid convergence between grid north and true north is not applied; the north arrow shows grid north.
 
+use kanavos_geo::GridPlacement;
 use kanavos_geom::{Point2, Vec2};
 use kanavos_model::Georef;
+
+fn placement(georef: &Georef) -> GridPlacement {
+    GridPlacement {
+        easting: georef.easting,
+        northing: georef.northing,
+        rotation: georef.rotation.as_rad(),
+        altitude: georef.altitude,
+    }
+}
 
 /// Grid coordinates (easting, northing) of a project point, metres.
 ///
 /// `georef.rotation` is the angle from project +Y to grid north, counter-clockwise positive, so a project vector
 /// is rotated by −rotation to get grid components.
 pub fn to_grid(georef: &Georef, p: Point2) -> (f64, f64) {
-    let (s, c) = georef.rotation.as_rad().sin_cos();
     let [x, y] = p.xy();
-    (georef.easting + x * c + y * s, georef.northing - x * s + y * c)
+    let [e, n] = placement(georef).project_to_grid(x, y);
+    (e, n)
 }
 
 /// Unit vector of grid north in project coordinates.
 pub fn grid_north(georef: &Georef) -> Vec2 {
-    let r = georef.rotation.as_rad();
-    Vec2::new(-r.sin(), r.cos())
+    let [x, y] = placement(georef).grid_north();
+    Vec2::new(x, y)
 }
 
 #[cfg(test)]

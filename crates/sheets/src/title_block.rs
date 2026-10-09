@@ -6,6 +6,7 @@
 
 use std::collections::BTreeSet;
 
+use kanavos_drawing::text::measure_mm;
 use kanavos_drawing::{Anchor, Drawing, Item, Stroke, Text, pt, weights};
 use kanavos_i18n::t;
 use kanavos_model::{Document, Sheet, ViewKind};
@@ -18,22 +19,22 @@ pub const TITLE_BLOCK_WIDTH: f64 = 180.0;
 /// Height of the title block, mm.
 pub const TITLE_BLOCK_HEIGHT: f64 = 76.0;
 
-/// Average advance of a bold glyph as a fraction of the cap height, for fitting text (a little wider than the
-/// estimate of [`Text::approx_width_mm`], because Greek capitals and bold faces run wide).
-const GLYPH: f64 = 0.75;
 /// Width of the label column of the title block, mm.
 const LABEL_W: f64 = 24.0;
 
-/// Text height that makes `text` fit `width` mm, between `max` and `min` mm. Returns the text, shortened with an
+/// Text height that makes bold `text` fit `width` mm, between `max` and `min` mm, measured with the fonts the
+/// drawing will be printed with (`kanavos_drawing::text::measure_mm`). Returns the text, shortened with an
 /// ellipsis when it does not fit at `min`.
 pub(crate) fn fit(text: &str, width: f64, max: f64, min: f64) -> (String, f64) {
-    let n = text.chars().count().max(1) as f64;
-    let h = (width / (n * GLYPH)).min(max);
+    let per_mm = measure_mm(text, 1.0, true);
+    let h = if per_mm > 0.0 { (width / per_mm).min(max) } else { max };
     if h >= min {
         return (text.to_owned(), h);
     }
-    let keep = ((width / (min * GLYPH)).floor() as usize).saturating_sub(1);
-    let short: String = text.chars().take(keep).collect();
+    let mut short: String = text.to_owned();
+    while !short.is_empty() && measure_mm(&format!("{short}…"), min, true) > width {
+        short.pop();
+    }
     (format!("{short}…"), min)
 }
 
@@ -190,7 +191,7 @@ mod tests {
         let long = "Α".repeat(200);
         let (s, h) = fit(&long, 100.0, 3.5, 1.8);
         assert!(s.ends_with('…') && (h - 1.8).abs() < 1e-9);
-        assert!(s.chars().count() as f64 * 1.8 * 0.6 <= 100.0 + 1e-9);
+        assert!(measure_mm(&s, 1.8, true) <= 100.0 + 1e-9);
     }
 
     #[test]

@@ -55,7 +55,8 @@ rules.item.uncovered	Ακάλυπτος χώρος (m²)	Uncovered area (m²)
 rules.north	Β	N
 rules.label.street_line	Ρ.Γ.	Street line
 rules.label.building_line	Ο.Γ.	Building line
-rules.label.setback	Όριο αποστάσεων: Δ = {d} m, δ = {sd} m	Setback line: Δ = {d} m, δ = {sd} m
+rules.label.setback	Όριο αποστάσεων	Setback line
+rules.label.setback_values	Δ = {d} m, δ = {sd} m	Δ = {d} m, δ = {sd} m
 rules.label.floors	Κτίριο · όροφοι: {n}	Building · floors: {n}
 rules.label.access	Είσοδος	Access
 rules.label.zero_level	±0,00 = {alt} m απόλυτο υψόμετρο	±0.00 = {alt} m above sea level

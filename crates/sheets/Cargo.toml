@@ -23,6 +23,5 @@ kanavos-units = { path = "../units" }
 kanavos-i18n = { path = "../i18n" }
 
 [dev-dependencies]
-# Rasterising sheets to PNG for visual checks in tests only (BSD-3-Clause; MIT OR Apache-2.0).
-tiny-skia = "0.12"
-ttf-parser = "0.25"
+# Rasterising sheets to PNG for visual checks in tests.
+kanavos-raster = { path = "../raster" }

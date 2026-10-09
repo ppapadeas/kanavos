@@ -15,8 +15,8 @@ use crate::{BINDING_MARGIN, FRAME_MARGIN, SheetError, TITLE_BLOCK_HEIGHT, TITLE_
 pub const LABEL_BAND: f64 = 16.0;
 /// Clear space around each viewport box, mm.
 const GAP: f64 = 8.0;
-/// Extra space around a drawing's bounds, because text and symbols reach past their anchor points, mm.
-const PAD: f64 = 6.0;
+/// Extra space around a drawing's visible extent, mm.
+const PAD: f64 = 3.0;
 
 /// Sheets tried by [`auto_layout`], smallest first.
 pub const PAPER_CANDIDATES: [Paper; 9] = [
@@ -40,7 +40,7 @@ pub fn view_paper_size(doc: &Document, view: Id, locale: Locale) -> Result<Optio
         Err(SheetError::Unsupported(_)) => return Ok(Some((120.0, 80.0))),
         Err(e) => return Err(e),
     };
-    let Some(b) = d.bounds() else { return Ok(None) };
+    let Some(b) = crate::extent(&d) else { return Ok(None) };
     let k = match d.units {
         DrawingUnits::Metres => 1000.0 / f64::from(v.scale.max(1)),
         DrawingUnits::Millimetres => 1.0,

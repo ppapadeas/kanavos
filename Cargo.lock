@@ -1726,6 +1726,7 @@ dependencies = [
  "i_overlay",
  "kanavos-drawing",
  "kanavos-elements",
+ "kanavos-geo",
  "kanavos-geom",
  "kanavos-i18n",
  "kanavos-model",
@@ -1755,12 +1756,11 @@ dependencies = [
  "kanavos-geom",
  "kanavos-i18n",
  "kanavos-model",
+ "kanavos-raster",
  "kanavos-rules-gr",
  "kanavos-schedules",
  "kanavos-units",
  "kanavos-views",
- "tiny-skia",
- "ttf-parser",
 ]
 
 [[package]]

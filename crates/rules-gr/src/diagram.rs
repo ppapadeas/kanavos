@@ -29,10 +29,6 @@ fn rings(poly: &PolygonWithHoles) -> Vec<Vec<Pt>> {
     poly.rings().map(ring_pts).collect()
 }
 
-fn lerp(a: Pt, b: Pt, t: f64) -> Pt {
-    pt(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-}
-
 fn len_text(l: f64, locale: Locale) -> String {
     format_decimal(l, 2, locale)
 }
@@ -98,9 +94,12 @@ fn distances(d: &mut Drawing, doc: &Document, coverage: &[PolygonWithHoles], loc
                 continue;
             }
             let Some(n) = outward(e.start, e.end) else { continue };
-            let m = e.midpoint();
-            let far = m + n * 200.0;
-            let ray = Segment2::new(m, far);
+            let Some(u) = (e.end - e.start).normalized() else { continue };
+            // Measure a quarter of the edge from its middle towards its upper-right end, off the side-length
+            // label and clear of the setback note in the upper-left corner.
+            let u = if u.x + u.y < 0.0 { -u } else { u };
+            let m = e.midpoint() + u * (e.length().as_m() * 0.25);
+            let ray = Segment2::new(m, m + n * 200.0);
             let tol = kanavos_units::Tolerance::default();
             let hit = boundary
                 .iter()
@@ -112,13 +111,7 @@ fn distances(d: &mut Drawing, doc: &Document, coverage: &[PolygonWithHoles], loc
                 let clear = Segment2::new(m + n * 0.01, q);
                 let blocked = building.iter().any(|b| clear.intersection(b, &tol).is_some());
                 if !blocked && dist > 0.05 && dist < 60.0 {
-                    // Shift along the edge so the dimension does not sit on the side-length label.
-                    let along = (e.end - e.start).normalized().map(|u| u * (e.length().as_m() * 0.25));
-                    let (a, b) = match along {
-                        Some(s) => (m + s, q + s),
-                        None => (m, q),
-                    };
-                    dimension(d, p(a), p(b), len_text(dist, locale), "coverage.distance");
+                    dimension(d, p(m), p(q), len_text(dist, locale), "coverage.distance");
                 }
             }
         }
@@ -197,27 +190,28 @@ fn setback_line(d: &mut Drawing, r: &NokReport, locale: Locale) {
                 "coverage.setback",
             ));
         }
-        // Label along the top edge of the buildable area.
-        if let Some(e) = poly.outer.to_ccw().edges().max_by(|a, b| {
-            let ya = a.midpoint().y.as_m();
-            let yb = b.midpoint().y.as_m();
-            ya.total_cmp(&yb)
+        // Two-line note inside the upper-left corner of the buildable area.
+        if let Some(corner) = poly.outer.vertices.iter().max_by(|a, b| {
+            let ka = a.y.as_m() - a.x.as_m();
+            let kb = b.y.as_m() - b.x.as_m();
+            ka.total_cmp(&kb)
         }) {
-            let label = tf(
+            let values = tf(
                 locale,
-                "rules.label.setback",
+                "rules.label.setback_values",
                 &[
                     ("d", &len_text(r.setbacks.delta.as_m(), locale)),
                     ("sd", &len_text(r.setbacks.small_delta.as_m(), locale)),
                 ],
             );
-            // On the east part of the edge, clear of the distance dimensions near the middle.
-            let (a, b) = (p(e.end), p(e.start));
-            let len = a.distance(b).max(1e-9);
-            let w = d.paper_mm(label.chars().count() as f64 * 2.2 * 0.75 + 4.0) / len;
-            let f = (1.0 - w / 2.0).max(0.5);
-            let (ma, mb) = (lerp(a, b, f - w / 2.0), lerp(a, b, f + w / 2.0));
-            edge_label(d, ma, mb, label, 2.0, 2.2, "coverage.setback");
+            let at = p(*corner).offset(d.paper_mm(2.0), -d.paper_mm(2.5));
+            let color = Rgba::rgb(40, 40, 160);
+            for (i, line) in [t(locale, "rules.label.setback").into_owned(), values].into_iter().enumerate() {
+                let mut tx = Text::new(at.offset(0.0, -d.paper_mm(3.5 * i as f64)), line, 2.2)
+                    .anchored(Anchor::TopLeft);
+                tx.color = color;
+                d.push(Item::text(tx, "coverage.setback"));
+            }
         }
     }
 }
@@ -289,16 +283,16 @@ pub fn coverage_diagram(doc: &Document, locale: Locale, scale: f64) -> Drawing {
     // Inset tables in two columns to the right, top-aligned above the plot: the building data and coverage
     // calculation, then setbacks and coordinates.
     let top = max.y + mm(12.0);
-    let terms = terms_table_of(doc, &r, locale);
     let x1 = max.x + mm(18.0);
     let mut y = top;
-    y -= inset_table(&mut d, &terms, pt(x1, y), locale) + mm(8.0);
-    inset_table(&mut d, &coverage_table_of(&r, locale), pt(x1, y), locale);
+    let (w1, h) = inset_table(&mut d, &terms_table_of(doc, &r, locale), pt(x1, y), locale);
+    y -= h + mm(8.0);
+    let (w2, _) = inset_table(&mut d, &coverage_table_of(&r, locale), pt(x1, y), locale);
     if doc.site().plot.is_some() {
-        let x2 = x1 + mm(terms.width_mm() + 10.0);
+        let x2 = x1 + w1.max(w2) + mm(10.0);
         let mut y = top;
-        y -= inset_table(&mut d, &setback_table_of(&r, locale), pt(x2, y), locale) + mm(8.0);
-        y -= inset_table(&mut d, &coordinates_table(doc, locale), pt(x2, y), locale) + mm(8.0);
+        y -= inset_table(&mut d, &setback_table_of(&r, locale), pt(x2, y), locale).1 + mm(8.0);
+        y -= inset_table(&mut d, &coordinates_table(doc, locale), pt(x2, y), locale).1 + mm(8.0);
         inset_table(&mut d, &building_coordinates_table_of(doc, &r, locale), pt(x2, y), locale);
     }
     d
@@ -387,7 +381,7 @@ pub fn site_plan(doc: &Document, locale: Locale, scale: f64) -> Drawing {
     ));
     let zero =
         tf(locale, "rules.label.zero_level", &[("alt", &format_decimal(site.georef.altitude, 2, locale))]);
-    d.push(Item::text(Text::new(pt(min.x, min.y - mm(12.0)), zero, 2.5), "site.note"));
+    d.push(Item::text(Text::new(pt(min.x, max.y + mm(10.0)), zero, 2.5), "site.note"));
     d
 }
 
