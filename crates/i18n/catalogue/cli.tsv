@@ -1,1 +1,18 @@
 # key	el	en
+# Control protocol (kanavos-control) messages.
+cli.rpc.parse_error	Το μήνυμα δεν είναι έγκυρο JSON: {reason}	The message is not valid JSON: {reason}
+cli.rpc.empty_batch	Η δέσμη αιτημάτων είναι κενή	The batch is empty
+cli.rpc.no_document	Δεν υπάρχει ανοιχτό έγγραφο· χρησιμοποιήστε document.new ή document.open	No document is open; use document.new or document.open
+cli.rpc.version_conflict	Το έγγραφο άλλαξε: αναμενόταν έκδοση {expected}, τρέχουσα {current}	The document changed: expected version {expected}, current {current}
+cli.rpc.method_not_found	Άγνωστη μέθοδος: {method}	Unknown method: {method}
+cli.rpc.unsaved	Το έγγραφο έχει μη αποθηκευμένες αλλαγές· αποθηκεύστε το ή δώστε force	The document has unsaved changes; save it or pass force
+cli.rpc.no_path	Δώστε διαδρομή αρχείου για νέο έγγραφο	Give a file path for a new document
+cli.rpc.batch_failed	Η εντολή {index} της δέσμης απέτυχε: {reason}	Command {index} of the batch failed: {reason}
+cli.rpc.no_view	Δεν βρέθηκε όψη σχεδίου «{view}»	No view '{view}'
+cli.rpc.no_sheet	Δεν βρέθηκε φύλλο «{sheet}»	No sheet '{sheet}'
+cli.rpc.write_failed	Δεν ήταν δυνατή η εγγραφή στο {path}: {reason}	Cannot write {path}: {reason}
+#
+# MCP server (kanavos-mcp) messages.
+cli.mcp.not_initialized	Ο διακομιστής δεν έχει αρχικοποιηθεί· στείλτε πρώτα initialize	The server is not initialized; send initialize first
+cli.mcp.unknown_tool	Άγνωστο εργαλείο: {tool}	Unknown tool: {tool}
+cli.mcp.instructions	Το Kanavos είναι εφαρμογή BIM για αρχιτέκτονες. Ανοίξτε ή δημιουργήστε έγγραφο (new_document, open_document), δείτε τις εντολές (list_commands) και εκτελέστε τες (run_command, run_batch): κάθε αλλαγή είναι μια εντολή με αναίρεση. Μήκη σε μέτρα, γωνίες σε ακτίνια εκτός αν αναφέρεται αλλιώς, σημεία [x, y].	Kanavos is a BIM application for architects. Open or create a document (new_document, open_document), look up the commands (list_commands) and run them (run_command, run_batch): every change is an undoable command. Lengths in metres, angles in radians unless stated, points as [x, y].

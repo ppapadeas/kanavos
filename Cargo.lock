@@ -1484,7 +1484,18 @@ dependencies = [
 name = "kanavos-control"
 version = "0.0.1"
 dependencies = [
+ "kanavos-drawing",
+ "kanavos-elements",
  "kanavos-engine",
+ "kanavos-geom",
+ "kanavos-i18n",
+ "kanavos-model",
+ "kanavos-rules-gr",
+ "kanavos-schedules",
+ "kanavos-units",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
 ]
 
 [[package]]
