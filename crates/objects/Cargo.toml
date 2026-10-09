@@ -20,3 +20,5 @@ kanavos-units = { path = "../units" }
 
 [dev-dependencies]
 kanavos-i18n = { path = "../i18n" }
+# Rasterises the visual previews in tests/preview.rs (BSD-3-Clause).
+tiny-skia = "0.12"
