@@ -34,9 +34,9 @@ floor) and seen from above.
 | Above the cut (beams, high windows, overhangs) | Thin dashed lines | `<kind>.above` |
 | Slabs of the storey above (balconies, canopies, openings in the floor above) | Thin dashed lines | `slab.above` |
 | Roofs on the storey, or on a storey above that has no walls | Edges seen from above (eaves, ridges, hips, valleys, parapets), dashed when above the cut | `roof.above`, `roof.below` |
-| Doors and windows spanning the cut | Their plan symbols placed in the wall opening | `door.symbol`, `window.symbol` |
-| Windows wholly above the cut | Their symbol dashed | `window.above` |
-| Furniture and fixtures | Their plan symbols | `object.symbol` |
+| Doors and windows spanning the cut | Their plan symbols for the drawing scale (less detail at 1:100 than at 1:50), placed in the wall opening | `door.symbol*`, `window.symbol*` |
+| Openings wholly above the cut | Their overhead symbol, dashed | `window.symbol.above`, `door.symbol.above` |
+| Furniture and fixtures | Their plan symbols for the drawing scale | `object.symbol*` |
 | Stairs | See SPEC-views-002 | `stair.*` |
 | Spaces | Optional tint by use, stamp | `space.fill`, `space.stamp` |
 | Annotation | See SPEC-views-003 | `dimension.*`, `level.*`, `text`, `grid.*` |
@@ -103,7 +103,7 @@ are opaque, so lines that lie under walls disappear.
    line separates them.
 2. Given a concrete column inside a brick wall, then the wall fill is split around the column and the column
    keeps a medium outline.
-3. Given a window with its sill above the cut, then its symbol is drawn on `window.above` with dashed lines.
+3. Given a window with its sill above the cut, then its overhead symbol is drawn on `window.symbol.above`.
 4. Given a balcony slab on the storey above, then its edge appears on `slab.above`, dashed.
 5. Given a plan at 1:100, then the cut outline is 0,50 mm and 2 cm plaster layers are white.
 

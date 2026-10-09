@@ -159,6 +159,16 @@ impl Builder {
         )
     }
 
+    /// An object standing with its back against a wall face at `y`, facing south (`north = true`) or north.
+    pub fn against(&mut self, storey: Id, def: &str, x: f64, y: f64, north: bool) -> Id {
+        let depth = kanavos_objects::find(def).map(|d| d.depth).unwrap_or(0.6);
+        if north {
+            self.object(storey, def, x, y - depth, 0.0)
+        } else {
+            self.object(storey, def, x, y + depth, 180.0)
+        }
+    }
+
     pub fn view(&mut self, name: &str, kind: ViewKind, scale: u32) -> Id {
         let id = self.id();
         self.doc = self.doc.with_view(View {
@@ -194,6 +204,7 @@ pub fn house() -> House {
 
     for (storey, h) in [(ground, 3.2), (first, 3.0)] {
         // Exterior walls, clockwise so the left face (render and insulation) is outside; extended to the corners.
+        // Their doors and windows therefore use flip_side, since symbols put the outer face on the right.
         let w_west = b.wall(storey, (0.0, -T), (0.0, 9.0 + T), ext, h);
         let w_north = b.wall(storey, (-T, 9.0), (12.0 + T, 9.0), ext, h);
         let w_east = b.wall(storey, (12.0, 9.0 + T), (12.0, -T), ext, h);
@@ -228,7 +239,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                false,
+                true,
             );
             b.opening(
                 storey,
@@ -239,23 +250,13 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                false,
+                true,
             );
             // West window.
-            b.opening(
-                storey,
-                w_west,
-                OpeningKind::Window,
-                "window.casement_2",
-                T + 4.5,
-                1.2,
-                1.4,
-                0.9,
-                false,
-            );
+            b.opening(storey, w_west, OpeningKind::Window, "window.casement_2", T + 4.5, 1.2, 1.4, 0.9, true);
             // North: sliding door to the garden and a high kitchen window above the cut plane.
-            b.opening(storey, w_north, OpeningKind::Door, "door.sliding", T + 3.5, 1.6, 2.2, 0.0, false);
-            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 1.0, 1.0, 1.2, false);
+            b.opening(storey, w_north, OpeningKind::Door, "door.sliding", T + 3.5, 1.6, 2.2, 0.0, true);
+            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 1.0, 1.0, 1.2, true);
             // East: kitchen window and a small high stair window.
             b.opening(
                 storey,
@@ -266,7 +267,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                false,
+                true,
             );
             b.opening(
                 storey,
@@ -277,7 +278,7 @@ pub fn house() -> House {
                 0.6,
                 0.6,
                 1.8,
-                false,
+                true,
             );
             // Interior doors.
             b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 2.2 - T, 0.9, 2.1, 0.0, false);
@@ -318,7 +319,7 @@ pub fn house() -> House {
             // Furniture.
             b.object(storey, "furniture.sofa", 3.0, 6.9, 0.0);
             b.object(storey, "furniture.table", 3.5, 2.6, 0.0);
-            b.object(storey, "kitchen.counter", 9.6, 8.245, 180.0);
+            b.against(storey, "kitchen.counter", 9.6, 9.0 - T, true);
             // Stair: half turn, 18 risers of 17,8 cm, going 28 cm.
             b.add(
                 Some(storey),
@@ -365,7 +366,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                false,
+                true,
             );
             b.opening(
                 storey,
@@ -376,7 +377,7 @@ pub fn house() -> House {
                 1.6,
                 2.2,
                 0.0,
-                false,
+                true,
             );
             b.opening(
                 storey,
@@ -387,28 +388,18 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                false,
+                true,
             );
-            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 0.6, 0.6, 1.5, false);
-            b.opening(
-                storey,
-                w_west,
-                OpeningKind::Window,
-                "window.casement_2",
-                T + 6.8,
-                1.2,
-                1.4,
-                0.9,
-                false,
-            );
+            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 0.6, 0.6, 1.5, true);
+            b.opening(storey, w_west, OpeningKind::Window, "window.casement_2", T + 6.8, 1.2, 1.4, 0.9, true);
             b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 3.6 - T, 0.9, 2.1, 0.0, false);
-            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 5.4 - T, 0.9, 2.1, 0.0, true);
+            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 6.2 - T, 0.9, 2.1, 0.0, true);
             b.opening(
                 storey,
                 i_east,
                 OpeningKind::Door,
                 "door.single_swing",
-                8.0 - 7.065,
+                9.4 - 7.065,
                 0.8,
                 2.1,
                 0.0,
@@ -419,12 +410,12 @@ pub fn house() -> House {
             b.space(storey, "Υπνοδωμάτιο 2", "1.02", SpaceCategory::MainUse, T, T, 6.935, 4.435);
             b.space(storey, "Λουτρό", "1.03", SpaceCategory::MainUse, 7.065, 4.565, 12.0 - T, 9.0 - T);
             b.space(storey, "Διάδρομος", "1.04", SpaceCategory::Stairwell, 7.065, T, 12.0 - T, 4.435);
-            b.object(storey, "furniture.bed_double", 3.5, 6.6, 0.0);
-            b.object(storey, "furniture.bed_single", 2.0, 2.2, 0.0);
-            b.object(storey, "furniture.wardrobe", 5.6, 4.435, 180.0);
-            b.object(storey, "sanitary.wc", 8.0, 8.845, 180.0);
-            b.object(storey, "sanitary.basin", 9.0, 8.845, 180.0);
-            b.object(storey, "sanitary.bath", 11.0, 8.845, 180.0);
+            b.against(storey, "furniture.bed_double", 3.5, 9.0 - T, true);
+            b.against(storey, "furniture.bed_single", 2.0, T, false);
+            b.against(storey, "furniture.wardrobe", 5.6, 4.435, true);
+            b.against(storey, "sanitary.wc", 8.0, 9.0 - T, true);
+            b.against(storey, "sanitary.basin", 9.0, 9.0 - T, true);
+            b.against(storey, "sanitary.bath", 11.0, 9.0 - T, true);
             // First-floor slab with the stair hole and a balcony to the south.
             b.add(
                 Some(storey),

@@ -14,7 +14,7 @@ use kanavos_drawing::{Affine, Drawing, Item, LinePattern, Pt, Shape, Stroke};
 use kanavos_elements::{OpeningPlacement, opening_placement, plan_parts};
 use kanavos_geom::{Point2, Polygon2, PolygonWithHoles, Segment2, Vec2};
 use kanavos_model::{Document, Element, ElementKind, Id, ViewKind};
-use kanavos_objects::{OpeningContext, object_symbol, opening_symbol};
+use kanavos_objects::{OpeningContext, object_symbol_at, opening_symbol_at, opening_symbol_overhead};
 use kanavos_units::Locale;
 
 use crate::ViewError;
@@ -162,7 +162,7 @@ pub fn plan(doc: &Document, storey: Id, opts: &PlanOptions) -> Result<Drawing, V
             m.tx = x;
             m.ty = y;
             let mut local = Drawing::model(opts.scale);
-            local.items = object_symbol(o);
+            local.items = object_symbol_at(o, opts.scale);
             for mut item in local.transformed(&m).items {
                 item.source = Some(e.id.0);
                 if let Some(s) = item.stroke.take() {
@@ -234,20 +234,17 @@ pub fn plan(doc: &Document, storey: Id, opts: &PlanOptions) -> Result<Drawing, V
             if head <= cut.as_m() {
                 continue; // Wholly below the cut: the wall above it is cut solid.
             }
-            let overhead = sill > cut.as_m();
             let ctx_o = OpeningContext { opening: o, left_face: pl.left_face, right_face: pl.right_face };
             let m = opening_affine(&pl);
             let mut local = Drawing::model(opts.scale);
-            local.items = opening_symbol(&ctx_o);
+            // Wholly above the cut: the dashed overhead symbol; otherwise the symbol for the scale.
+            local.items = if sill > cut.as_m() {
+                opening_symbol_overhead(&ctx_o, opts.scale)
+            } else {
+                opening_symbol_at(&ctx_o, opts.scale)
+            };
             for mut item in local.transformed(&m).items {
                 item.source = Some(e.id.0);
-                if overhead {
-                    item.layer = format!("{}.above", e.category().key());
-                    if let Some(s) = &mut item.stroke {
-                        s.pattern = LinePattern::Dashed;
-                        s.weight_mm = pens.above;
-                    }
-                }
                 if let Some(s) = item.stroke.take() {
                     item.stroke = Some(phase_stroke(s, e.phase));
                 }

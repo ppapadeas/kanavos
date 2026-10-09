@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use kanavos_drawing::{Drawing, Fill, HatchPattern, Item, Rgba, Stroke, pt};
 use kanavos_geom::{Point2, Point3, Vec2};
 use kanavos_i18n::t;
-use kanavos_model::{Document, ElementKind, Id, Phase, ViewKind};
+use kanavos_model::{Category, Document, ElementKind, Id, Phase, ViewKind};
 use kanavos_units::{Length, Locale};
 
 use crate::annot::{self, Ctx};
@@ -252,20 +252,30 @@ pub fn section_with(
         }
     }
     let ground = doc.site().ground_level.as_m();
-    // Building extent along the ground, for the earth hatch and the ground line in sections.
-    let cut_span = pieces
+    // Where buildings stand on the ground (x intervals of cut parts at ground level), for the earth hatch and
+    // the ground line in sections.
+    let mut spans_in: Vec<(f64, f64)> = pieces
         .iter()
+        .filter(|pc| pc.category != Category::Object)
         .filter_map(|pc| poly::shape_bbox(&pc.shape))
         .filter(|b| b[1] <= ground + 0.5 && b[3] >= ground - 1.0)
-        .fold(None, |acc: Option<(f64, f64)>, b| {
-            Some(acc.map_or((b[0], b[2]), |(a0, a1)| (a0.min(b[0]), a1.max(b[2]))))
-        });
+        .map(|b| (b[0], b[2]))
+        .collect();
+    spans_in.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut merged: Vec<(f64, f64)> = Vec::new();
+    for (a, b) in spans_in {
+        match merged.last_mut() {
+            Some(last) if a <= last.1 + 1e-6 => last.1 = last.1.max(b),
+            _ => merged.push((a, b)),
+        }
+    }
+    let inside: &[(f64, f64)] = if frame.cuts { &merged } else { &[] };
 
     // Beyond lines.
     let front = vis.iter().map(|s| s.depth).fold(f64::INFINITY, f64::min);
     for s in &vis {
         let Some(it) = proj_items.get(s.tag as usize) else { continue };
-        for piece in clip_ground(s, ground, if frame.cuts { cut_span } else { None }, opts.ground) {
+        for piece in clip_ground(s, ground, inside, opts.ground) {
             let rel = s.depth - front;
             let mut w = if !opts.depth_fade || rel < 1.5 {
                 pens.beyond
@@ -293,12 +303,20 @@ pub fn section_with(
     // Ground: earth hatch (sections) and the ground line.
     if opts.ground && ext.valid() {
         let margin = ctx.mm(12.0);
-        let x0 = (ext.min[0] - margin).max(if frame.length > 0.0 { 0.0 } else { f64::MIN });
-        let x1 = (ext.max[0] + margin).min(if frame.length > 0.0 { frame.length } else { f64::MAX });
-        let spans: Vec<(f64, f64)> = match (frame.cuts, cut_span) {
-            (true, Some((b0, b1))) => vec![(x0, b0), (b1, x1)],
-            _ => vec![(x0, x1)],
-        };
+        let x0 = (ext.min[0] - margin).max(0.0);
+        let x1 = (ext.max[0] + margin).min(frame.length);
+        // The ground outside the buildings.
+        let mut spans: Vec<(f64, f64)> = Vec::new();
+        let mut from = x0;
+        for (a, b) in inside {
+            if *a > from {
+                spans.push((from, a.min(x1)));
+            }
+            from = from.max(*b);
+        }
+        if x1 > from {
+            spans.push((from, x1));
+        }
         for (a, b) in spans {
             if b - a < 1e-6 {
                 continue;
@@ -322,8 +340,21 @@ pub fn section_with(
         }
     }
 
-    // Cut areas.
-    draw_cut(&mut d, doc, &pieces, &pens, scale);
+    // Cut areas. Furniture and fixtures cut by the plane are outlined thinly on white, not filled as poché.
+    let (light, solid): (Vec<CutPiece>, Vec<CutPiece>) =
+        pieces.into_iter().partition(|pc| pc.category == Category::Object);
+    draw_cut(&mut d, doc, &solid, &pens, scale);
+    for pc in &light {
+        d.push(
+            Item::polygon(
+                crate::cut::rings_of(&pc.shape),
+                Some(Fill::Solid(Rgba::WHITE)),
+                Some(phase_stroke(Stroke::solid(pens.symbol), pc.phase)),
+                "object.cut",
+            )
+            .with_source(pc.element.0),
+        );
+    }
 
     // Level marks for storey floors, the top of the building and the ground.
     if opts.level_marks && ext.valid() {
@@ -404,7 +435,7 @@ impl Extents {
 
 /// The parts of a visible piece that are not under the ground: everything above `ground`, plus, in sections, what
 /// lies inside the building's cut extent (basements).
-fn clip_ground(s: &Visible, ground: f64, inside: Option<(f64, f64)>, enabled: bool) -> Vec<Visible> {
+fn clip_ground(s: &Visible, ground: f64, inside: &[(f64, f64)], enabled: bool) -> Vec<Visible> {
     if !enabled || (s.a[1] >= ground - 1e-9 && s.b[1] >= ground - 1e-9) {
         return vec![*s];
     }
@@ -413,11 +444,11 @@ fn clip_ground(s: &Visible, ground: f64, inside: Option<(f64, f64)>, enabled: bo
     if dy.abs() > 1e-15 {
         ts.push((ground - s.a[1]) / dy);
     }
-    if let Some((x0, x1)) = inside
-        && dx.abs() > 1e-15
-    {
-        ts.push((x0 - s.a[0]) / dx);
-        ts.push((x1 - s.a[0]) / dx);
+    if dx.abs() > 1e-15 {
+        for (x0, x1) in inside {
+            ts.push((x0 - s.a[0]) / dx);
+            ts.push((x1 - s.a[0]) / dx);
+        }
     }
     ts.retain(|t| (0.0..=1.0).contains(t));
     ts.sort_by(f64::total_cmp);
@@ -429,7 +460,7 @@ fn clip_ground(s: &Visible, ground: f64, inside: Option<(f64, f64)>, enabled: bo
             continue;
         }
         let m = at(0.5 * (t0 + t1));
-        let keep = m[1] >= ground - 1e-9 || inside.is_some_and(|(x0, x1)| m[0] > x0 && m[0] < x1);
+        let keep = m[1] >= ground - 1e-9 || inside.iter().any(|(x0, x1)| m[0] > *x0 && m[0] < *x1);
         if !keep {
             continue;
         }

@@ -37,6 +37,8 @@ between the line and the depth, and between the line's ends, is drawn.
    cut.
 2. Cut regions follow the rules of SPEC-views-001 §Cut areas: material fills, merging of equal materials,
    priority trimming, the white rule for finishes thinner than 0,5 mm on paper, one heavy outline.
+3. Furniture and fixtures cut by the plane are not poché: their cut regions are white with a thin outline, and
+   they still hide what lies behind them.
 
 ### Lines beyond
 
@@ -59,9 +61,9 @@ between the line and the depth, and between the line's ends, is drawn.
 ### Ground
 
 - A heavy ground line at the site's natural ground level, extending 12 mm beyond the drawing on both sides.
-- In sections, a 5 mm band of earth hatch under the ground line, outside the building's cut extent; the ground
-  line is not drawn across the building.
-- Lines below ground are removed, except, in sections, inside the building's cut extent (basements).
+- In sections, a 5 mm band of earth hatch under the ground line wherever no building is cut at ground level
+  (between several buildings too); the ground line is not drawn across cut buildings.
+- Lines below ground are removed, except, in sections, inside a cut building's extent (basements).
 
 ### Level marks
 

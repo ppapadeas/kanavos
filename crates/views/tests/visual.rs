@@ -36,7 +36,7 @@ fn house_views_render() {
     common::save_png(&ground, "plan-ground-50.png");
     assert!(layers(&ground, "wall.cut") > 0);
     assert!(layers(&ground, "column.cut") > 0);
-    assert!(layers(&ground, "window.above") > 0, "the high kitchen window is dashed");
+    assert!(layers(&ground, "window.symbol.above") > 0, "the high kitchen window is dashed");
     assert!(layers(&ground, "stair.break") > 0);
     assert!(layers(&ground, "slab.above") > 0, "the balcony above is dashed");
     let tx = texts(&ground);

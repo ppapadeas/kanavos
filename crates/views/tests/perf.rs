@@ -33,6 +33,8 @@ fn subdivide(m: &Mesh) -> Mesh {
 }
 
 fn best_of<T>(n: usize, mut f: impl FnMut() -> T) -> (Duration, T) {
+    // Debug builds only check that everything runs; timings matter in release builds.
+    let n = if cfg!(debug_assertions) { 1 } else { n };
     let mut best = Duration::MAX;
     let mut out = None;
     for _ in 0..n {
