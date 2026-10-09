@@ -33,7 +33,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L3  kanavos-model (project document, attributes, relations, IDs)
  L2  kanavos-solid (solid modelling façade)   kanavos-drawing (2D drawing primitives)   kanavos-geo (CRS, ΕΓΣΑ87)
  L1  kanavos-geom
- L0  kanavos-units
+ L0  kanavos-units   kanavos-fonts (font discovery, glyph outlines, built-in stroke font)
  dev kanavos-testkit (fixtures, golden drawings, visual diffs)
 ```
 
@@ -42,6 +42,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | Crate | Owns |
 | --- | --- |
 | `kanavos-units` | Lengths, angles, areas, volumes; tolerances; locale-aware formatting (decimal comma for `el`). |
+| `kanavos-fonts` | Discovery of an installed Greek-capable sans-serif font (fonts are not bundled), glyph outlines and advance widths, and a built-in single-stroke lettering font so text output never fails. |
 | `kanavos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
 | `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
@@ -158,3 +159,4 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | STEP parsing | ruststep, or own Part 21 parser | Apache‑2.0 |
 | Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
 | Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
+| Font parsing | ttf-parser | MIT OR Apache‑2.0 |
