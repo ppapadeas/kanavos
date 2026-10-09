@@ -250,12 +250,7 @@ fn model_menu(ui: &mut Ui, locale: Locale, actions: &mut Vec<Action>) {
         if item(ui, tr(locale, "ui.menu.permit_set"), "", true) {
             actions.push(Action::PermitSet);
         }
-        let detect = item(
-            ui,
-            format!("{}  ({})", tr(locale, "ui.menu.detect_spaces"), tr(locale, "ui.menu.soon")),
-            "",
-            true,
-        );
+        let detect = item(ui, tr(locale, "ui.menu.detect_spaces"), "", true);
         if detect {
             actions.push(Action::DetectSpaces);
         }

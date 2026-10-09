@@ -1,11 +1,9 @@
 //! The sample house shown on first launch (docs/ux.md §5): a two-storey house on a plot, with spaces,
 //! openings, furniture, a roof, sections, elevations and the permit sheet set.
 //!
-//! **Temporary implementation.** It is built here with ordinary engine commands on the starter template. When
-//! `kanavos_engine::sample::sample_house()` is merged, replace the body of [`sample_house`] with a call to it.
-//!
-//! The house is our own design for demonstration: 12 × 9 m, ground floor with living room and kitchen, study,
-//! WC and stair hall; first floor with three bedrooms and a bathroom; hip roof.
+//! The house is `kanavos_engine::sample::sample_house()`, the same one the command-line tools and tests use. The
+//! smaller house built here with ordinary engine commands is a fallback, used only if the engine's sample cannot
+//! be built (which would be a bug; the engine's tests guard against it).
 
 use std::collections::BTreeMap;
 
@@ -144,7 +142,7 @@ fn rect(x0: f64, y0: f64, x1: f64, y1: f64) -> Polygon2 {
 /// Builds the sample house. Steps that the engine rejects are skipped, so the result is always a valid
 /// document; [`sample_failures`] reports how many were skipped (zero in a healthy build).
 pub fn sample_house(locale: Locale) -> Document {
-    build(locale).0
+    kanavos_engine::sample::sample_house().unwrap_or_else(|_| build(locale).0)
 }
 
 /// Number of construction steps the engine rejected while building the sample (for tests and diagnostics).

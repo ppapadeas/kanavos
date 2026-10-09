@@ -521,16 +521,16 @@ fn nok_panel(ui: &mut Ui, state: &AppState, nok: &NokView<'_>, actions: &mut Vec
         let text = if over { tr(locale, "ui.nok.floors_over") } else { tr(locale, "ui.nok.floors_ok") };
         meter(ui, &tr(locale, "ui.nok.floors"), &value, ratio, &text, over);
     }
-    if terms.volume_coefficient.is_some() {
-        ui.horizontal(|ui| {
-            ui.label(RichText::new(tr(locale, "ui.nok.volume")).color(t.text));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(
-                    RichText::new(tr(locale, "ui.nok.volume_pending")).small().italics().color(t.text_muted),
-                );
-            });
-        });
-        ui.add_space(6.0);
+    if let Some(v) = &report.volume {
+        let margin = v.margin();
+        let margin_text = if margin.as_m3() >= 0.0 {
+            trf(locale, "ui.nok.margin_vol", &[("v", &VolumeDisplay(margin, locale).to_string())])
+        } else {
+            trf(locale, "ui.nok.over_vol", &[("v", &VolumeDisplay(-margin, locale).to_string())])
+        };
+        let value =
+            format!("{} / {}", format_decimal(v.used.as_m3(), 2, locale), VolumeDisplay(v.allowed, locale));
+        meter(ui, &tr(locale, "ui.nok.volume"), &value, v.ratio(), &margin_text, !v.within_limit());
     }
     for note in report.notes.iter().filter(|n| n.as_str() != "rules.note.no_plot") {
         ui.horizontal_wrapped(|ui| {

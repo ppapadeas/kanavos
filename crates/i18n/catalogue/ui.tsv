@@ -348,7 +348,8 @@ ui.nok.plot_area	Εμβαδόν οικοπέδου {a}	Plot area {a}
 ui.nok.terms	Σ.Δ. {sd} · Κάλυψη {k}% · Μέγ. ύψος {h} m	Coefficient {sd} · Coverage {k}% · Max. height {h} m
 ui.nok.title	Όροι δόμησης (ΝΟΚ)	Building terms (ΝΟΚ)
 ui.nok.volume	Όγκος	Volume
-ui.nok.volume_pending	ο υπολογισμός όγκου έρχεται σύντομα	volume check coming soon
+ui.nok.margin_vol	Περιθώριο {v}	Margin {v}
+ui.nok.over_vol	Υπέρβαση {v}	Over by {v}
 ui.notice.autosave_failed	Η αυτόματη αποθήκευση απέτυχε: {why}	Autosave failed: {why}
 ui.notice.copied_to	Αντιγράφηκαν στο επίπεδο «{name}»	Copied to the storey “{name}”
 ui.notice.csv_needs_table	Ανοίξτε πρώτα έναν πίνακα για εξαγωγή σε CSV.	Open a schedule first to export it as CSV.
@@ -367,6 +368,7 @@ ui.notice.new_project	Νέο έργο	New project
 ui.notice.not_available	«{what}» δεν είναι ακόμη διαθέσιμο σε αυτή την έκδοση.	“{what}” is not available in this build yet.
 ui.notice.open_failed	Το έργο δεν άνοιξε: {why}	The project could not be opened: {why}
 ui.notice.opened	Άνοιξε: {name}	Opened: {name}
+ui.notice.spaces_detected	Δημιουργήθηκαν {n} χώροι από τους τοίχους του επιπέδου	Created {n} spaces from the walls of the storey
 ui.notice.permit_set	Δημιουργήθηκαν {n} φύλλα σχεδίων άδειας	Created {n} permit sheets
 ui.notice.recovered	Η εργασία ανακτήθηκε. Αποθηκεύστε το έργο για να τη διατηρήσετε.	Your work was recovered. Save the project to keep it.
 ui.notice.save_failed	Η αποθήκευση απέτυχε: {why}	Saving failed: {why}

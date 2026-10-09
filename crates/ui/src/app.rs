@@ -560,11 +560,22 @@ impl KanavosApp {
                 }
             }
             Action::DetectSpaces => {
-                self.notify(trf(
+                let storey = self.state.active_storey;
+                let cmd = kanavos_engine::commands::DetectAllSpaces {
+                    storey,
+                    category: kanavos_model::SpaceCategory::MainUse,
+                    name: None,
+                    skip_existing: true,
+                    numbered: true,
                     locale,
-                    "ui.notice.not_available",
-                    &[("what", &tr(locale, "ui.menu.detect_spaces"))],
-                ));
+                };
+                if let Ok(out) = self.state.run(cmd.into(), true) {
+                    self.notify(trf(
+                        locale,
+                        "ui.notice.spaces_detected",
+                        &[("n", &out.created.len().to_string())],
+                    ));
+                }
             }
             Action::OpenWindow(w) => self.managers.open(w),
             Action::CommandPalette => self.palette.show(""),
