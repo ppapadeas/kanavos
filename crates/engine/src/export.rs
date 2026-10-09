@@ -1,25 +1,30 @@
 //! Exporting views, sheets, schedules and the model: the single place where exporters are connected.
 //!
-//! **Adapter.** Formats whose exporter is not merged yet return [`ExportError::NotAvailable`]. To switch one
-//! on, replace the body of its function below:
-//!
-//! | Function | Exporter |
+//! | Format | Writer |
 //! | --- | --- |
-//! | [`svg`] | `kanavos_drawing::svg::to_svg(drawing, &SvgOptions { title, .. })` |
-//! | [`png`] | `kanavos_raster::render_png(drawing, &RasterOptions { size: RasterSize::Dpi(dpi), .. })` |
-//! | [`pdf`] | `kanavos_pdf::write_pdf(pages, options)` (one page per drawing, paper size from the sheet) |
-//! | [`dxf`] | `kanavos_dxf` drawing export |
-//! | [`ifc`] | `kanavos_ifc` model export |
-//! | [`glb`] | `kanavos_gltf::export_glb(doc, &GltfOptions::default())` |
+//! | SVG | `kanavos_drawing::svg::to_svg` |
+//! | PNG | `kanavos_raster::render_png` |
+//! | PDF | `kanavos_pdf::write_pdf`, sheets on their paper, views on a fitted page |
+//! | DXF | `kanavos_dxf::write_dxf` |
+//! | IFC 4.3 | `kanavos_ifc::export`, with roof, stair and object bodies from the 3D scene |
+//! | glTF (GLB) | `kanavos_gltf::export_glb` |
+//! | CSV | schedules and area tables |
+//! | JSON | drawings in their native vector form |
 //!
-//! CSV (schedules and area tables) and JSON (drawings, the native vector form) work now. The control protocol,
-//! the MCP server and the CLI all export through [`export`].
+//! The control protocol, the MCP server and the CLI all export through [`export`].
 
 use std::fmt;
 
 use kanavos_drawing::Drawing;
+use kanavos_drawing::fonts::Fonts;
+use kanavos_drawing::page::PageFrame;
+use kanavos_drawing::svg::SvgOptions;
 use kanavos_drawing::table::Table;
-use kanavos_model::{Document, Id, Paper, ScheduleKind, ViewKind};
+use kanavos_dxf::DxfExportOptions;
+use kanavos_model::{Category, Document, Id, Paper, ScheduleKind, ViewKind};
+use kanavos_pdf::{PdfMeta, PdfPage};
+use kanavos_raster::{RasterOptions, RasterSize};
+use kanavos_solid::Mesh;
 use kanavos_units::Locale;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -117,7 +122,7 @@ impl ExportFormat {
 
     /// Whether the format's exporter is connected in this build.
     pub fn available(self) -> bool {
-        matches!(self, ExportFormat::Csv | ExportFormat::Json)
+        true
     }
 }
 
@@ -220,42 +225,93 @@ pub fn schedule_table(doc: &Document, kind: ScheduleKind, locale: Locale) -> Tab
     kanavos_schedules::schedule(doc, kind, locale)
 }
 
-/// SVG text of a drawing. Not available until the SVG writer is merged.
-pub fn svg(drawing: &Drawing, title: &str) -> Result<String, ExportError> {
-    let _ = (drawing, title);
-    Err(ExportError::NotAvailable(ExportFormat::Svg))
+/// Page frame for a drawing: the sheet's paper when known, otherwise fitted to the content.
+fn frame(paper: Option<Paper>) -> Option<PageFrame> {
+    paper.map(|p| {
+        let (w, h) = p.dimensions_mm();
+        PageFrame::paper(w, h)
+    })
 }
 
-/// PNG bytes of a drawing at a resolution. Not available until the rasteriser is merged.
-pub fn png(drawing: &Drawing, dpi: f64) -> Result<Vec<u8>, ExportError> {
-    let _ = (drawing, dpi);
-    Err(ExportError::NotAvailable(ExportFormat::Png))
+/// SVG text of a drawing, on the sheet's paper when given, otherwise on a page fitted to the content.
+pub fn svg(drawing: &Drawing, title: &str, paper: Option<Paper>) -> Result<String, ExportError> {
+    let opts = SvgOptions {
+        frame: frame(paper),
+        title: (!title.is_empty()).then(|| title.to_owned()),
+        ..SvgOptions::default()
+    };
+    Ok(kanavos_drawing::svg::to_svg(drawing, &opts))
 }
 
-/// PDF bytes with one page per drawing (with its paper, when known). Not available until the PDF writer is merged.
-pub fn pdf(pages: &[(Drawing, Option<Paper>)], title: &str) -> Result<Vec<u8>, ExportError> {
-    let _ = (pages, title);
-    Err(ExportError::NotAvailable(ExportFormat::Pdf))
+/// PNG bytes of a drawing at a resolution (dots per inch), on a white background.
+pub fn png(drawing: &Drawing, dpi: f64, paper: Option<Paper>) -> Result<Vec<u8>, ExportError> {
+    let opts = RasterOptions { size: RasterSize::Dpi(dpi), frame: frame(paper), ..RasterOptions::default() };
+    kanavos_raster::render_png(drawing, &opts).map_err(|e| ExportError::Failed(e.to_string()))
 }
 
-/// DXF bytes of a drawing. Not available until the DXF writer is merged.
+/// PDF bytes with one page per drawing: on the sheet's paper when given, otherwise a page fitted to the drawing at
+/// its scale.
+pub fn pdf(pages: &[(Drawing, Option<Paper>)], doc: &Document) -> Result<Vec<u8>, ExportError> {
+    let fonts = Fonts::system();
+    let pages: Vec<PdfPage> = pages
+        .iter()
+        .map(|(d, paper)| match paper {
+            Some(p) => {
+                let (w, h) = p.dimensions_mm();
+                PdfPage::new(d.clone(), w, h)
+            }
+            None => PdfPage::fitted(d, 10.0, fonts),
+        })
+        .collect();
+    let info = doc.info();
+    let meta = PdfMeta {
+        title: info.name.clone(),
+        author: info.designer.clone(),
+        subject: info.location.clone(),
+        ..PdfMeta::default()
+    };
+    kanavos_pdf::write_pdf(&pages, &meta).map_err(|e| ExportError::Failed(e.to_string()))
+}
+
+/// DXF bytes of a drawing (model drawings in metres, sheets in millimetres).
 pub fn dxf(drawing: &Drawing) -> Result<Vec<u8>, ExportError> {
-    let _ = drawing;
-    Err(ExportError::NotAvailable(ExportFormat::Dxf))
+    Ok(kanavos_dxf::write_dxf(drawing, &DxfExportOptions::default()))
 }
 
-/// IFC bytes of the model. Not available until the IFC writer is merged.
+/// The 3D body of a roof, stair or object as one mesh, from the views' scene, for exporters whose own geometry
+/// for these kinds is simpler.
+pub fn scene_mesh(doc: &Document, id: Id) -> Option<Mesh> {
+    let e = doc.element(id)?;
+    if !matches!(e.category(), Category::Roof | Category::Stair | Category::Object) {
+        return None;
+    }
+    let mut mesh = Mesh::new();
+    for item in kanavos_views::element_scene_items(doc, id) {
+        mesh.append(&item.mesh);
+    }
+    (!mesh.is_empty()).then_some(mesh)
+}
+
+/// IFC 4.3 text of the model (bodies of roofs, stairs and objects from the 3D scene).
 pub fn ifc(doc: &Document) -> Result<Vec<u8>, ExportError> {
-    let _ = doc;
-    Err(ExportError::NotAvailable(ExportFormat::Ifc))
+    let geometry = |id: Id| scene_mesh(doc, id);
+    let stamp = crate::io::now_rfc3339();
+    let info = doc.info();
+    let opts = kanavos_ifc::ExportOptions {
+        timestamp: stamp.trim_end_matches('Z').to_owned(),
+        author: info.designer.clone(),
+        file_name: format!("{}.ifc", file_stem(&info.name)),
+        geometry: Some(&geometry),
+        ..kanavos_ifc::ExportOptions::default()
+    };
+    Ok(kanavos_ifc::export(doc, &opts).text.into_bytes())
 }
 
-/// Binary glTF bytes of the model. Not available until the glTF writer is merged.
+/// Binary glTF bytes of the model.
 pub fn glb(doc: &Document) -> Result<Vec<u8>, ExportError> {
-    let _ = doc;
-    Err(ExportError::NotAvailable(ExportFormat::Gltf))
+    kanavos_gltf::export_glb(doc, &kanavos_gltf::GltfOptions::default())
+        .map_err(|e| ExportError::Failed(e.to_string()))
 }
-
 /// CSV text of a table.
 pub fn csv(table: &Table, locale: Locale) -> String {
     table.to_csv(locale)
@@ -277,16 +333,17 @@ fn file_stem(s: &str) -> String {
 
 /// Encodes one drawing in a drawing format.
 fn encode(
+    doc: &Document,
     drawing: &Drawing,
     format: ExportFormat,
     title: &str,
     paper: Option<Paper>,
 ) -> Result<Vec<u8>, ExportError> {
     match format {
-        ExportFormat::Svg => svg(drawing, title).map(String::into_bytes),
-        ExportFormat::Png => png(drawing, 150.0),
+        ExportFormat::Svg => svg(drawing, title, paper).map(String::into_bytes),
+        ExportFormat::Png => png(drawing, 150.0, paper),
         ExportFormat::Dxf => dxf(drawing),
-        ExportFormat::Pdf => pdf(&[(drawing.clone(), paper)], title),
+        ExportFormat::Pdf => pdf(&[(drawing.clone(), paper)], doc),
         ExportFormat::Json => drawing_json(drawing).map(String::into_bytes),
         other => Err(ExportError::Unsupported { format: other, what: "a drawing".into() }),
     }
@@ -322,7 +379,7 @@ pub fn export(
                 }]);
             }
             let d = view_drawing(doc, *id, locale)?;
-            Ok(vec![ExportFile { stem: file_stem(&v.name), bytes: encode(&d, format, &v.name, None)? }])
+            Ok(vec![ExportFile { stem: file_stem(&v.name), bytes: encode(doc, &d, format, &v.name, None)? }])
         }
         ExportTarget::Sheet { id } => {
             let s = doc.sheet(*id).ok_or(ExportError::NotFound(*id))?;
@@ -331,7 +388,7 @@ pub fn export(
             }
             let d = sheet_drawing(doc, *id, locale)?;
             let stem = file_stem(&format!("{} {}", s.number, s.name));
-            Ok(vec![ExportFile { stem, bytes: encode(&d, format, &s.name, Some(s.paper))? }])
+            Ok(vec![ExportFile { stem, bytes: encode(doc, &d, format, &s.name, Some(s.paper))? }])
         }
         ExportTarget::Sheets => {
             let sheets = doc.sheets();
@@ -346,13 +403,13 @@ pub fn export(
                 for s in &sheets {
                     pages.push((sheet_drawing(doc, s.id, locale)?, Some(s.paper)));
                 }
-                return Ok(vec![ExportFile { stem: file_stem(&title), bytes: pdf(&pages, &title)? }]);
+                return Ok(vec![ExportFile { stem: file_stem(&title), bytes: pdf(&pages, doc)? }]);
             }
             let mut out = Vec::with_capacity(sheets.len());
             for s in sheets {
                 let d = sheet_drawing(doc, s.id, locale)?;
                 let stem = file_stem(&format!("{} {}", s.number, s.name));
-                out.push(ExportFile { stem, bytes: encode(&d, format, &s.name, Some(s.paper))? });
+                out.push(ExportFile { stem, bytes: encode(doc, &d, format, &s.name, Some(s.paper))? });
             }
             Ok(out)
         }
@@ -391,10 +448,34 @@ mod tests {
     }
 
     #[test]
-    fn missing_exporters_say_so() {
-        let doc = starter();
-        let err = export(&doc, &ExportTarget::Model, ExportFormat::Ifc, Locale::En).unwrap_err();
-        assert_eq!(err, ExportError::NotAvailable(ExportFormat::Ifc));
-        assert!(err.message(Locale::El).contains("ifc"));
+    fn every_format_writes_the_sample() {
+        let doc = crate::sample::sample_house().unwrap();
+        let plan = doc.views().find(|v| matches!(v.kind, ViewKind::Plan { .. })).unwrap().id;
+        let view = ExportTarget::View { id: plan };
+        let svg = export(&doc, &view, ExportFormat::Svg, Locale::El).unwrap();
+        assert!(String::from_utf8_lossy(&svg[0].bytes).contains("<svg"));
+        let png = export(&doc, &view, ExportFormat::Png, Locale::El).unwrap();
+        assert!(png[0].bytes.starts_with(b"\x89PNG"));
+        let dxf = export(&doc, &view, ExportFormat::Dxf, Locale::El).unwrap();
+        assert!(String::from_utf8_lossy(&dxf[0].bytes).contains("SECTION"));
+        let pdf = export(&doc, &ExportTarget::Sheets, ExportFormat::Pdf, Locale::El).unwrap();
+        assert_eq!(pdf.len(), 1);
+        assert!(pdf[0].bytes.starts_with(b"%PDF"));
+        let sheets = export(&doc, &ExportTarget::Sheets, ExportFormat::Svg, Locale::El).unwrap();
+        assert_eq!(sheets.len(), doc.sheets().len());
+        let ifc = export(&doc, &ExportTarget::Model, ExportFormat::Ifc, Locale::En).unwrap();
+        let text = String::from_utf8_lossy(&ifc[0].bytes);
+        assert!(text.starts_with("ISO-10303-21") && text.contains("IFCWALL") && text.contains("IFCROOF"));
+        let glb = export(&doc, &ExportTarget::Model, ExportFormat::Gltf, Locale::En).unwrap();
+        assert!(glb[0].bytes.starts_with(b"glTF"));
+    }
+
+    #[test]
+    fn roofs_stairs_and_objects_take_their_bodies_from_the_scene() {
+        let doc = crate::sample::sample_house().unwrap();
+        let roof = doc.elements_of(Category::Roof).next().unwrap().id;
+        assert!(scene_mesh(&doc, roof).is_some());
+        let wall = doc.elements_of(Category::Wall).next().unwrap().id;
+        assert!(scene_mesh(&doc, wall).is_none());
     }
 }
