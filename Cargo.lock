@@ -125,7 +125,9 @@ name = "kanavos-dxf"
 version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
+ "kanavos-geo",
  "kanavos-geom",
+ "kanavos-model",
 ]
 
 [[package]]
@@ -290,6 +292,7 @@ name = "kanavos-testkit"
 version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
+ "kanavos-dxf",
  "kanavos-model",
  "kanavos-pdf",
  "kanavos-raster",

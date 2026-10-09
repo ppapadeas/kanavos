@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use kanavos_drawing::fonts::Fonts;
 use kanavos_drawing::svg::{SvgOptions, to_svg_with_fonts};
+use kanavos_dxf::{Codepage, DxfExportOptions, ImportOptions, read_dxf, write_dxf};
 use kanavos_pdf::{PdfMeta, PdfPage, write_pdf_with_fonts};
 use kanavos_raster::{RasterOptions, RasterSize, render_png_with_fonts};
 use kanavos_testkit::samples::{glyph_sheet, hatch_swatches, sample_plan};
@@ -80,4 +81,38 @@ fn swatches_and_glyphs_png() {
     std::fs::write(dir.join("hatch_swatches.png"), &png).expect("write");
     let png = render_png_with_fonts(&glyph_sheet(), &opts, &Fonts::builtin()).expect("render");
     std::fs::write(dir.join("glyph_sheet.png"), &png).expect("write");
+}
+
+#[test]
+fn sample_plan_dxf_round_trip() {
+    let dir = out_dir();
+    let plan = sample_plan();
+    for (name, cp) in [("sample_plan.dxf", Codepage::Ansi1252), ("sample_plan_1253.dxf", Codepage::Ansi1253)]
+    {
+        let bytes = write_dxf(&plan, &DxfExportOptions { codepage: cp, ..DxfExportOptions::default() });
+        std::fs::write(dir.join(name), &bytes).expect("write dxf");
+        let back =
+            read_dxf(&bytes, &ImportOptions { scale: plan.scale, ..ImportOptions::default() }).expect("read");
+        assert!(back.warnings.is_empty(), "{:?}", back.warnings);
+        let titles: Vec<&str> = back
+            .drawing
+            .items
+            .iter()
+            .filter_map(|i| match &i.shape {
+                kanavos_drawing::Shape::Text(t) => Some(t.content.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(titles.contains(&"ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ 1:50"), "{titles:?}");
+        // The re-imported drawing renders like the original.
+        let png = render_png_with_fonts(
+            &back.drawing,
+            &RasterOptions { size: RasterSize::Dpi(150.0), ..RasterOptions::default() },
+            Fonts::system(),
+        )
+        .expect("render");
+        std::fs::write(dir.join(format!("{name}.png")), &png).expect("write png");
+    }
+    let swatches = write_dxf(&hatch_swatches(), &DxfExportOptions::default());
+    std::fs::write(dir.join("hatch_swatches.dxf"), &swatches).expect("write dxf");
 }
