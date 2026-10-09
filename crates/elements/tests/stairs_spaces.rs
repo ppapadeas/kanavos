@@ -119,7 +119,12 @@ fn railing_solids_and_checks() {
         }
         assert!(railing_checks(&f.doc, r).unwrap().is_empty());
         let p = plan_parts(&f.doc, r, Length::m(0.5)).unwrap();
-        assert_eq!(p.cut.len(), 1);
+        if infill == RailingInfill::Solid {
+            assert_eq!(p.cut.len(), 1);
+        } else {
+            assert!(p.cut.is_empty());
+            assert_eq!(p.below.len(), 2 * 2 + 2);
+        }
     }
     let low = f.railing(&[(0.0, 0.0), (3.0, 0.0)], 0.9, RailingInfill::Bars);
     assert_eq!(railing_checks(&f.doc, low).unwrap()[0].code, "railing.low");

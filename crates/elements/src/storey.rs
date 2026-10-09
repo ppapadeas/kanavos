@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use kanavos_geom::{PolygonWithHoles, union_all};
 use kanavos_model::{Document, ElementKind, Id};
 use kanavos_units::Length;
 
@@ -87,6 +88,26 @@ impl StoreyGeometry {
             return Err(self.errors.get(&id).cloned().unwrap_or(GeometryError::NotFound(id)));
         }
         crate::plan_parts(doc, id, cut)
+    }
+
+    /// The outer contour of the walls and columns cut at an absolute elevation, all unioned: drawn with the heavy
+    /// line, joined walls show no line between them (the layer boundaries inside stay thin).
+    pub fn cut_outline(&self, doc: &Document, cut: Length) -> Vec<PolygonWithHoles> {
+        let mut regions: Vec<PolygonWithHoles> = Vec::new();
+        for (id, info) in &self.infos {
+            if let Some(layout) = self.layouts.get(id) {
+                regions
+                    .extend(wall_plan_parts(doc, info, layout, cut.as_m()).cut.into_iter().map(|c| c.region));
+            }
+        }
+        for e in doc.elements_on(self.storey) {
+            if matches!(e.kind, ElementKind::Column(_))
+                && let Ok(p) = crate::plan_parts(doc, e.id, cut)
+            {
+                regions.extend(p.cut.into_iter().map(|c| c.region));
+            }
+        }
+        union_all(&regions).unwrap_or(regions)
     }
 
     /// 3D solids of an element of this storey, using the resolved walls.

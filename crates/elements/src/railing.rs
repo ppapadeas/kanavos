@@ -159,8 +159,8 @@ pub(crate) fn railing_solids(doc: &Document, e: &Element) -> Result<Vec<ElementS
     Ok(out)
 }
 
-/// How a railing appears in plan: cut (a thin band along its path) when the cut plane passes through it,
-/// otherwise its two edge lines below or above.
+/// How a railing appears in plan: its two edge lines (seen when it stands below the cut plane, dashed when it is
+/// entirely above); a solid panel crossed by the cut plane is a cut band instead.
 pub(crate) fn railing_plan_parts(doc: &Document, e: &Element, cut: f64) -> Result<PlanParts, GeometryError> {
     let r = railing_of(e)?;
     let base = base_elevation(doc, e)?.as_m();
@@ -171,7 +171,8 @@ pub(crate) fn railing_plan_parts(doc: &Document, e: &Element, cut: f64) -> Resul
         RailingInfill::Solid => PANEL_THICKNESS,
         _ => RAIL_WIDTH,
     } / 2.0;
-    if base < cut && cut < top {
+    // Railings are drawn as lines; only a solid panel cut by the plane is filled like a low wall.
+    if base < cut && cut < top && r.infill == RailingInfill::Solid {
         if let Ok(band) = stroke_polyline(&pts, half, JoinStyle::Miter { limit: 4.0 }, CapStyle::Butt) {
             parts.outline = band.clone();
             parts.cut.extend(band.into_iter().map(|region| CutArea { region, material: Some(r.material) }));
@@ -198,7 +199,7 @@ pub(crate) fn railing_plan_parts(doc: &Document, e: &Element, cut: f64) -> Resul
             lines.push(Segment2::new(*a, *b));
         }
     }
-    if top <= cut {
+    if base < cut {
         parts.below = lines;
     } else {
         parts.above = lines;

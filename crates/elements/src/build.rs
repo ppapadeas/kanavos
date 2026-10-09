@@ -73,6 +73,14 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
             }
             structure(&w.structure)?;
             positive(w.height, "height")?;
+            // An arc must be wider than the wall on its concave side.
+            if let (Some(arc), Some(t)) = (w.arc(), doc.structure_thickness(&w.structure)) {
+                let (left, right) = w.face_offsets(t);
+                let inner = if arc.sweep.as_rad() > 0.0 { left } else { -right };
+                if arc.radius.as_m() <= inner + 0.01 {
+                    return Err(invalid(id, "bulge", "bends the wall tighter than its thickness"));
+                }
+            }
         }
         ElementKind::Slab(s) => {
             if !s.outline.outer.is_valid(&tol) {

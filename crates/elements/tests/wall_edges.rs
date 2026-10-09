@@ -126,3 +126,45 @@ fn arc_wall_tee_onto_a_straight_wall() {
     let sum = la.outline.area().as_m2() + lc.outline.area().as_m2();
     assert!(close(sum, area(&u), 1e-4), "overlap {sum} vs {}", area(&u));
 }
+
+#[test]
+fn arc_wall_with_openings_is_a_closed_solid() {
+    let mut f = fx();
+    let a = f.arc_wall((0.0, 0.0), (6.0, 0.0), 0.6);
+    f.opening(a, kanavos_model::OpeningKind::Window, 2.0, 1.0, 0.9, 1.2);
+    f.opening(a, kanavos_model::OpeningKind::Door, 5.0, 0.9, 0.0, 2.1);
+    let s = kanavos_elements::solids(&f.doc, a).unwrap();
+    assert_eq!(s.len(), 4);
+    let mut v = 0.0;
+    for x in &s {
+        assert!(x.mesh.is_closed(1e-6), "{:?}: {} open", x.part, x.mesh.welded(1e-7).open_edge_count());
+        v += x.mesh.volume();
+    }
+    let l = wall_layout(&f.doc, a).unwrap();
+    let plan: f64 = l.layers.iter().map(|b| b.region.area().as_m2()).sum();
+    // Openings remove width (on the reference line) × height × thickness, within the arc's chord error.
+    let expected = plan * 3.0 - 0.31 * (1.0 * 1.2 + 0.9 * 2.1);
+    assert!(close(v, expected, 0.01), "{v} vs {expected}");
+}
+
+#[test]
+fn storey_cut_outline_joins_walls() {
+    let mut f = fx();
+    let pts = [(0.0, 0.0), (10.0, 0.0), (10.0, 8.0), (0.0, 8.0)];
+    for i in 0..4 {
+        f.ext_wall(pts[i], pts[(i + 1) % 4]);
+    }
+    f.int_wall((4.0, 0.0), (4.0, 8.0));
+    let geo = StoreyGeometry::compute(&f.doc, f.ground).unwrap();
+    let o = geo.cut_outline(&f.doc, Length::m(1.1));
+    assert_eq!(o.len(), 1);
+    assert_eq!(o[0].holes.len(), 2);
+}
+
+#[test]
+fn arc_tighter_than_the_wall_is_refused() {
+    let mut f = fx();
+    let a = f.arc_wall((0.0, 0.0), (0.2, 0.0), 1.0); // radius 0.1 m, wall 0.31 m thick
+    let e = f.doc.element(a).unwrap().clone();
+    assert!(kanavos_elements::validate(&f.doc, &e).is_err());
+}
