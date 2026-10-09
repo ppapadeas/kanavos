@@ -90,6 +90,8 @@ pub enum Icon {
     PointSnap,
     /// Edge snapping.
     EdgeSnap,
+    /// Inference lines (alignments, extensions).
+    Inference,
     /// Materials.
     Material,
     /// Build-ups.
@@ -360,6 +362,13 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
         Icon::EdgeSnap => {
             pen.line((3.5, 17.0), (20.5, 7.0));
             pen.path(&[(10.0, 9.5), (13.0, 15.0), (16.0, 9.5)], true);
+        }
+        Icon::Inference => {
+            pen.line((3.5, 18.0), (11.0, 18.0));
+            pen.dashed(&[(11.0, 18.0), (20.5, 18.0)]);
+            pen.dashed(&[(16.0, 4.0), (16.0, 18.0)]);
+            pen.dot((16.0, 18.0), 1.8);
+            pen.rect(13.5, 3.0, 18.5, 7.0);
         }
         Icon::Material => {
             pen.rect(4.0, 4.0, 20.0, 20.0);

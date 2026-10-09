@@ -5,9 +5,11 @@
 
 use egui::{Align, Layout, RichText, Ui};
 use kanavos_drawing::HatchPattern;
-use kanavos_model::{BuildUpUsage, Document, Id, Profile, ReferenceLine, Structure};
+use kanavos_model::{
+    BuildUpUsage, Document, Id, Parapet, Profile, ReferenceLine, StairShape, Structure, TextAlign,
+};
 use kanavos_objects::ObjectCategory;
-use kanavos_tools::{RoofKind, ToolId, ToolSettings};
+use kanavos_tools::{DimensionOrientation, OutlineMode, RoofKind, ToolId, ToolSettings, WallMode};
 use kanavos_units::{Angle, Length, Locale};
 
 use crate::actions::Action;
@@ -66,6 +68,7 @@ fn build_up_combo(
             widgets::format_number(thickness.as_cm(), 1, locale)
         ),
     };
+    let current = widgets::ellipsize(&current, widgets::chars_for(230.0));
     egui::ComboBox::from_id_salt(id).width(230.0).selected_text(current).truncate().show_ui(ui, |ui| {
         if ui.selectable_label(value.is_none(), tr(locale, "ui.ctx.use_default")).clicked() {
             *value = None;
@@ -109,6 +112,7 @@ fn material_combo(
         Some(m) => name(*m),
         None => format!("{} ({})", default.map(name).unwrap_or_default(), tr(locale, "ui.ctx.default")),
     };
+    let current = widgets::ellipsize(&current, widgets::chars_for(170.0));
     egui::ComboBox::from_id_salt(id).width(170.0).selected_text(current).truncate().show_ui(ui, |ui| {
         if ui.selectable_label(value.is_none(), tr(locale, "ui.ctx.use_default")).clicked() {
             *value = None;
@@ -176,6 +180,37 @@ fn length_param(ui: &mut Ui, id: &str, label: &str, value: &mut Length, locale: 
     }
 }
 
+/// A row of mutually exclusive choices.
+fn segmented<T: PartialEq + Copy>(ui: &mut Ui, value: &mut T, options: &[(T, String)]) {
+    ui.spacing_mut().item_spacing.x = 2.0;
+    for (v, label) in options {
+        if ui.selectable_label(*value == *v, label).clicked() {
+            *value = *v;
+        }
+    }
+    ui.spacing_mut().item_spacing.x = 6.0;
+}
+
+/// How an outline tool gets its outline: by corners, as a rectangle, or by clicking inside walls.
+fn outline_modes(ui: &mut Ui, mode: &mut OutlineMode, locale: Locale, pick_first: bool) {
+    let pick = (OutlineMode::PickInside, tr(locale, "ui.ctx.mode.pick"));
+    let polygon = (OutlineMode::Polygon, tr(locale, "ui.ctx.mode.polygon"));
+    let rectangle = (OutlineMode::Rectangle, tr(locale, "ui.ctx.mode.rectangle"));
+    let options = if pick_first { [pick, polygon, rectangle] } else { [polygon, rectangle, pick] };
+    param_label(ui, &tr(locale, "ui.ctx.outline"));
+    if let Some(m) = widgets::choice(ui, ("ctx-outline", pick_first), Some(&*mode), &options, 150.0) {
+        *mode = m;
+    }
+}
+
+/// An angle parameter in degrees.
+fn angle_param(ui: &mut Ui, id: &str, label: &str, value: &mut Angle, locale: Locale) {
+    param_label(ui, label);
+    if let Some(v) = widgets::number_field(ui, id, Some(value.as_deg()), 1, "°", locale) {
+        *value = Angle::deg(v);
+    }
+}
+
 impl ContextBar {
     /// Shows the bar.
     pub fn ui(&mut self, ui: &mut Ui, state: &mut AppState, actions: &mut Vec<Action>) {
@@ -190,294 +225,371 @@ impl ContextBar {
             icons::paint(ui.painter(), icon_rect, Icon::Tool(tool), t.accent);
             ui.label(RichText::new(names::tool(locale, tool)).family(crate::fonts::strong()).color(t.text));
             gap(ui);
-            let s: &mut ToolSettings = &mut state.tool_settings;
-            match tool {
-                ToolId::Wall => {
-                    param_label(ui, &tr(locale, "ui.insp.structure"));
-                    build_up_combo(
-                        ui,
-                        "ctx-wall",
-                        &doc,
-                        BuildUpUsage::Wall,
-                        doc.defaults().exterior_wall,
-                        &mut s.wall.structure,
-                        locale,
-                    );
-                    param_label(ui, &tr(locale, "ui.insp.height"));
-                    optional_length(ui, "ctx-wall-h", &mut s.wall.height, storey_height, locale);
-                    param_label(ui, &tr(locale, "ui.insp.reference"));
-                    for (r, icon) in [
-                        (ReferenceLine::Left, Icon::RefLeft),
-                        (ReferenceLine::Centre, Icon::RefCentre),
-                        (ReferenceLine::Right, Icon::RefRight),
-                    ] {
-                        if icons::button(ui, icon, s.wall.reference == r, 24.0, &names::reference(locale, r))
-                            .clicked()
-                        {
-                            s.wall.reference = r;
-                        }
-                    }
-                    length_param(
-                        ui,
-                        "ctx-wall-base",
-                        &tr(locale, "ui.insp.base_offset"),
-                        &mut s.wall.base_offset,
-                        locale,
-                    );
-                }
-                ToolId::Slab => {
-                    param_label(ui, &tr(locale, "ui.insp.structure"));
-                    build_up_combo(
-                        ui,
-                        "ctx-slab",
-                        &doc,
-                        BuildUpUsage::Slab,
-                        doc.defaults().floor_slab,
-                        &mut s.slab.structure,
-                        locale,
-                    );
-                    length_param(
-                        ui,
-                        "ctx-slab-top",
-                        &tr(locale, "ui.insp.top_offset"),
-                        &mut s.slab.top_offset,
-                        locale,
-                    );
-                }
-                ToolId::Column => {
-                    param_label(ui, &tr(locale, "ui.insp.profile"));
-                    profile_fields(ui, "ctx-col", &mut s.column.profile, locale);
-                    param_label(ui, &tr(locale, "ui.insp.material"));
-                    material_combo(
-                        ui,
-                        "ctx-col-mat",
-                        &doc,
-                        &mut s.column.material,
-                        doc.defaults().structural_material,
-                        locale,
-                    );
-                    param_label(ui, &tr(locale, "ui.insp.height"));
-                    optional_length(ui, "ctx-col-h", &mut s.column.height, storey_height, locale);
-                }
-                ToolId::Beam => {
-                    param_label(ui, &tr(locale, "ui.insp.profile"));
-                    profile_fields(ui, "ctx-beam", &mut s.beam.profile, locale);
-                    param_label(ui, &tr(locale, "ui.insp.material"));
-                    material_combo(
-                        ui,
-                        "ctx-beam-mat",
-                        &doc,
-                        &mut s.beam.material,
-                        doc.defaults().structural_material,
-                        locale,
-                    );
-                    param_label(ui, &tr(locale, "ui.insp.top_offset"));
-                    optional_length(ui, "ctx-beam-top", &mut s.beam.top_offset, storey_height, locale);
-                }
-                ToolId::Door | ToolId::Window => {
-                    let door = tool == ToolId::Door;
-                    let category = if door { ObjectCategory::Door } else { ObjectCategory::Window };
-                    let styles: Vec<(String, String)> = kanavos_objects::of_category(category)
-                        .map(|d| (d.id.to_owned(), names::object(locale, d)))
-                        .collect();
-                    param_label(ui, &tr(locale, "ui.insp.style"));
-                    let style = if door { &mut s.opening.door_style } else { &mut s.opening.window_style };
-                    if let Some(v) = widgets::choice(ui, ("ctx-style", door), Some(&*style), &styles, 170.0) {
-                        // Picking a style also takes its catalogue size, the usual starting point.
-                        if let Some(def) = kanavos_objects::find(&v) {
-                            let size = (Length::m(def.width), Length::m(def.height));
-                            if door {
-                                s.opening.door_size = size;
-                            } else {
-                                s.opening.window_size = size;
-                                s.opening.window_sill = Length::m(def.sill);
-                            }
-                        }
-                        *style = v;
-                    }
-                    let size = if door { &mut s.opening.door_size } else { &mut s.opening.window_size };
-                    length_param(
-                        ui,
-                        if door { "ctx-door-w" } else { "ctx-win-w" },
-                        &tr(locale, "ui.insp.width"),
-                        &mut size.0,
-                        locale,
-                    );
-                    length_param(
-                        ui,
-                        if door { "ctx-door-h" } else { "ctx-win-h" },
-                        &tr(locale, "ui.insp.height"),
-                        &mut size.1,
-                        locale,
-                    );
-                    if !door {
-                        length_param(
-                            ui,
-                            "ctx-win-sill",
-                            &tr(locale, "ui.insp.sill"),
-                            &mut s.opening.window_sill,
-                            locale,
-                        );
-                    }
-                }
-                ToolId::Stair => {
-                    let shapes: Vec<_> =
-                        names::STAIR_SHAPES.into_iter().map(|x| (x, names::stair_shape(locale, x))).collect();
-                    param_label(ui, &tr(locale, "ui.insp.shape"));
-                    if let Some(v) =
-                        widgets::choice(ui, "ctx-stair-shape", Some(&s.stair.shape), &shapes, 160.0)
-                    {
-                        s.stair.shape = v;
-                    }
-                    length_param(ui, "ctx-stair-w", &tr(locale, "ui.insp.width"), &mut s.stair.width, locale);
-                    length_param(ui, "ctx-stair-g", &tr(locale, "ui.insp.going"), &mut s.stair.going, locale);
-                    length_param(
-                        ui,
-                        "ctx-stair-r",
-                        &tr(locale, "ui.ctx.max_riser"),
-                        &mut s.stair.max_riser,
-                        locale,
-                    );
-                }
-                ToolId::Roof => {
-                    param_label(ui, &tr(locale, "ui.insp.kind"));
-                    for k in names::ROOF_KINDS {
-                        if ui.selectable_label(s.roof.kind == k, names::roof_kind(locale, k)).clicked() {
-                            s.roof.kind = k;
-                        }
-                    }
-                    if s.roof.kind != RoofKind::Flat {
-                        param_label(ui, &tr(locale, "ui.insp.pitch"));
-                        if let Some(v) = widgets::number_field(
-                            ui,
-                            "ctx-roof-pitch",
-                            Some(s.roof.pitch.as_deg()),
-                            1,
-                            "°",
-                            locale,
-                        ) {
-                            s.roof.pitch = Angle::deg(v.clamp(1.0, 85.0));
-                        }
-                    }
-                    length_param(
-                        ui,
-                        "ctx-roof-over",
-                        &tr(locale, "ui.ctx.overhang"),
-                        &mut s.roof.overhang,
-                        locale,
-                    );
-                    let default = if s.roof.kind == RoofKind::Flat {
-                        doc.defaults().flat_roof
-                    } else {
-                        doc.defaults().pitched_roof
-                    };
-                    build_up_combo(
-                        ui,
-                        "ctx-roof",
-                        &doc,
-                        BuildUpUsage::Roof,
-                        default,
-                        &mut s.roof.structure,
-                        locale,
-                    );
-                }
-                ToolId::Railing => {
-                    length_param(
-                        ui,
-                        "ctx-rail-h",
-                        &tr(locale, "ui.insp.height"),
-                        &mut s.railing.height,
-                        locale,
-                    );
-                    let infills: Vec<_> =
-                        names::INFILLS.into_iter().map(|i| (i, names::infill(locale, i))).collect();
-                    param_label(ui, &tr(locale, "ui.insp.infill"));
-                    if let Some(v) =
-                        widgets::choice(ui, "ctx-rail-infill", Some(&s.railing.infill), &infills, 120.0)
-                    {
-                        s.railing.infill = v;
-                    }
-                }
-                ToolId::Space => {
-                    param_label(ui, &tr(locale, "ui.insp.name"));
-                    ui.add(egui::TextEdit::singleline(&mut s.space.name).desired_width(150.0));
-                    let cats: Vec<_> = names::SPACE_CATEGORIES
-                        .into_iter()
-                        .map(|c| (c, names::space_category(locale, c)))
-                        .collect();
-                    param_label(ui, &tr(locale, "ui.insp.category"));
-                    if let Some(v) =
-                        widgets::choice(ui, "ctx-space-cat", Some(&s.space.category), &cats, 190.0)
-                    {
-                        s.space.category = v;
-                    }
-                }
-                ToolId::Object => {
-                    self.object_picker(ui, &mut s.object, locale);
-                }
-                ToolId::Text => {
-                    param_label(ui, &tr(locale, "ui.insp.text_size"));
-                    if let Some(v) =
-                        widgets::number_field(ui, "ctx-text-size", Some(s.text.size_mm), 1, "mm", locale)
-                    {
-                        s.text.size_mm = v.clamp(0.5, 50.0);
-                    }
-                }
-                ToolId::Line | ToolId::Polyline | ToolId::Arc | ToolId::Circle | ToolId::Fill => {
-                    let weights: Vec<(u32, String)> = names::LINE_WEIGHTS
-                        .iter()
-                        .map(|w| {
-                            (
-                                (w * 100.0).round() as u32,
-                                format!("{} mm", widgets::format_number(*w, 2, locale)),
-                            )
-                        })
-                        .collect();
-                    param_label(ui, &tr(locale, "ui.insp.line_weight"));
-                    let current = (s.draft.weight_mm * 100.0).round() as u32;
-                    if let Some(v) = widgets::choice(ui, "ctx-draft-w", Some(&current), &weights, 90.0) {
-                        s.draft.weight_mm = f64::from(v) / 100.0;
-                    }
-                    let patterns: Vec<_> = names::line_patterns()
-                        .into_iter()
-                        .map(|p| {
-                            let l = names::line_pattern(locale, &p);
-                            (p, l)
-                        })
-                        .collect();
-                    param_label(ui, &tr(locale, "ui.insp.line_pattern"));
-                    if let Some(v) =
-                        widgets::choice(ui, "ctx-draft-p", Some(&s.draft.pattern), &patterns, 130.0)
-                    {
-                        s.draft.pattern = v;
-                    }
-                    if let Some(c) = widgets::color_field(ui, s.draft.color) {
-                        s.draft.color = c;
-                    }
-                    if tool == ToolId::Fill {
-                        let hatches: Vec<(HatchPattern, String)> =
-                            names::HATCHES.into_iter().map(|h| (h, names::hatch(locale, h))).collect();
-                        param_label(ui, &tr(locale, "ui.insp.hatch"));
-                        if let Some(v) =
-                            widgets::choice(ui, "ctx-draft-h", Some(&s.draft.hatch), &hatches, 130.0)
-                        {
-                            s.draft.hatch = v;
-                        }
-                    }
-                }
-                _ => {
-                    ui.label(RichText::new(names::tool_hint(locale, tool)).color(t.text_muted));
-                }
-            }
+            // Parameters scroll sideways when they do not fit; search stays at the right edge.
+            let width = (ui.available_width() - 250.0).max(120.0);
+            egui::ScrollArea::horizontal()
+                .id_salt("context-params")
+                .max_width(width)
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                .show(ui, |ui| {
+                    ui.horizontal_centered(|ui| {
+                        ui.spacing_mut().item_spacing.x = 6.0;
+                        self.params(ui, &mut state.tool_settings, tool, &doc, storey_height, locale);
+                    });
+                });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 search_button(ui, locale, actions);
             });
         });
     }
 
+    fn params(
+        &mut self,
+        ui: &mut Ui,
+        s: &mut ToolSettings,
+        tool: ToolId,
+        doc: &Document,
+        storey_height: Length,
+        locale: Locale,
+    ) {
+        let t = Tokens::of(ui);
+        match tool {
+            ToolId::Wall => {
+                let modes = [
+                    (WallMode::Chain, tr(locale, "ui.ctx.mode.chain")),
+                    (WallMode::Rectangle, tr(locale, "ui.ctx.mode.rectangle")),
+                    (WallMode::Arc, tr(locale, "ui.ctx.mode.arc")),
+                ];
+                segmented(ui, &mut s.wall.mode, &modes);
+                gap(ui);
+                param_label(ui, &tr(locale, "ui.insp.structure"));
+                let default = doc.defaults().exterior_wall;
+                build_up_combo(
+                    ui,
+                    "ctx-wall",
+                    doc,
+                    BuildUpUsage::Wall,
+                    default,
+                    &mut s.wall.structure,
+                    locale,
+                );
+                param_label(ui, &tr(locale, "ui.insp.height"));
+                optional_length(ui, "ctx-wall-h", &mut s.wall.height, storey_height, locale);
+                param_label(ui, &tr(locale, "ui.insp.reference"));
+                for (r, icon) in [
+                    (ReferenceLine::Left, Icon::RefLeft),
+                    (ReferenceLine::Centre, Icon::RefCentre),
+                    (ReferenceLine::Right, Icon::RefRight),
+                ] {
+                    if icons::button(ui, icon, s.wall.reference == r, 24.0, &names::reference(locale, r))
+                        .clicked()
+                    {
+                        s.wall.reference = r;
+                    }
+                }
+                let label = tr(locale, "ui.insp.base_offset");
+                length_param(ui, "ctx-wall-base", &label, &mut s.wall.base_offset, locale);
+            }
+            ToolId::Slab => {
+                outline_modes(ui, &mut s.slab.mode, locale, false);
+                gap(ui);
+                param_label(ui, &tr(locale, "ui.insp.structure"));
+                let default = doc.defaults().floor_slab;
+                build_up_combo(
+                    ui,
+                    "ctx-slab",
+                    doc,
+                    BuildUpUsage::Slab,
+                    default,
+                    &mut s.slab.structure,
+                    locale,
+                );
+                let label = tr(locale, "ui.insp.top_offset");
+                length_param(ui, "ctx-slab-top", &label, &mut s.slab.top_offset, locale);
+            }
+            ToolId::Column => {
+                param_label(ui, &tr(locale, "ui.insp.profile"));
+                profile_fields(ui, "ctx-col", &mut s.column.profile, locale);
+                param_label(ui, &tr(locale, "ui.insp.material"));
+                let default = doc.defaults().structural_material;
+                material_combo(ui, "ctx-col-mat", doc, &mut s.column.material, default, locale);
+                param_label(ui, &tr(locale, "ui.insp.height"));
+                optional_length(ui, "ctx-col-h", &mut s.column.height, storey_height, locale);
+                angle_param(
+                    ui,
+                    "ctx-col-rot",
+                    &tr(locale, "ui.insp.rotation"),
+                    &mut s.column.rotation,
+                    locale,
+                );
+                ui.checkbox(&mut s.column.pick_rotation, tr(locale, "ui.ctx.pick_rotation"))
+                    .on_hover_text(tr(locale, "ui.ctx.pick_rotation_hint"));
+            }
+            ToolId::Beam => {
+                param_label(ui, &tr(locale, "ui.insp.profile"));
+                profile_fields(ui, "ctx-beam", &mut s.beam.profile, locale);
+                param_label(ui, &tr(locale, "ui.insp.material"));
+                let default = doc.defaults().structural_material;
+                material_combo(ui, "ctx-beam-mat", doc, &mut s.beam.material, default, locale);
+                param_label(ui, &tr(locale, "ui.insp.top_offset"));
+                optional_length(ui, "ctx-beam-top", &mut s.beam.top_offset, storey_height, locale);
+            }
+            ToolId::Door | ToolId::Window => {
+                let door = tool == ToolId::Door;
+                let category = if door { ObjectCategory::Door } else { ObjectCategory::Window };
+                let styles: Vec<(String, String)> = kanavos_objects::of_category(category)
+                    .map(|d| (d.id.to_owned(), names::object(locale, d)))
+                    .collect();
+                param_label(ui, &tr(locale, "ui.insp.style"));
+                let style = if door { &mut s.opening.door_style } else { &mut s.opening.window_style };
+                if let Some(v) = widgets::choice(ui, ("ctx-style", door), Some(&*style), &styles, 200.0) {
+                    // Picking a style also takes its catalogue size, the usual starting point.
+                    if let Some(def) = kanavos_objects::find(&v) {
+                        let size = (Length::m(def.width), Length::m(def.height));
+                        if door {
+                            s.opening.door_size = size;
+                        } else {
+                            s.opening.window_size = size;
+                            s.opening.window_sill = Length::m(def.sill);
+                        }
+                    }
+                    *style = v;
+                }
+                let size = if door { &mut s.opening.door_size } else { &mut s.opening.window_size };
+                let (w_id, h_id) =
+                    if door { ("ctx-door-w", "ctx-door-h") } else { ("ctx-win-w", "ctx-win-h") };
+                length_param(ui, w_id, &tr(locale, "ui.insp.width"), &mut size.0, locale);
+                length_param(ui, h_id, &tr(locale, "ui.insp.height"), &mut size.1, locale);
+                if !door {
+                    let label = tr(locale, "ui.insp.sill");
+                    length_param(ui, "ctx-win-sill", &label, &mut s.opening.window_sill, locale);
+                }
+                let label = tr(locale, "ui.ctx.step");
+                length_param(ui, "ctx-open-step", &label, &mut s.opening.step, locale);
+            }
+            ToolId::Void => {
+                let label = tr(locale, "ui.insp.width");
+                length_param(ui, "ctx-void-w", &label, &mut s.opening.void_size.0, locale);
+                let label = tr(locale, "ui.insp.height");
+                length_param(ui, "ctx-void-h", &label, &mut s.opening.void_size.1, locale);
+                let label = tr(locale, "ui.ctx.step");
+                length_param(ui, "ctx-void-step", &label, &mut s.opening.step, locale);
+            }
+            ToolId::Stair => {
+                let shapes: Vec<_> =
+                    names::STAIR_SHAPES.into_iter().map(|x| (x, names::stair_shape(locale, x))).collect();
+                param_label(ui, &tr(locale, "ui.insp.shape"));
+                if let Some(v) = widgets::choice(ui, "ctx-stair-shape", Some(&s.stair.shape), &shapes, 170.0)
+                {
+                    s.stair.shape = v;
+                }
+                length_param(ui, "ctx-stair-w", &tr(locale, "ui.insp.width"), &mut s.stair.width, locale);
+                length_param(ui, "ctx-stair-g", &tr(locale, "ui.insp.going"), &mut s.stair.going, locale);
+                length_param(
+                    ui,
+                    "ctx-stair-r",
+                    &tr(locale, "ui.ctx.max_riser"),
+                    &mut s.stair.max_riser,
+                    locale,
+                );
+                length_param(ui, "ctx-stair-t", &tr(locale, "ui.insp.waist"), &mut s.stair.thickness, locale);
+                if matches!(s.stair.shape, StairShape::HalfTurnLeft | StairShape::HalfTurnRight) {
+                    length_param(ui, "ctx-stair-gap", &tr(locale, "ui.insp.gap"), &mut s.stair.gap, locale);
+                }
+            }
+            ToolId::Roof => {
+                outline_modes(ui, &mut s.roof.mode, locale, false);
+                gap(ui);
+                let kinds: Vec<_> =
+                    names::ROOF_KINDS.into_iter().map(|k| (k, names::roof_kind(locale, k))).collect();
+                param_label(ui, &tr(locale, "ui.insp.kind"));
+                if let Some(k) = widgets::choice(ui, "ctx-roof-kind", Some(&s.roof.kind), &kinds, 110.0) {
+                    s.roof.kind = k;
+                }
+                if s.roof.kind == RoofKind::Flat {
+                    let mut on = s.roof.parapet.is_some();
+                    if ui.checkbox(&mut on, tr(locale, "ui.insp.parapet")).changed() {
+                        s.roof.parapet =
+                            on.then_some(Parapet { height: Length::m(0.6), thickness: Length::cm(15.0) });
+                    }
+                    if let Some(p) = &mut s.roof.parapet {
+                        length_param(
+                            ui,
+                            "ctx-parapet-h",
+                            &tr(locale, "ui.insp.height"),
+                            &mut p.height,
+                            locale,
+                        );
+                    }
+                } else {
+                    param_label(ui, &tr(locale, "ui.insp.pitch"));
+                    let pitch = Some(s.roof.pitch.as_deg());
+                    if let Some(v) = widgets::number_field(ui, "ctx-roof-pitch", pitch, 1, "°", locale) {
+                        s.roof.pitch = Angle::deg(v.clamp(1.0, 85.0));
+                    }
+                }
+                length_param(
+                    ui,
+                    "ctx-roof-over",
+                    &tr(locale, "ui.ctx.overhang"),
+                    &mut s.roof.overhang,
+                    locale,
+                );
+                param_label(ui, &tr(locale, "ui.insp.base"));
+                optional_length(ui, "ctx-roof-base", &mut s.roof.base, storey_height, locale);
+                let default = if s.roof.kind == RoofKind::Flat {
+                    doc.defaults().flat_roof
+                } else {
+                    doc.defaults().pitched_roof
+                };
+                build_up_combo(
+                    ui,
+                    "ctx-roof",
+                    doc,
+                    BuildUpUsage::Roof,
+                    default,
+                    &mut s.roof.structure,
+                    locale,
+                );
+            }
+            ToolId::Railing => {
+                length_param(ui, "ctx-rail-h", &tr(locale, "ui.insp.height"), &mut s.railing.height, locale);
+                let infills: Vec<_> =
+                    names::INFILLS.into_iter().map(|i| (i, names::infill(locale, i))).collect();
+                param_label(ui, &tr(locale, "ui.insp.infill"));
+                if let Some(v) =
+                    widgets::choice(ui, "ctx-rail-infill", Some(&s.railing.infill), &infills, 120.0)
+                {
+                    s.railing.infill = v;
+                }
+                let label = tr(locale, "ui.insp.post_spacing");
+                length_param(ui, "ctx-rail-posts", &label, &mut s.railing.post_spacing, locale);
+            }
+            ToolId::Space => {
+                outline_modes(ui, &mut s.space.mode, locale, true);
+                gap(ui);
+                param_label(ui, &tr(locale, "ui.insp.name"));
+                ui.add(egui::TextEdit::singleline(&mut s.space.name).desired_width(140.0));
+                let cats: Vec<_> = names::SPACE_CATEGORIES
+                    .into_iter()
+                    .map(|c| (c, names::space_category(locale, c)))
+                    .collect();
+                param_label(ui, &tr(locale, "ui.insp.category"));
+                if let Some(v) = widgets::choice(ui, "ctx-space-cat", Some(&s.space.category), &cats, 180.0) {
+                    s.space.category = v;
+                }
+                ui.checkbox(&mut s.space.auto_number, tr(locale, "ui.ctx.auto_number"))
+                    .on_hover_text(tr(locale, "ui.ctx.auto_number_hint"));
+            }
+            ToolId::Object => {
+                self.object_picker(ui, &mut s.object, locale);
+                let p = &mut s.object_placement;
+                angle_param(ui, "ctx-obj-rot", &tr(locale, "ui.insp.rotation"), &mut p.rotation, locale);
+                ui.checkbox(&mut p.pick_rotation, tr(locale, "ui.ctx.pick_rotation"))
+                    .on_hover_text(tr(locale, "ui.ctx.pick_rotation_hint"));
+                ui.checkbox(&mut p.mirrored, tr(locale, "ui.insp.mirrored"));
+            }
+            ToolId::Text => {
+                param_label(ui, &tr(locale, "ui.insp.text_size"));
+                if let Some(v) =
+                    widgets::number_field(ui, "ctx-text-size", Some(s.text.size_mm), 1, "mm", locale)
+                {
+                    s.text.size_mm = v.clamp(0.5, 50.0);
+                }
+                let aligns = [
+                    (TextAlign::Left, tr(locale, "ui.align.left")),
+                    (TextAlign::Centre, tr(locale, "ui.align.centre")),
+                    (TextAlign::Right, tr(locale, "ui.align.right")),
+                ];
+                segmented(ui, &mut s.text.align, &aligns);
+                ui.checkbox(&mut s.text.bold, tr(locale, "ui.insp.bold"));
+            }
+            ToolId::Level => {
+                param_label(ui, &tr(locale, "ui.insp.label"));
+                ui.add(egui::TextEdit::singleline(&mut s.level.label).desired_width(140.0));
+            }
+            ToolId::Grid => {
+                param_label(ui, &tr(locale, "ui.insp.label"));
+                let mut text = s.grid.label.clone().unwrap_or_default();
+                let r = ui.add(
+                    egui::TextEdit::singleline(&mut text)
+                        .desired_width(70.0)
+                        .hint_text(tr(locale, "ui.ctx.grid_next")),
+                );
+                if r.changed() {
+                    s.grid.label = if text.trim().is_empty() { None } else { Some(text) };
+                }
+            }
+            ToolId::Section | ToolId::Elevation => {
+                let label = tr(locale, "ui.ctx.depth");
+                length_param(ui, "ctx-section-depth", &label, &mut s.section.depth, locale);
+                param_label(ui, &tr(locale, "ui.ctx.scale"));
+                let scales: Vec<(u32, String)> =
+                    [20, 50, 100, 200, 500].into_iter().map(|n| (n, format!("1:{n}"))).collect();
+                if let Some(v) =
+                    widgets::choice(ui, "ctx-section-scale", Some(&s.section.scale), &scales, 80.0)
+                {
+                    s.section.scale = v;
+                }
+            }
+            ToolId::Dimension => {
+                let orientations = [
+                    (DimensionOrientation::Aligned, tr(locale, "ui.ctx.dim.aligned")),
+                    (DimensionOrientation::Horizontal, tr(locale, "ui.ctx.dim.horizontal")),
+                    (DimensionOrientation::Vertical, tr(locale, "ui.ctx.dim.vertical")),
+                ];
+                segmented(ui, &mut s.dimension.orientation, &orientations);
+            }
+            ToolId::Line | ToolId::Polyline | ToolId::Arc | ToolId::Circle | ToolId::Fill => {
+                if tool == ToolId::Fill {
+                    outline_modes(ui, &mut s.fill_mode, locale, true);
+                    gap(ui);
+                }
+                let weights: Vec<(u32, String)> = names::LINE_WEIGHTS
+                    .iter()
+                    .map(|w| {
+                        ((w * 100.0).round() as u32, format!("{} mm", widgets::format_number(*w, 2, locale)))
+                    })
+                    .collect();
+                param_label(ui, &tr(locale, "ui.insp.line_weight"));
+                let current = (s.draft.weight_mm * 100.0).round() as u32;
+                if let Some(v) = widgets::choice(ui, "ctx-draft-w", Some(&current), &weights, 90.0) {
+                    s.draft.weight_mm = f64::from(v) / 100.0;
+                }
+                let patterns: Vec<_> = names::line_patterns()
+                    .into_iter()
+                    .map(|p| {
+                        let l = names::line_pattern(locale, &p);
+                        (p, l)
+                    })
+                    .collect();
+                param_label(ui, &tr(locale, "ui.insp.line_pattern"));
+                if let Some(v) = widgets::choice(ui, "ctx-draft-p", Some(&s.draft.pattern), &patterns, 130.0)
+                {
+                    s.draft.pattern = v;
+                }
+                if let Some(c) = widgets::color_field(ui, s.draft.color) {
+                    s.draft.color = c;
+                }
+                if tool == ToolId::Fill {
+                    let hatches: Vec<(HatchPattern, String)> =
+                        names::HATCHES.into_iter().map(|h| (h, names::hatch(locale, h))).collect();
+                    param_label(ui, &tr(locale, "ui.insp.hatch"));
+                    if let Some(v) = widgets::choice(ui, "ctx-draft-h", Some(&s.draft.hatch), &hatches, 130.0)
+                    {
+                        s.draft.hatch = v;
+                    }
+                }
+            }
+            ToolId::Select | ToolId::Measure | ToolId::Plot => {
+                ui.label(RichText::new(names::tool_hint(locale, tool)).color(t.text_muted));
+            }
+        }
+    }
+
     fn object_picker(&mut self, ui: &mut Ui, object: &mut String, locale: Locale) {
         param_label(ui, &tr(locale, "ui.insp.definition"));
-        let current = names::object_by_id(locale, object);
+        let current = widgets::ellipsize(&names::object_by_id(locale, object), widgets::chars_for(220.0));
         let t = Tokens::of(ui);
         egui::ComboBox::from_id_salt("ctx-object").width(220.0).height(420.0).selected_text(current).show_ui(
             ui,

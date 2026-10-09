@@ -55,11 +55,28 @@ ui.confirm.delete_view	Διαγραφή όψης σχεδίου	Delete view
 ui.confirm.undo_hint	Μπορείτε να το αναιρέσετε με Ctrl+Z.	You can undo this with Ctrl+Z.
 ui.ctx.all	Όλα	All
 ui.ctx.auto	αυτόματο	automatic
+ui.ctx.auto_number	Αυτόματη αρίθμηση	Number automatically
+ui.ctx.auto_number_hint	Οι νέοι χώροι αριθμούνται επίπεδο.αα (π.χ. 0.03), συνεχίζοντας από τον μεγαλύτερο αριθμό	New spaces are numbered storey.nn (e.g. 0.03), continuing from the highest number
 ui.ctx.default	προεπιλογή	default
+ui.ctx.depth	Βάθος	Depth
+ui.ctx.dim.aligned	Παράλληλη	Aligned
+ui.ctx.dim.horizontal	Οριζόντια	Horizontal
+ui.ctx.dim.vertical	Κατακόρυφη	Vertical
+ui.ctx.grid_next	επόμενο	next
 ui.ctx.max_riser	Μέγ. ρίχτι	Max. riser
+ui.ctx.mode.arc	Τόξο	Arc
+ui.ctx.mode.chain	Αλυσίδα	Chain
+ui.ctx.mode.pick	Κλικ μέσα σε τοίχους	Click inside walls
+ui.ctx.mode.polygon	Κορυφές	Corners
+ui.ctx.mode.rectangle	Ορθογώνιο	Rectangle
 ui.ctx.object_search	Αναζήτηση αντικειμένου…	Search objects…
+ui.ctx.outline	Περίγραμμα	Outline
 ui.ctx.overhang	Προεξοχή	Overhang
+ui.ctx.pick_rotation	Περιστροφή με δεύτερο κλικ	Rotate with a second click
+ui.ctx.pick_rotation_hint	Το πρώτο κλικ τοποθετεί, το δεύτερο ορίζει τη γωνία	The first click places, the second sets the angle
 ui.ctx.reset_auto	Επαναφορά στο αυτόματο	Back to automatic
+ui.ctx.scale	Κλίμακα	Scale
+ui.ctx.step	Βήμα θέσης	Position step
 ui.ctx.use_default	Προεπιλογή έργου	Project default
 ui.defaults.exterior_wall	Εξωτερικοί τοίχοι	Exterior walls
 ui.defaults.flat_roof	Δώματα	Flat roofs
@@ -355,40 +372,6 @@ ui.notice.recovered	Η εργασία ανακτήθηκε. Αποθηκεύστ
 ui.notice.save_failed	Η αποθήκευση απέτυχε: {why}	Saving failed: {why}
 ui.notice.saved	Αποθηκεύτηκε: {name}	Saved: {name}
 ui.notice.view_missing	Η όψη σχεδίου δεν υπάρχει πια.	The view no longer exists.
-ui.obj.door.double_swing	Δίφυλλη ανοιγόμενη	Double swing door
-ui.obj.door.single_swing	Μονόφυλλη ανοιγόμενη	Single swing door
-ui.obj.door.sliding	Συρόμενη πόρτα	Sliding door
-ui.obj.furniture.bed_double	Διπλό κρεβάτι	Double bed
-ui.obj.furniture.bed_single	Μονό κρεβάτι	Single bed
-ui.obj.furniture.chair	Καρέκλα	Chair
-ui.obj.furniture.sofa	Καναπές	Sofa
-ui.obj.furniture.table	Τραπέζι	Table
-ui.obj.furniture.wardrobe	Ντουλάπα	Wardrobe
-ui.obj.kitchen.counter	Πάγκος κουζίνας	Kitchen counter
-ui.obj.kitchen.fridge	Ψυγείο	Fridge
-ui.obj.kitchen.hob	Εστίες	Hob
-ui.obj.kitchen.sink	Νεροχύτης	Kitchen sink
-ui.obj.sanitary.basin	Νιπτήρας	Washbasin
-ui.obj.sanitary.bath	Μπανιέρα	Bath
-ui.obj.sanitary.shower	Ντουζιέρα	Shower tray
-ui.obj.sanitary.wc	Λεκάνη WC	WC
-ui.obj.vegetation.tree	Δέντρο	Tree
-ui.obj.vehicle.car	Αυτοκίνητο	Car
-ui.obj.void.rectangular	Ορθογωνικό άνοιγμα	Rectangular opening
-ui.obj.window.casement_1	Μονόφυλλο ανοιγόμενο	Single casement window
-ui.obj.window.casement_2	Δίφυλλο ανοιγόμενο	Double casement window
-ui.obj.window.fixed	Σταθερό υαλοστάσιο	Fixed window
-ui.obj.window.sliding	Συρόμενο παράθυρο	Sliding window
-ui.objcat.door	Πόρτες	Doors
-ui.objcat.equipment	Εξοπλισμός	Equipment
-ui.objcat.furniture	Έπιπλα	Furniture
-ui.objcat.kitchen	Κουζίνα	Kitchen
-ui.objcat.sanitary	Είδη υγιεινής	Sanitary
-ui.objcat.vegetation	Φύτευση	Planting
-ui.objcat.vehicle	Οχήματα	Vehicles
-ui.objcat.void	Ανοίγματα	Openings
-ui.objcat.window	Παράθυρα	Windows
-ui.objparam.frame	Πλάτος κάσας	Frame width
 ui.opening.door	Πόρτα	Door
 ui.opening.void	Άνοιγμα	Opening
 ui.opening.window	Παράθυρο	Window
@@ -497,6 +480,7 @@ ui.status.ready	Έτοιμο	Ready
 ui.status.snap	Έλξη (Alt την απενεργοποιεί προσωρινά)	Snapping (hold Alt to turn it off)
 ui.status.snap_edges	Έλξη σε ακμές και παρειές	Snap to edges and faces
 ui.status.snap_grid	Έλξη σε κάναβο 5 cm	Snap to a 5 cm grid
+ui.status.snap_inference	Γραμμές συσχέτισης (ευθυγραμμίσεις, προεκτάσεις)	Inference lines (alignments, extensions)
 ui.status.snap_points	Έλξη σε άκρα, μέσα και γωνίες	Snap to ends, midpoints and corners
 ui.status.unsaved	Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί	There are unsaved changes
 ui.status.updating	Ενημέρωση…	Updating…
@@ -596,6 +580,7 @@ ui.tree.storeys	Επίπεδα	Storeys
 ui.tree.three_d	Τρισδιάστατες	3D
 ui.tree.title	ΕΡΓΟ	PROJECT
 ui.tree.untitled	Έργο χωρίς τίτλο	Untitled project
+ui.tree.view_add	Νέα τομή ή όψη	New section or elevation
 ui.tree.views	Όψεις σχεδίου	Views
 ui.usage.any	Γενική χρήση	Any
 ui.usage.roof	Στέγες	Roofs

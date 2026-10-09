@@ -125,6 +125,10 @@ pub fn bar(ui: &mut Ui, state: &mut AppState, info: &StatusInfo) {
                 grid_on = !grid_on;
                 snap.grid = if grid_on { Some(Length::cm(5.0)) } else { None };
             }
+            let label = tr(locale, "ui.status.snap_inference");
+            if icons::button(ui, Icon::Inference, snap.inference && snap.enabled, size, &label).clicked() {
+                snap.inference = !snap.inference;
+            }
             if icons::button(
                 ui,
                 Icon::EdgeSnap,

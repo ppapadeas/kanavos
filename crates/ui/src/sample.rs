@@ -236,12 +236,15 @@ fn build(locale: Locale) -> (Document, usize) {
     b.space(ground, (o, 3.0 + i, 5.0 - i, 6.0 - i), "Χώλ – κλιμακοστάσιο", "0.03", SpaceCategory::Stairwell);
     b.space(ground, (o, 6.0 + i, 5.0 - i, 9.0 - o), "Γραφείο", "0.04", SpaceCategory::MainUse);
     b.object(ground, "furniture.sofa", (7.4, 1.4), 0.0);
+    b.object(ground, "furniture.coffee_table", (7.4, 2.8), 0.0);
+    b.object(ground, "furniture.armchair", (9.6, 2.2), 90.0);
     b.object(ground, "furniture.table", (8.6, 6.0), 0.0);
     b.object(ground, "kitchen.counter", (10.5, 8.5), 180.0);
     b.object(ground, "kitchen.fridge", (11.4, 7.0), 90.0);
     b.object(ground, "sanitary.wc", (0.6, 0.6), 0.0);
     b.object(ground, "sanitary.basin", (1.6, 2.6), 180.0);
-    b.object(ground, "furniture.table", (2.5, 7.7), 0.0);
+    b.object(ground, "furniture.desk", (2.5, 8.4), 180.0);
+    b.object(ground, "furniture.office_chair", (2.5, 7.6), 0.0);
     b.run(CreateElement::on(
         ground,
         ElementKind::Dimension(Dimension {

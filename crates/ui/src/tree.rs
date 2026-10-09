@@ -306,23 +306,17 @@ impl ProjectTree {
         let mut new_section = false;
         let mut new_elevation = false;
         let header = group(ui, "views", Icon::Views, &tr(locale, "ui.tree.views"), |ui| {
-            use kanavos_tools::ToolId;
-            new_elevation = icons::button(
-                ui,
-                Icon::Tool(ToolId::Elevation),
-                false,
-                22.0,
-                &tr(locale, "ui.menu.new_elevation"),
-            )
-            .clicked();
-            new_section = icons::button(
-                ui,
-                Icon::Tool(ToolId::Section),
-                false,
-                22.0,
-                &tr(locale, "ui.menu.new_section"),
-            )
-            .clicked();
+            let add = icons::button(ui, Icon::Plus, false, 22.0, &tr(locale, "ui.tree.view_add"));
+            egui::Popup::menu(&add).show(|ui| {
+                if ui.button(tr(locale, "ui.menu.new_section")).clicked() {
+                    new_section = true;
+                    ui.close();
+                }
+                if ui.button(tr(locale, "ui.menu.new_elevation")).clicked() {
+                    new_elevation = true;
+                    ui.close();
+                }
+            });
         });
         header.body_unindented(|ui| {
             type Filter = fn(&ViewKind) -> bool;

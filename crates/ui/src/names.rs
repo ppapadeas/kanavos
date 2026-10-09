@@ -345,21 +345,20 @@ pub const OBJECT_CATEGORIES: [ObjectCategory; 9] = [
     ObjectCategory::Vehicle,
 ];
 
-/// Uses `key` when the catalogue has it, else the interface fallback key.
+/// The catalogue text of `key`, or `fallback` when the catalogue has no such key (never a raw key).
 fn with_fallback(locale: Locale, key: &str, fallback: &str) -> String {
-    if has(key) { tr(locale, key) } else { tr(locale, fallback) }
+    if has(key) { tr(locale, key) } else { fallback.to_owned() }
 }
 
-/// Name of an object category.
+/// Name of an object category (from the objects catalogue).
 pub fn object_category(locale: Locale, c: ObjectCategory) -> String {
     let key = c.name_key();
-    let short = key.rsplit('.').next().unwrap_or(key);
-    with_fallback(locale, key, &format!("ui.objcat.{short}"))
+    with_fallback(locale, key, key.rsplit('.').next().unwrap_or(key))
 }
 
-/// Name of a catalogue object.
+/// Name of a catalogue object (from the objects catalogue).
 pub fn object(locale: Locale, def: &ObjectDef) -> String {
-    with_fallback(locale, def.name, &format!("ui.obj.{}", def.id))
+    with_fallback(locale, def.name, def.id)
 }
 
 /// Name of a catalogue object by id; the id itself when it is unknown.
@@ -370,9 +369,9 @@ pub fn object_by_id(locale: Locale, id: &str) -> String {
     }
 }
 
-/// Label of a catalogue parameter.
+/// Label of a catalogue parameter (from the objects catalogue).
 pub fn object_param(locale: Locale, label_key: &str, key: &str) -> String {
-    with_fallback(locale, label_key, &format!("ui.objparam.{key}"))
+    with_fallback(locale, label_key, key)
 }
 
 #[cfg(test)]
@@ -425,16 +424,14 @@ mod tests {
     #[test]
     fn every_catalogue_object_has_a_name() {
         for def in kanavos_objects::catalogue() {
-            let el = object(Locale::El, def);
-            let en = object(Locale::En, def);
-            assert!(!el.starts_with("ui.") && !el.starts_with("objects."), "no Greek name for {}", def.id);
-            assert!(!en.starts_with("ui.") && !en.starts_with("objects."), "no English name for {}", def.id);
+            assert!(has(def.name), "no catalogue name for {}", def.id);
+            assert!(!object(Locale::El, def).is_empty());
             for p in &def.params {
-                assert!(!object_param(Locale::El, p.label, p.key).starts_with("ui."));
+                assert!(has(p.label), "no label for parameter {} of {}", p.key, def.id);
             }
         }
         for c in OBJECT_CATEGORIES {
-            assert!(!object_category(Locale::En, c).starts_with("ui."));
+            assert!(has(c.name_key()), "no name for {:?}", c);
         }
     }
 }

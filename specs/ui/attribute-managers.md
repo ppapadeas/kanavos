@@ -48,14 +48,28 @@ defaults — in live windows, and set tool parameters before drawing.
 
 ### Context bar per tool
 
-- Wall: build-up (project default, any wall build-up with its thickness, or a single material with thickness),
-  height (automatic = storey height, with a reset), reference line (left face, axis, right face), base offset.
-- Slab: build-up, top offset. Column: profile and size, material, height. Beam: profile and size, material, top.
-- Door / window: style from the catalogue (choosing one takes its standard size and sill), width, height, sill.
-- Stair: shape, width, going, maximum riser. Roof: flat, mono-pitch, gable or hip; pitch; overhang; build-up.
-- Railing: height, infill. Space: name, ΝΟΚ category. Object: a picker with search and category filters.
-- Text: size. Line, polyline, arc, circle, fill: line weight, pattern, colour, and hatch for fills.
-- Other tools show their one-line description.
+The tool's icon and name come first; its parameters follow and scroll sideways when they do not fit, so the search
+entry always stays at the right edge. Long names in drop-downs end with "…" instead of widening the bar.
+
+- Wall: chain, rectangle or arc; build-up (project default, any wall build-up with its thickness, or a single
+  material with thickness in centimetres); height (automatic = storey height, with a reset); reference line
+  (left face, axis, right face); base offset.
+- Slab, roof, space, fill: how the outline is given — by its corners, as a rectangle, or by clicking inside
+  walls (spaces and fills list the click first).
+- Slab: build-up, top offset. Column: profile and size, material, height, rotation, rotation by a second click.
+  Beam: profile and size, material, top (automatic = storey height).
+- Door / window: style from the catalogue (choosing one takes its standard size and sill), width, height, sill
+  (windows), position step. Opening: width, height, position step.
+- Stair: shape, width, going, maximum riser, waist, gap between flights (half-turn shapes).
+- Roof: kind (flat, mono-pitch, gable, hip); parapet with its height (flat) or pitch (others); overhang; base
+  (automatic = storey height); build-up.
+- Railing: height, infill, post spacing. Space: name, ΝΟΚ category, automatic numbering.
+- Object: a picker with search and category filters; rotation, rotation by a second click, mirrored.
+- Text: size, alignment, bold. Level: label. Grid line: label (empty continues the sequence). Section and
+  elevation: depth and scale of the new view. Dimension: aligned, horizontal or vertical.
+- Line, polyline, arc, circle, fill: line weight, pattern, colour, and hatch for fills.
+- Select, measure and plot show their one-line description.
+- The status bar adds a toggle for inference lines next to the snap toggles.
 
 ## Acceptance tests
 

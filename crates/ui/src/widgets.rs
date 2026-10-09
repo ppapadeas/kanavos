@@ -264,6 +264,24 @@ pub fn multiline_field(
     None
 }
 
+/// Shortens text to at most `max_chars` characters, ending with "…" when cut. Drop-downs use it so that long
+/// names never widen a bar or panel (truncation by width does not apply inside scrolling rows).
+pub fn ellipsize(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+    let keep = max_chars.saturating_sub(1);
+    let mut out: String = text.chars().take(keep).collect();
+    out = out.trim_end().to_owned();
+    out.push('…');
+    out
+}
+
+/// Approximate number of body-text characters that fit in `width` points.
+pub fn chars_for(width: f32) -> usize {
+    ((width / 7.0).floor() as usize).max(6)
+}
+
 /// A drop-down choice. `selected` is `None` for a mixed value. Returns the newly chosen option.
 pub fn choice<T: PartialEq + Clone>(
     ui: &mut Ui,
@@ -277,6 +295,7 @@ pub fn choice<T: PartialEq + Clone>(
         .map(|(_, l)| l.clone())
         .unwrap_or_else(|| MIXED.to_owned());
     let mut picked = None;
+    let current = ellipsize(&current, chars_for(width));
     egui::ComboBox::from_id_salt(id_salt).width(width).selected_text(current).truncate().show_ui(ui, |ui| {
         for (v, label) in options {
             let is = selected.is_some_and(|s| s == v);
@@ -300,7 +319,7 @@ pub fn grid(ui: &mut Ui, id_salt: impl Hash + Debug, add: impl FnOnce(&mut Ui)) 
     egui::Grid::new(id_salt)
         .num_columns(2)
         .spacing([10.0, 6.0])
-        .min_col_width(118.0)
+        .min_col_width(140.0)
         .striped(false)
         .show(ui, add);
 }
@@ -453,6 +472,13 @@ mod tests {
         assert_eq!(format_length(Length::m(3.2), Locale::En), "3.20");
         assert_eq!(format_length(Length::m(0.125), Locale::El), "0,125");
         assert_eq!(format_length(Length::m(-0.45), Locale::En), "-0.45");
+    }
+
+    #[test]
+    fn long_text_is_shortened_with_an_ellipsis() {
+        assert_eq!(ellipsize("Τοίχος", 10), "Τοίχος");
+        assert_eq!(ellipsize("Εξωτερικός τοίχος 20", 10), "Εξωτερικό…");
+        assert_eq!(ellipsize("abc def", 5), "abc…");
     }
 
     #[test]

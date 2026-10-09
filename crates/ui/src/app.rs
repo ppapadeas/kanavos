@@ -970,8 +970,8 @@ impl eframe::App for KanavosApp {
             &mut show_inspector,
             egui::Panel::right("inspector-rail").exact_size(38.0).resizable(false).frame(side),
             egui::Panel::right("inspector")
-                .default_size(320.0)
-                .size_range(260.0..=520.0)
+                .default_size(340.0)
+                .size_range(280.0..=520.0)
                 .resizable(true)
                 .frame(side),
             |ui, expanded| {
