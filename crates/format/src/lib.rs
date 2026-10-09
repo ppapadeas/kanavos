@@ -229,9 +229,11 @@ pub fn from_bytes_with(bytes: &[u8], options: &LoadOptions) -> Result<Loaded, Fo
         }
     }
 
+    // A manifest without counts (all zero, e.g. from an older writer) says nothing to compare against.
     let actual = Counts::of(&document);
+    let has_counts = manifest.counts != Counts::default();
     for ((what, listed), (_, real)) in manifest.counts.totals().into_iter().zip(actual.totals()) {
-        if listed != real {
+        if has_counts && listed != real {
             warnings.push(LoadWarning::CountMismatch {
                 what: what.to_owned(),
                 manifest: listed,

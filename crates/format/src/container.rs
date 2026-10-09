@@ -1,6 +1,6 @@
 //! The ZIP container: deterministic writing and defensive reading.
 
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, System, ZipArchive, ZipWriter};
@@ -61,20 +61,38 @@ pub(crate) fn write(entries: &[Entry<'_>]) -> Result<Vec<u8>, FormatError> {
     Ok(cursor.into_inner())
 }
 
-/// An archive opened for reading.
-pub(crate) struct Archive<'a> {
-    zip: ZipArchive<Cursor<&'a [u8]>>,
+/// Whether bytes start like a ZIP archive (a local file header, or the end record of an empty archive).
+fn looks_like_zip(start: &[u8]) -> bool {
+    start.starts_with(b"PK\x03\x04") || start.starts_with(b"PK\x05\x06")
 }
 
-impl<'a> Archive<'a> {
-    /// Opens an archive, distinguishing "not a ZIP at all" from "a damaged ZIP".
-    pub(crate) fn open(bytes: &'a [u8]) -> Result<Archive<'a>, FormatError> {
-        let looks_like_zip = bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06");
-        if !looks_like_zip {
+/// An archive opened for reading.
+pub(crate) struct Archive<R: Read + Seek> {
+    zip: ZipArchive<R>,
+}
+
+impl<'a> Archive<Cursor<&'a [u8]>> {
+    /// Opens an archive in memory, distinguishing "not a ZIP at all" from "a damaged ZIP".
+    pub(crate) fn open(bytes: &'a [u8]) -> Result<Self, FormatError> {
+        if !looks_like_zip(bytes) {
             return Err(FormatError::NotAnArchive);
         }
         let zip =
             ZipArchive::new(Cursor::new(bytes)).map_err(|e| FormatError::CorruptArchive(e.to_string()))?;
+        Ok(Archive { zip })
+    }
+}
+
+impl<R: Read + Seek> Archive<R> {
+    /// Opens an archive from a seekable reader (a file), reading only its directory.
+    pub(crate) fn open_reader(mut reader: R) -> Result<Self, FormatError> {
+        let mut start = [0u8; 4];
+        let n = reader.read(&mut start).map_err(|e| FormatError::CorruptArchive(e.to_string()))?;
+        if !looks_like_zip(start.get(..n).unwrap_or_default()) {
+            return Err(FormatError::NotAnArchive);
+        }
+        reader.seek(SeekFrom::Start(0)).map_err(|e| FormatError::CorruptArchive(e.to_string()))?;
+        let zip = ZipArchive::new(reader).map_err(|e| FormatError::CorruptArchive(e.to_string()))?;
         Ok(Archive { zip })
     }
 

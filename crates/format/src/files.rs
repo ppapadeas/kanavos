@@ -121,11 +121,11 @@ pub fn discard_recovery(dir: &Path) -> Result<(), FormatError> {
     }
 }
 
-/// Reads only the manifest of a project file (cheap: the model is not parsed). For file browsers and recent-file
-/// lists.
+/// Reads only the manifest of a project file. Cheap: only the archive directory and the manifest entry are read,
+/// not the model. For file browsers and recent-file lists.
 pub fn read_manifest(path: &Path) -> Result<Manifest, FormatError> {
-    let bytes = fs::read(path).map_err(|e| FormatError::io("reading", path, e))?;
-    let mut archive = Archive::open(&bytes)?;
+    let file = File::open(path).map_err(|e| FormatError::io("reading", path, e))?;
+    let mut archive = Archive::open_reader(std::io::BufReader::new(file))?;
     let raw = archive
         .read(MANIFEST_ENTRY)?
         .ok_or_else(|| FormatError::WrongFormat("the archive has no manifest.json".into()))?;

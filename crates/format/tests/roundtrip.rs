@@ -306,7 +306,8 @@ fn schema_0_files_are_upgraded() {
         (MODEL_ENTRY, &serde_json::to_vec(&v0_model).unwrap()),
     ]);
     let loaded = from_bytes_with(&file, &LoadOptions { validation: Validation::Strict }).unwrap();
-    assert!(loaded.warnings.contains(&LoadWarning::Migrated { from: 0, to: CURRENT_SCHEMA_VERSION }));
+    // The only warning is the upgrade: a manifest without counts is not a count mismatch.
+    assert_eq!(loaded.warnings, vec![LoadWarning::Migrated { from: 0, to: CURRENT_SCHEMA_VERSION }]);
     let doc = &loaded.document;
     assert_eq!(doc.info().name, "Παλιό έργο");
     assert_eq!(doc.storeys().len(), 1);
@@ -351,6 +352,10 @@ fn damaged_recovery_file_is_still_found() {
     let found = find_recovery(&dir).unwrap().unwrap();
     assert!(found.manifest.is_none());
     assert!(load(&found.path).is_err());
+    assert!(matches!(read_manifest(&found.path), Err(FormatError::NotAnArchive)));
+    let truncated = to_bytes(&starter(), &options()).unwrap();
+    std::fs::write(&found.path, &truncated[..truncated.len() / 2]).unwrap();
+    assert!(matches!(read_manifest(&found.path), Err(FormatError::CorruptArchive(_))));
 }
 
 #[test]
