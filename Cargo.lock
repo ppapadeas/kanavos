@@ -1746,7 +1746,9 @@ dependencies = [
  "kanavos-geom",
  "kanavos-i18n",
  "kanavos-model",
+ "kanavos-objects",
  "kanavos-units",
+ "kanavos-views",
 ]
 
 [[package]]
