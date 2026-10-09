@@ -1547,6 +1547,7 @@ name = "kanavos-elements"
 version = "0.0.1"
 dependencies = [
  "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-model",
  "kanavos-solid",
  "kanavos-units",

@@ -1,1 +1,30 @@
 # key	el	en
+elements.check.stair.riser_high	Ύψος ρίχτι {value} m: μεγαλύτερο από το επιτρεπόμενο {limit} m ({source})	Riser height {value} m exceeds the permitted {limit} m ({source})
+elements.check.stair.riser_type_ii	Ύψος ρίχτι {value} m: επιτρέπεται μόνο για κλίμακα τύπου ΙΙ (τύπος Ι έως {limit} m, {source})	Riser height {value} m is allowed for a type II stair only (type I up to {limit} m, {source})
+elements.check.stair.riser_low	Ύψος ρίχτι {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Riser height {value} m is below the minimum of {limit} m ({source})
+elements.check.stair.going_short	Πάτημα {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Tread going {value} m is below the minimum of {limit} m ({source})
+elements.check.stair.going_type_ii	Πάτημα {value} m: επιτρέπεται μόνο για κλίμακα τύπου ΙΙ (τύπος Ι από {limit} m, {source})	Tread going {value} m is allowed for a type II stair only (type I from {limit} m, {source})
+elements.check.stair.step_rule_low	Άθροισμα 2υ + π = {value} m: μικρότερο από {limit} m, η κλίμακα θα είναι άβολη ({source})	Two risers plus one going = {value} m is below {limit} m; the stair will be uncomfortable ({source})
+elements.check.stair.step_rule_high	Άθροισμα 2υ + π = {value} m: μεγαλύτερο από {limit} m, η κλίμακα θα είναι άβολη ({source})	Two risers plus one going = {value} m exceeds {limit} m; the stair will be uncomfortable ({source})
+elements.check.stair.width_narrow	Ελεύθερο πλάτος κλίμακας {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Clear stair width {value} m is below the minimum of {limit} m ({source})
+elements.check.stair.width_dwelling_only	Ελεύθερο πλάτος {value} m: αρκεί μόνο για εσωτερική κλίμακα μίας κατοικίας (αλλιώς τουλάχιστον {limit} m, {source})	Clear width {value} m is enough only for the internal stair of a single dwelling (otherwise at least {limit} m, {source})
+elements.check.stair.flight_rise	Υψομετρική διαφορά {value} m χωρίς πλατύσκαλο: μεγαλύτερη από {limit} m ({source})	Rise of {value} m without a landing exceeds {limit} m ({source})
+elements.check.stair.landing_short	Μήκος πλατύσκαλου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Landing length {value} m is below the minimum of {limit} m ({source})
+elements.check.stair.riser_count	Πολλά ρίχτια ({value}) για το ύψος της κλίμακας: το πολύ {limit} ({source})	Too many risers ({value}) for the stair's rise: at most {limit} ({source})
+elements.check.railing.low	Ύψος στηθαίου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Guard height {value} m is below the minimum of {limit} m ({source})
+elements.check.railing.solid_high	Συμπαγές στηθαίο ύψους {value} m: μεγαλύτερο από το επιτρεπόμενο {limit} m ({source})	Solid guard height {value} m exceeds the permitted {limit} m ({source})
+elements.junction.corner	Γωνία	Corner
+elements.junction.continuation	Συνέχεια	Continuation
+elements.junction.tee	Σύνδεση Τ	Tee
+elements.junction.cross	Διασταύρωση	Cross
+elements.junction.node	Κόμβος	Node
+elements.roof_line.ridge	Κορφιάς	Ridge
+elements.roof_line.hip	Ακμή	Hip
+elements.roof_line.valley	Λούκι	Valley
+elements.roof_line.eave	Γείσο	Eave
+elements.roof_line.verge	Άκρη αετώματος	Verge
+elements.roof_line.step	Αλλαγή στάθμης στέγης	Roof step
+elements.outline.outer	Εξωτερική παρειά τοίχων	Outer face of the walls
+elements.outline.core	Εξωτερική παρειά φέροντος	Outer face of the core
+elements.space.inside_wall	Το σημείο βρίσκεται μέσα σε τοίχο ή υποστύλωμα	The point lies inside a wall or column
+elements.space.not_enclosed	Ο χώρος γύρω από το σημείο δεν κλείνει από τοίχους	The space around the point is not enclosed by walls

@@ -1,26 +1,98 @@
-//! Element quantities for schedules.
+//! Element quantities for schedules, measured on the junction-clean geometry.
 
-use kanavos_model::{Document, ElementKind, Id, Profile, RoofShape};
+use kanavos_geom::Angle;
+use kanavos_model::{Document, ElementKind, Id, Profile};
 use kanavos_units::{Area, Length, Volume};
 
-use crate::{GeometryError, Quantities, element, wall_layout};
+use crate::junction::WallInfo;
+use crate::wall::{face_areas, openings_of, wall_layout, wall_solids};
+use crate::{GeometryError, Quantities, SolidPart, element, solids};
 
-/// Quantities of an element.
-pub fn quantities(doc: &Document, id: Id) -> Result<Quantities, GeometryError> {
+/// Volume of one layer (or part) of an element.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayerVolume {
+    /// Layer index in the build-up, if the solid is a layer.
+    pub layer: Option<usize>,
+    /// Material.
+    pub material: Option<Id>,
+    /// Volume.
+    pub volume: Volume,
+}
+
+/// Area of one roof plane.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlaneArea {
+    /// Outline edges the plane rises from.
+    pub edges: Vec<usize>,
+    /// Pitch.
+    pub pitch: Angle,
+    /// Plan (projected) area.
+    pub plan_area: Area,
+    /// True (sloped) area.
+    pub true_area: Area,
+}
+
+/// Quantities with their breakdown: volumes per layer or part, roof planes, openings.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct DetailedQuantities {
+    /// The summary.
+    pub summary: Quantities,
+    /// Volume of each solid (per build-up layer for walls, slabs and roofs; per part for stairs and railings).
+    pub layers: Vec<LayerVolume>,
+    /// Roof planes.
+    pub planes: Vec<PlaneArea>,
+    /// Openings hosted by a wall, with their area.
+    pub openings: Vec<(Id, Area)>,
+}
+
+fn layer_volumes(sol: &[crate::ElementSolid]) -> Vec<LayerVolume> {
+    sol.iter()
+        .map(|s| LayerVolume {
+            layer: match s.part {
+                SolidPart::Layer(i) => Some(i),
+                _ => None,
+            },
+            material: s.material,
+            volume: Volume::m3(s.mesh.volume().abs()),
+        })
+        .collect()
+}
+
+/// Quantities of an element with their breakdown.
+///
+/// Walls: length along the reference line, height, thickness, gross and net side area (reference line × height,
+/// minus openings), net area of each face after junction clean-up, and the exact volume of each layer (junctions,
+/// openings and roof clipping included). Roofs: plan area (`gross_area`), true sloped area (`area`) per plane and
+/// in total, volume of each layer. Stairs: walking-line length, rise, plan area of treads and landings, volume.
+/// Railings: length, height, volume.
+pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities, GeometryError> {
     let e = element(doc, id)?;
-    let mut q = Quantities::default();
+    let mut d = DetailedQuantities::default();
+    let q = &mut d.summary;
     match &e.kind {
         ElementKind::Wall(w) => {
+            let info = WallInfo::new(doc, e)?;
             let layout = wall_layout(doc, id)?;
             let length = w.length();
             let gross = length * w.height;
-            let openings: Area = doc.openings_in(id).map(|(_, o)| o.width * o.height).sum();
+            let openings = openings_of(doc, &info);
+            let open: f64 = openings
+                .iter()
+                .map(|o| (o.u1 - o.u0) * (o.head.min(info.top) - o.sill.max(info.base)).max(0.0))
+                .sum();
             q.length = Some(length);
             q.height = Some(w.height);
             q.thickness = Some(layout.thickness);
             q.gross_area = Some(gross);
-            q.area = Some(gross - openings);
-            q.volume = Some((gross - openings) * layout.thickness);
+            q.area = Some(gross - Area::m2(open));
+            let (nl, nr, _, _) = face_areas(doc, &info, &layout);
+            q.face_area_left = Some(Area::m2(nl));
+            q.face_area_right = Some(Area::m2(nr));
+            let sol = wall_solids(doc, &info, &layout)?;
+            d.layers = layer_volumes(&sol);
+            q.volume = Some(d.layers.iter().map(|l| l.volume).sum());
+            d.openings =
+                openings.iter().map(|o| (o.id, Area::m2((o.u1 - o.u0) * (o.head - o.sill)))).collect();
         }
         ElementKind::Slab(s) => {
             let t = doc.structure_thickness(&s.structure).unwrap_or(Length::ZERO);
@@ -30,24 +102,28 @@ pub fn quantities(doc: &Document, id: Id) -> Result<Quantities, GeometryError> {
             q.thickness = Some(t);
             q.perimeter = Some(s.outline.perimeter());
             q.volume = Some(a * t);
+            d.layers = layer_volumes(&solids(doc, id)?);
         }
         ElementKind::Roof(r) => {
-            let t = doc.structure_thickness(&r.structure).unwrap_or(Length::ZERO);
-            let plan = r.outline.area();
-            // Sloped area ≈ plan area / cos(pitch) for single-pitch-like roofs; exact planes come from the roof
-            // geometry once it is computed per plane.
-            let area = match &r.shape {
-                RoofShape::Flat { .. } => plan,
-                RoofShape::Pitched { slopes } => {
-                    let max_cos = slopes.iter().flatten().map(|a| a.cos()).fold(1.0f64, f64::min);
-                    if max_cos > 1e-6 { plan / max_cos } else { plan }
-                }
-            };
-            q.area = Some(area);
-            q.gross_area = Some(plan);
-            q.thickness = Some(t);
+            let g = crate::roof::roof_geometry(doc, e)?;
+            let plan: f64 = g.planes.iter().map(|p| p.plan_area()).sum();
+            let true_area: f64 = g.planes.iter().map(|p| p.true_area()).sum();
+            q.area = Some(Area::m2(true_area));
+            q.gross_area = Some(Area::m2(plan));
+            q.thickness = Some(Length::m(g.thickness));
             q.perimeter = Some(r.outline.perimeter());
-            q.volume = Some(area * t);
+            d.planes = g
+                .planes
+                .iter()
+                .map(|p| PlaneArea {
+                    edges: p.edges.clone(),
+                    pitch: p.pitch,
+                    plan_area: Area::m2(p.plan_area()),
+                    true_area: Area::m2(p.true_area()),
+                })
+                .collect();
+            d.layers = layer_volumes(&solids(doc, id)?);
+            q.volume = Some(d.layers.iter().map(|l| l.volume).sum());
         }
         ElementKind::Column(c) => {
             let a = match c.profile {
@@ -84,25 +160,37 @@ pub fn quantities(doc: &Document, id: Id) -> Result<Quantities, GeometryError> {
         ElementKind::Opening(o) => {
             q.area = Some(o.width * o.height);
             q.height = Some(o.height);
+            q.length = Some(o.width);
         }
         ElementKind::Railing(r) => {
             let length: Length = r
                 .path
                 .windows(2)
-                .filter_map(|w| match w {
-                    [a, b] => Some(a.distance(*b)),
-                    _ => None,
-                })
+                .filter_map(|w| if let [a, b] = w { Some(a.distance(*b)) } else { None })
                 .sum();
             q.length = Some(length);
             q.height = Some(r.height);
+            d.layers = layer_volumes(&solids(doc, id)?);
+            q.volume = Some(d.layers.iter().map(|l| l.volume).sum());
         }
         ElementKind::Stair(s) => {
+            let layout = crate::stair::stair_layout(doc, id)?;
             q.height = Some(s.rise);
-            q.length = Some(s.going * f64::from(s.risers.saturating_sub(1)));
-            q.volume = Some(Volume::ZERO);
+            q.length = Some(layout.walking_length());
+            q.thickness = Some(s.thickness);
+            let treads: f64 =
+                layout.flights.iter().flat_map(|f| f.treads.iter()).map(|t| t.area().as_m2()).sum();
+            let landings: f64 = layout.landings.iter().map(|l| l.area().as_m2()).sum();
+            q.area = Some(Area::m2(treads + landings));
+            d.layers = layer_volumes(&solids(doc, id)?);
+            q.volume = Some(d.layers.iter().map(|l| l.volume).sum());
         }
         _ => {}
     }
-    Ok(q)
+    Ok(d)
+}
+
+/// Quantities of an element (see [`detailed_quantities`] for what is measured).
+pub fn quantities(doc: &Document, id: Id) -> Result<Quantities, GeometryError> {
+    Ok(detailed_quantities(doc, id)?.summary)
 }
