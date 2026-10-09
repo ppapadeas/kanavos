@@ -19,6 +19,18 @@ allow = [
 ]
 confidence-threshold = 0.9
 
+# Narrow exceptions, one crate each. BSL-1.0 (Boost) is OSI-approved and permissive: it asks only that the
+# licence text accompany source distributions, which NOTICE and ASSETS.md cover.
+# - clipboard-win and its error-code dependency: the Windows clipboard backend that eframe always enables
+#   (through egui-winit's "clipboard" feature) for copy and paste in text fields.
+[[licenses.exceptions]]
+crate = "clipboard-win"
+allow = ["BSL-1.0"]
+
+[[licenses.exceptions]]
+crate = "error-code"
+allow = ["BSL-1.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
