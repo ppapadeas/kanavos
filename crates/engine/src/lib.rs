@@ -4,9 +4,15 @@
 //!
 //! Every change to a document is a [`Command`]. A [`Session`] applies commands and keeps every document version,
 //! which makes undo and redo trivial and exact. The history keeps the commands themselves, so a session can be
-//! replayed or attached to a bug report.
+//! replayed ([`Session::replay`]) or exported as a command log ([`Session::log_jsonl`]) and attached to a bug
+//! report.
+//!
+//! [`geo`] holds the plan geometry derived from walls (rooms, outlines, dimension chains) that commands need.
 
 pub mod commands;
+pub mod geo;
+mod labels;
+pub mod log;
 
 use std::fmt;
 
@@ -46,6 +52,24 @@ impl CommandError {
             CommandError::Geometry(why) => tf(locale, "engine.error.geometry", &[("reason", why)]),
         }
     }
+
+    /// The argument at fault, for errors about one argument.
+    pub fn field(&self) -> Option<&'static str> {
+        match self {
+            CommandError::InvalidArgument { field, .. } => Some(field),
+            _ => None,
+        }
+    }
+
+    /// A stable machine-readable kind: `invalid_argument`, `not_found`, `in_use` or `geometry`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            CommandError::InvalidArgument { .. } => "invalid_argument",
+            CommandError::NotFound(_) => "not_found",
+            CommandError::InUse(_) => "in_use",
+            CommandError::Geometry(_) => "geometry",
+        }
+    }
 }
 
 impl fmt::Display for CommandError {
@@ -73,9 +97,15 @@ pub trait Command {
     fn name(&self) -> &'static str;
     /// Applies the command, returning the new document and what changed.
     fn apply(&self, doc: &Document) -> Result<(Document, Outcome), CommandError>;
-    /// Label for the history panel, e.g. "Νέο στοιχείο".
+    /// Label for the history panel, e.g. "Διαγραφή 3 στοιχείων". Counts come from the command's arguments.
     fn label(&self, locale: Locale) -> String {
         kanavos_i18n::t(locale, &format!("engine.cmd.{}", self.name())).into_owned()
+    }
+    /// Label that may also look at the document the command applies to, e.g. "Μετακίνηση 2 τοίχων" when the
+    /// moved elements are walls. Defaults to [`Command::label`].
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        let _ = doc;
+        self.label(locale)
     }
 }
 
@@ -83,6 +113,32 @@ struct Step {
     before: Document,
     command: AnyCommand,
 }
+
+/// One history entry, for the history panel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryEntry {
+    /// Command name.
+    pub name: &'static str,
+    /// Label in the requested language.
+    pub label: String,
+}
+
+/// Error from [`Session::replay`]: which command failed and why.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplayError {
+    /// Zero-based index of the failing command.
+    pub index: usize,
+    /// Its error.
+    pub error: CommandError,
+}
+
+impl fmt::Display for ReplayError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "command {}: {}", self.index + 1, self.error)
+    }
+}
+
+impl std::error::Error for ReplayError {}
 
 /// An editing session over one document, with full history.
 pub struct Session {
@@ -115,9 +171,27 @@ impl Session {
         Session { past: Vec::new(), current: doc, future: Vec::new(), revision: 0, saved_revision: 0 }
     }
 
+    /// Starts a session on `doc` and runs `commands` in order, each as one undo step. Stops at the first failing
+    /// command and reports its index.
+    pub fn replay(
+        doc: Document,
+        commands: impl IntoIterator<Item = AnyCommand>,
+    ) -> Result<Session, ReplayError> {
+        let mut s = Session::new(doc);
+        for (index, c) in commands.into_iter().enumerate() {
+            s.run(c).map_err(|error| ReplayError { index, error })?;
+        }
+        Ok(s)
+    }
+
     /// The current document.
     pub fn document(&self) -> &Document {
         &self.current
+    }
+
+    /// The document the session started from (before the oldest step still in the history).
+    pub fn initial_document(&self) -> &Document {
+        self.past.first().map(|s| &s.before).unwrap_or(&self.current)
     }
 
     /// Number of steps between the opened document and the current one.
@@ -181,9 +255,28 @@ impl Session {
         self.past.iter().map(|s| &s.command)
     }
 
-    /// History labels in a language, oldest first.
+    /// History labels in a language, oldest first, e.g. "Μετακίνηση 2 τοίχων".
     pub fn history_labels(&self, locale: Locale) -> Vec<String> {
-        self.past.iter().map(|s| s.command.label(locale)).collect()
+        self.past.iter().map(|s| s.command.describe(&s.before, locale)).collect()
+    }
+
+    /// History entries (name and label), oldest first.
+    pub fn history_entries(&self, locale: Locale) -> Vec<HistoryEntry> {
+        self.past
+            .iter()
+            .map(|s| HistoryEntry { name: s.command.name(), label: s.command.describe(&s.before, locale) })
+            .collect()
+    }
+
+    /// Labels of the steps that can be redone, next one first.
+    pub fn redo_labels(&self, locale: Locale) -> Vec<String> {
+        let mut out = Vec::with_capacity(self.future.len());
+        let mut before = &self.current;
+        for (after, command) in self.future.iter().rev() {
+            out.push(command.describe(before, locale));
+            before = after;
+        }
+        out
     }
 
     /// Undoes until `steps` steps remain.
@@ -193,6 +286,22 @@ impl Session {
                 break;
             }
         }
+    }
+
+    /// Redoes until `steps` steps are applied or nothing is left to redo.
+    pub fn redo_to(&mut self, steps: usize) {
+        while self.past.len() < steps {
+            if self.redo().is_none() {
+                break;
+            }
+        }
+    }
+
+    /// The applied commands as a JSON-lines command log (one `{"name": …, "args": …}` per line), oldest first.
+    /// [`log::parse_jsonl`] reads it back; [`Session::replay`] on [`Session::initial_document`] reproduces the
+    /// session.
+    pub fn log_jsonl(&self) -> String {
+        log::to_jsonl(self.history())
     }
 
     /// Replaces the document (open, new), clearing history.
@@ -217,7 +326,7 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use super::commands::{CreateElement, CreateStorey};
+    use super::commands::{CreateElement, CreateStorey, DeleteElements, TransformElements, TransformSpec};
     use super::*;
     use kanavos_geom::Point2;
     use kanavos_model::{ElementKind, ReferenceLine, Structure, Wall};
@@ -289,5 +398,63 @@ mod tests {
         assert!(!s.is_dirty());
         s.undo();
         assert!(s.is_dirty());
+    }
+
+    #[test]
+    fn history_labels_name_the_moved_elements() {
+        let mut s = session();
+        let st = storey(&mut s);
+        let a = s.run(wall(st, 3.0)).unwrap().created[0];
+        let b = s.run(wall(st, 4.0)).unwrap().created[0];
+        s.run(TransformElements {
+            ids: vec![a, b],
+            transform: TransformSpec::Move { dx: 1.0, dy: 0.0 },
+            copy: false,
+            count: 1,
+        })
+        .unwrap();
+        s.run(DeleteElements { ids: vec![a] }).unwrap();
+        let el = s.history_labels(Locale::El);
+        assert_eq!(el[1], "Νέος τοίχος");
+        assert_eq!(el[3], "Μετακίνηση 2 τοίχων");
+        assert_eq!(el[4], "Διαγραφή τοίχου");
+        let en = s.history_labels(Locale::En);
+        assert_eq!(en[3], "Move 2 walls");
+        assert_eq!(en[4], "Delete wall");
+        s.undo();
+        assert_eq!(s.redo_labels(Locale::En), vec!["Delete wall".to_owned()]);
+    }
+
+    #[test]
+    fn replay_reproduces_the_session() {
+        let mut s = session();
+        let st = storey(&mut s);
+        s.run(wall(st, 5.0)).unwrap();
+        s.run(wall(st, 2.0)).unwrap();
+        let log = s.log_jsonl();
+        assert_eq!(log.lines().count(), 3);
+        let commands = log::parse_jsonl(&log).unwrap();
+        let replayed = Session::replay(s.initial_document().clone(), commands).unwrap();
+        assert_eq!(replayed.document(), s.document());
+        assert_eq!(replayed.steps(), s.steps());
+    }
+
+    #[test]
+    fn replay_reports_the_failing_command() {
+        let commands: Vec<AnyCommand> = vec![wall(Id(4242), 3.0).into()];
+        let err = Session::replay(kanavos_model::starter(), commands).unwrap_err();
+        assert_eq!(err.index, 0);
+    }
+
+    #[test]
+    fn undo_to_and_redo_to_move_through_history() {
+        let mut s = session();
+        let st = storey(&mut s);
+        s.run(wall(st, 5.0)).unwrap();
+        s.run(wall(st, 2.0)).unwrap();
+        s.undo_to(1);
+        assert_eq!(s.version(), 1);
+        s.redo_to(3);
+        assert_eq!(s.version(), 3);
     }
 }

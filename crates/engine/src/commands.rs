@@ -1,5 +1,22 @@
 //! Built-in commands. Each command's `name()` is part of the public control-protocol API: the JSON form is
 //! `{"name": "<command name>", "args": {...}}` (see [`AnyCommand`]).
+//!
+//! The original commands live in this file; commands added later are grouped by area in submodules and
+//! re-exported here, so every command is `kanavos_engine::commands::<Type>`.
+
+mod build;
+mod dup;
+mod edit;
+mod sheet;
+mod site;
+
+pub use build::{AutoDimensions, DetectAllSpaces, PlaceOpening, RoofFromWalls, RoofKind, SlabFromWalls};
+pub use dup::{DuplicateBuildUp, DuplicateMaterial, DuplicateStorey, DuplicateView};
+pub use edit::{AlignEdge, AlignElements, JoinWalls};
+pub use sheet::{MoveViewport, PlaceView, RemoveViewport};
+pub use site::{SetBuildingTerms, SetPlot};
+
+pub use crate::geo::OutlineFace;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,9 +29,10 @@ use kanavos_units::{Length, Locale};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::labels::{counted, new_element, noun_key};
 use crate::{Command, CommandError, Outcome};
 
-fn geometry(e: kanavos_elements::GeometryError) -> CommandError {
+pub(crate) fn geometry(e: kanavos_elements::GeometryError) -> CommandError {
     match e {
         kanavos_elements::GeometryError::Invalid { field, reason, .. } => {
             CommandError::InvalidArgument { field, reason }
@@ -24,7 +42,7 @@ fn geometry(e: kanavos_elements::GeometryError) -> CommandError {
     }
 }
 
-fn positive(v: Length, field: &'static str, doc: &Document) -> Result<(), CommandError> {
+pub(crate) fn positive(v: Length, field: &'static str, doc: &Document) -> Result<(), CommandError> {
     if v.is_positive(&doc.tolerance()) {
         Ok(())
     } else {
@@ -32,7 +50,7 @@ fn positive(v: Length, field: &'static str, doc: &Document) -> Result<(), Comman
     }
 }
 
-fn non_empty(s: &str, field: &'static str) -> Result<(), CommandError> {
+pub(crate) fn non_empty(s: &str, field: &'static str) -> Result<(), CommandError> {
     if s.trim().is_empty() {
         Err(CommandError::InvalidArgument { field, reason: "must not be empty".into() })
     } else {
@@ -472,6 +490,9 @@ impl Command for CreateElement {
         kanavos_elements::validate(&next, &e).map_err(geometry)?;
         Ok((next.with_element(e), Outcome { created: vec![id], ..Outcome::default() }))
     }
+    fn label(&self, locale: Locale) -> String {
+        new_element(locale, self.kind.category())
+    }
 }
 
 /// `element.update` — changes an element. Only the given fields change; `kind` replaces all type data.
@@ -536,6 +557,13 @@ impl Command for UpdateElement {
         }
         Ok((next, Outcome { changed: vec![self.id], ..Outcome::default() }))
     }
+    fn label(&self, locale: Locale) -> String {
+        let key = self.kind.as_ref().map(|k| k.category().key()).unwrap_or("element");
+        counted(locale, "update", 1, key)
+    }
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        counted(locale, "update", 1, noun_key(Some(doc), &[self.id]))
+    }
 }
 
 /// `element.delete` — removes elements (and the openings their walls host).
@@ -567,6 +595,12 @@ impl Command for DeleteElements {
             next = next.without_element(*id).ok_or(CommandError::NotFound(*id))?;
         }
         Ok((next, Outcome { deleted, ..Outcome::default() }))
+    }
+    fn label(&self, locale: Locale) -> String {
+        counted(locale, "delete", self.ids.len(), "element")
+    }
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        counted(locale, "delete", self.ids.len(), noun_key(Some(doc), &self.ids))
     }
 }
 
@@ -729,6 +763,29 @@ impl Command for TransformElements {
         }
         Ok((next, out))
     }
+    fn label(&self, locale: Locale) -> String {
+        self.label_for(locale, "element")
+    }
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        self.label_for(locale, noun_key(Some(doc), &self.ids))
+    }
+}
+
+impl TransformElements {
+    fn label_for(&self, locale: Locale, key: &str) -> String {
+        let n = self.ids.len();
+        if self.copy {
+            let base = counted(locale, "copy", n, key);
+            if self.count > 1 { format!("{base} ×{}", self.count) } else { base }
+        } else {
+            let verb = match self.transform {
+                TransformSpec::Move { .. } => "move",
+                TransformSpec::Rotate { .. } => "rotate",
+                TransformSpec::Mirror { .. } => "mirror",
+            };
+            counted(locale, verb, n, key)
+        }
+    }
 }
 
 /// `element.copy_to_storey` — copies elements to another storey at the same plan position.
@@ -794,6 +851,16 @@ impl Command for CopyToStorey {
             }
         }
         Ok((next, out))
+    }
+    fn label(&self, locale: Locale) -> String {
+        counted(locale, "copy_to_storey", self.ids.len(), "element")
+    }
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        let label = counted(locale, "copy_to_storey", self.ids.len(), noun_key(Some(doc), &self.ids));
+        match doc.storey(self.storey) {
+            Some(s) => format!("{label} «{}»", s.name),
+            None => label,
+        }
     }
 }
 
@@ -881,7 +948,7 @@ impl Command for DetectSpace {
     }
     fn apply(&self, doc: &Document) -> Result<(Document, Outcome), CommandError> {
         doc.storey(self.storey).ok_or(CommandError::NotFound(self.storey))?;
-        let boundary = kanavos_elements::detect_space(doc, self.storey, self.point).map_err(geometry)?;
+        let boundary = crate::geo::detect_space(doc, self.storey, self.point)?;
         CreateElement::on(
             self.storey,
             ElementKind::Space(kanavos_model::Space {
@@ -1016,8 +1083,11 @@ impl Command for DeleteView {
     }
     fn apply(&self, doc: &Document) -> Result<(Document, Outcome), CommandError> {
         let v = doc.view(self.id).ok_or(CommandError::NotFound(self.id))?;
+        // The last plan view of an existing storey goes with the storey; extra plan views (duplicates) may go.
         if let ViewKind::Plan { storey } = v.kind
             && doc.storey(storey).is_some()
+            && doc.views().filter(|o| matches!(o.kind, ViewKind::Plan { storey: s } if s == storey)).count()
+                <= 1
         {
             return Err(CommandError::InvalidArgument {
                 field: "id",
@@ -1156,12 +1226,45 @@ impl Command for Batch {
         Ok((current, out))
     }
     fn label(&self, locale: Locale) -> String {
-        if self.label.is_empty() {
-            kanavos_i18n::t(locale, "engine.cmd.batch").into_owned()
-        } else {
-            self.label.clone()
+        if !self.label.is_empty() {
+            return self.label.clone();
+        }
+        match self.commands.as_slice() {
+            [one] => one.label(locale),
+            many => kanavos_i18n::tf(locale, "engine.label.batch", &[("n", &many.len().to_string())]),
         }
     }
+    fn describe(&self, doc: &Document, locale: Locale) -> String {
+        match self.commands.as_slice() {
+            [one] if self.label.is_empty() => one.describe(doc, locale),
+            _ => self.label(locale),
+        }
+    }
+}
+
+/// Why a command could not be read from JSON. `path` points at the failing value, e.g. `args.kind.start`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    /// Path of the failing value (`name`, `args`, `args.kind.start` …).
+    pub path: String,
+    /// What is wrong.
+    pub message: String,
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.path, self.message)
+    }
+}
+
+impl std::error::Error for ParseError {}
+
+fn parse_args<T: serde::de::DeserializeOwned>(args: serde_json::Value) -> Result<T, ParseError> {
+    serde_path_to_error::deserialize(args).map_err(|e| {
+        let inner = e.path().to_string();
+        let path = if inner == "." { "args".to_owned() } else { format!("args.{inner}") };
+        ParseError { path, message: e.into_inner().to_string() }
+    })
 }
 
 macro_rules! any_command {
@@ -1180,6 +1283,34 @@ macro_rules! any_command {
         impl AnyCommand {
             /// Every command name, in declaration order.
             pub const NAMES: &'static [&'static str] = &[$($name),*];
+
+            /// Reads a command from its name and JSON arguments. Errors carry the path of the failing value.
+            /// Missing or `null` arguments read as `{}`, so commands whose arguments all have defaults need none.
+            pub fn from_parts(name: &str, args: serde_json::Value) -> Result<AnyCommand, ParseError> {
+                let args = if args.is_null() { serde_json::Value::Object(Default::default()) } else { args };
+                match name {
+                    $($name => parse_args::<$variant>(args).map(AnyCommand::$variant),)*
+                    other => Err(ParseError {
+                        path: "name".into(),
+                        message: format!("unknown command '{other}'"),
+                    }),
+                }
+            }
+
+            /// The JSON schema of one command's arguments, or `None` for an unknown name.
+            pub fn args_schema(name: &str) -> Option<serde_json::Value> {
+                match name {
+                    $($name => serde_json::to_value(schemars::schema_for!($variant)).ok(),)*
+                    _ => None,
+                }
+            }
+
+            /// The command's arguments as JSON (the `args` member of its JSON form).
+            pub fn args(&self) -> serde_json::Value {
+                match self {
+                    $(AnyCommand::$variant(c) => serde_json::to_value(c).unwrap_or(serde_json::Value::Null),)*
+                }
+            }
         }
 
         impl Command for AnyCommand {
@@ -1198,6 +1329,11 @@ macro_rules! any_command {
                     $(AnyCommand::$variant(c) => c.label(locale),)*
                 }
             }
+            fn describe(&self, doc: &Document, locale: Locale) -> String {
+                match self {
+                    $(AnyCommand::$variant(c) => c.describe(doc, locale),)*
+                }
+            }
         }
 
         $(
@@ -1213,29 +1349,45 @@ macro_rules! any_command {
 any_command! {
     "project.set_info" => SetProjectInfo,
     "site.set" => SetSite,
+    "site.set_plot" => SetPlot,
+    "site.set_terms" => SetBuildingTerms,
     "defaults.set" => SetDefaults,
     "storey.create" => CreateStorey,
     "storey.update" => UpdateStorey,
     "storey.delete" => DeleteStorey,
+    "storey.duplicate" => DuplicateStorey,
     "material.create" => CreateMaterial,
     "material.update" => UpdateMaterial,
     "material.delete" => DeleteMaterial,
+    "material.duplicate" => DuplicateMaterial,
     "build_up.create" => CreateBuildUp,
     "build_up.update" => UpdateBuildUp,
     "build_up.delete" => DeleteBuildUp,
+    "build_up.duplicate" => DuplicateBuildUp,
     "element.create" => CreateElement,
     "element.update" => UpdateElement,
     "element.delete" => DeleteElements,
     "element.transform" => TransformElements,
     "element.copy_to_storey" => CopyToStorey,
+    "element.align" => AlignElements,
     "wall.split" => SplitWall,
+    "wall.join" => JoinWalls,
+    "opening.place" => PlaceOpening,
+    "slab.from_walls" => SlabFromWalls,
+    "roof.from_walls" => RoofFromWalls,
     "space.detect" => DetectSpace,
+    "space.detect_all" => DetectAllSpaces,
+    "dimension.auto" => AutoDimensions,
     "view.create" => CreateView,
     "view.update" => UpdateView,
     "view.delete" => DeleteView,
+    "view.duplicate" => DuplicateView,
     "sheet.create" => CreateSheet,
     "sheet.update" => UpdateSheet,
     "sheet.delete" => DeleteSheet,
+    "sheet.place_view" => PlaceView,
+    "sheet.move_viewport" => MoveViewport,
+    "sheet.remove_viewport" => RemoveViewport,
     "sheet.permit_set" => PermitSet,
     "batch" => Batch,
 }
@@ -1243,6 +1395,21 @@ any_command! {
 /// JSON schema of [`AnyCommand`] (all commands with their arguments).
 pub fn command_schema() -> serde_json::Value {
     serde_json::to_value(schemars::schema_for!(AnyCommand)).unwrap_or(serde_json::Value::Null)
+}
+
+/// Whether a command name exists.
+pub fn is_command(name: &str) -> bool {
+    AnyCommand::NAMES.contains(&name)
+}
+
+/// The generic label of a command name in a language (as shown in menus and command lists).
+pub fn command_label(name: &str, locale: Locale) -> String {
+    kanavos_i18n::t(locale, &format!("engine.cmd.{name}")).into_owned()
+}
+
+/// One-line description of what a command does, in a language.
+pub fn command_help(name: &str, locale: Locale) -> String {
+    kanavos_i18n::t(locale, &format!("engine.help.{name}")).into_owned()
 }
 
 #[cfg(test)]

@@ -3,30 +3,185 @@ engine.error.invalid	{field}: {reason}	{field}: {reason}
 engine.error.not_found	Το αντικείμενο {id} δεν βρέθηκε	Object {id} not found
 engine.error.in_use	Το αντικείμενο {id} χρησιμοποιείται και δεν μπορεί να διαγραφεί	Object {id} is in use and cannot be deleted
 engine.error.geometry	Η γεωμετρία δεν μπορεί να υπολογιστεί: {reason}	Geometry cannot be computed: {reason}
+#
+# Command names as shown in menus and the history (generic form).
 engine.cmd.project.set_info	Στοιχεία έργου	Project information
 engine.cmd.site.set	Οικόπεδο και όροι δόμησης	Plot and building terms
+engine.cmd.site.set_plot	Όρια οικοπέδου	Plot boundary
+engine.cmd.site.set_terms	Όροι δόμησης	Building terms
 engine.cmd.defaults.set	Προεπιλογές στοιχείων	Element defaults
 engine.cmd.storey.create	Νέο επίπεδο	New storey
 engine.cmd.storey.update	Αλλαγή επιπέδου	Change storey
 engine.cmd.storey.delete	Διαγραφή επιπέδου	Delete storey
+engine.cmd.storey.duplicate	Αντιγραφή επιπέδου	Duplicate storey
 engine.cmd.material.create	Νέο υλικό	New material
 engine.cmd.material.update	Αλλαγή υλικού	Change material
 engine.cmd.material.delete	Διαγραφή υλικού	Delete material
+engine.cmd.material.duplicate	Αντιγραφή υλικού	Duplicate material
 engine.cmd.build_up.create	Νέα διαστρωμάτωση	New build-up
 engine.cmd.build_up.update	Αλλαγή διαστρωμάτωσης	Change build-up
 engine.cmd.build_up.delete	Διαγραφή διαστρωμάτωσης	Delete build-up
+engine.cmd.build_up.duplicate	Αντιγραφή διαστρωμάτωσης	Duplicate build-up
 engine.cmd.element.create	Νέο στοιχείο	New element
 engine.cmd.element.update	Αλλαγή στοιχείου	Change element
 engine.cmd.element.delete	Διαγραφή	Delete
 engine.cmd.element.transform	Μετασχηματισμός	Transform
 engine.cmd.element.copy_to_storey	Αντιγραφή σε επίπεδο	Copy to storey
+engine.cmd.element.align	Ευθυγράμμιση	Align
 engine.cmd.wall.split	Διαίρεση τοίχου	Split wall
+engine.cmd.wall.join	Ένωση τοίχων	Join walls
+engine.cmd.opening.place	Τοποθέτηση ανοίγματος	Place opening
+engine.cmd.slab.from_walls	Πλάκα από τοίχους	Slab from walls
+engine.cmd.roof.from_walls	Στέγη από τοίχους	Roof from walls
 engine.cmd.space.detect	Νέος χώρος	New space
+engine.cmd.space.detect_all	Αυτόματοι χώροι	Detect all spaces
+engine.cmd.dimension.auto	Αυτόματες διαστάσεις	Automatic dimensions
 engine.cmd.view.create	Νέα όψη σχεδίου	New view
 engine.cmd.view.update	Αλλαγή όψης σχεδίου	Change view
 engine.cmd.view.delete	Διαγραφή όψης σχεδίου	Delete view
+engine.cmd.view.duplicate	Αντιγραφή όψης σχεδίου	Duplicate view
 engine.cmd.sheet.create	Νέο φύλλο	New sheet
 engine.cmd.sheet.update	Αλλαγή φύλλου	Change sheet
 engine.cmd.sheet.delete	Διαγραφή φύλλου	Delete sheet
+engine.cmd.sheet.place_view	Τοποθέτηση όψης σε φύλλο	Place view on sheet
+engine.cmd.sheet.move_viewport	Μετακίνηση παραθύρου όψης	Move viewport
+engine.cmd.sheet.remove_viewport	Αφαίρεση παραθύρου όψης	Remove viewport
 engine.cmd.sheet.permit_set	Σετ σχεδίων άδειας	Permit drawing set
 engine.cmd.batch	Πολλαπλή αλλαγή	Multiple changes
+#
+# One-line help for every command (command lists, docs/commands.md).
+engine.help.project.set_info	Αντικαθιστά τα στοιχεία του έργου (πινακίδα).	Replaces the project information (title block data).
+engine.help.site.set	Αντικαθιστά όλο το οικόπεδο: όρια, ρυμοτομικές και οικοδομικές γραμμές, όρους δόμησης, γεωαναφορά, έδαφος.	Replaces the whole site: plot, street and building lines, building terms, georeferencing, terrain.
+engine.help.site.set_plot	Ορίζει ή αφαιρεί τα όρια του οικοπέδου· τα υπόλοιπα στοιχεία του οικοπέδου μένουν.	Sets or removes the plot boundary, keeping the rest of the site.
+engine.help.site.set_terms	Ορίζει τους όρους δόμησης· τα υπόλοιπα στοιχεία του οικοπέδου μένουν.	Sets the building terms, keeping the rest of the site.
+engine.help.defaults.set	Ορίζει τις προεπιλεγμένες διαστρωματώσεις και υλικά των εργαλείων.	Sets the default build-ups and materials used by tools.
+engine.help.storey.create	Προσθέτει επίπεδο με την κάτοψή του.	Adds a storey and its plan view.
+engine.help.storey.update	Αλλάζει όνομα, στάθμη, ύψος ή επίπεδο τομής ενός επιπέδου.	Changes a storey's name, elevation, height or cut height.
+engine.help.storey.delete	Διαγράφει επίπεδο με όλα τα στοιχεία και την κάτοψή του.	Removes a storey with all its elements and its plan view.
+engine.help.storey.duplicate	Αντιγράφει επίπεδο με τα στοιχεία του, συνήθως ακριβώς από πάνω.	Copies a storey with its elements, by default directly above it.
+engine.help.material.create	Προσθέτει υλικό.	Adds a material.
+engine.help.material.update	Αντικαθιστά υλικό.	Replaces a material.
+engine.help.material.delete	Διαγράφει υλικό που δεν χρησιμοποιείται.	Removes an unused material.
+engine.help.material.duplicate	Αντιγράφει υλικό με νέο όνομα.	Copies a material under a new name.
+engine.help.build_up.create	Προσθέτει διαστρωμάτωση.	Adds a build-up.
+engine.help.build_up.update	Αντικαθιστά διαστρωμάτωση· τα στοιχεία που τη χρησιμοποιούν ενημερώνονται.	Replaces a build-up; elements using it update.
+engine.help.build_up.delete	Διαγράφει διαστρωμάτωση που δεν χρησιμοποιείται.	Removes an unused build-up.
+engine.help.build_up.duplicate	Αντιγράφει διαστρωμάτωση με νέο όνομα.	Copies a build-up under a new name.
+engine.help.element.create	Προσθέτει οποιοδήποτε στοιχείο: τοίχο, πλάκα, άνοιγμα, σκάλα, σχολιασμό.	Adds any element: wall, slab, opening, stair, annotation.
+engine.help.element.update	Αλλάζει στοιχείο· αλλάζουν μόνο τα πεδία που δίνονται.	Changes an element; only the given fields change.
+engine.help.element.delete	Διαγράφει στοιχεία και τα ανοίγματα των τοίχων τους.	Removes elements and the openings their walls host.
+engine.help.element.transform	Μετακινεί, περιστρέφει ή κατοπτρίζει στοιχεία, προαιρετικά ως αντίγραφα.	Moves, rotates or mirrors elements, optionally as copies.
+engine.help.element.copy_to_storey	Αντιγράφει στοιχεία σε άλλο επίπεδο στην ίδια θέση.	Copies elements to another storey at the same position.
+engine.help.element.align	Ευθυγραμμίζει μια πλευρά ή το κέντρο στοιχείων.	Lines up one side or the centre of elements.
+engine.help.wall.split	Χωρίζει ευθύγραμμο τοίχο στα δύο σε ένα σημείο.	Splits a straight wall in two at a point.
+engine.help.wall.join	Επεκτείνει ή κόβει δύο τοίχους ώστε να συναντηθούν σε γωνία.	Extends or trims two walls so that they meet at a corner.
+engine.help.opening.place	Τοποθετεί πόρτα, παράθυρο ή άνοιγμα στον πλησιέστερο τοίχο ενός σημείου.	Places a door, window or void in the wall nearest to a point.
+engine.help.slab.from_walls	Προσθέτει πλάκα με περίγραμμα τις εξωτερικές παρειές ή τον φέροντα πυρήνα των τοίχων.	Adds a slab outlined by the walls' outer or core faces.
+engine.help.roof.from_walls	Προσθέτει στέγη πάνω από τους τοίχους, επίπεδη ή κεκλιμένη, με προεξοχή.	Adds a flat or pitched roof over the walls, with an overhang.
+engine.help.space.detect	Δημιουργεί χώρο από τους τοίχους γύρω από ένα σημείο.	Creates a space from the walls around a point.
+engine.help.space.detect_all	Δημιουργεί χώρο σε κάθε κλειστό από τοίχους χώρο ενός επιπέδου.	Creates a space in every room closed by walls on a storey.
+engine.help.dimension.auto	Προσθέτει εξωτερικές αλυσίδες διαστάσεων στις τέσσερις πλευρές.	Adds exterior dimension chains on the four sides.
+engine.help.view.create	Προσθέτει όψη σχεδίου: τομή, όψη, 3Δ, πίνακα.	Adds a view: section, elevation, 3D, schedule.
+engine.help.view.update	Αλλάζει όψη σχεδίου· αλλάζουν μόνο τα πεδία που δίνονται.	Changes a view; only the given fields change.
+engine.help.view.delete	Διαγράφει όψη σχεδίου με τον σχολιασμό και τα παράθυρά της στα φύλλα.	Removes a view, its annotation and its viewports.
+engine.help.view.duplicate	Αντιγράφει όψη σχεδίου με τον σχολιασμό της.	Copies a view with its annotation.
+engine.help.sheet.create	Προσθέτει φύλλο σχεδίου.	Adds a sheet.
+engine.help.sheet.update	Αντικαθιστά φύλλο σχεδίου.	Replaces a sheet.
+engine.help.sheet.delete	Διαγράφει φύλλο σχεδίου.	Removes a sheet.
+engine.help.sheet.place_view	Τοποθετεί όψη σχεδίου σε φύλλο.	Places a view on a sheet.
+engine.help.sheet.move_viewport	Μετακινεί παράθυρο όψης σε φύλλο.	Moves a viewport on its sheet.
+engine.help.sheet.remove_viewport	Αφαιρεί παράθυρο όψης από φύλλο.	Removes a viewport from its sheet.
+engine.help.sheet.permit_set	Δημιουργεί τα φύλλα του σετ σχεδίων άδειας.	Generates the permit drawing set as sheets.
+engine.help.batch	Εκτελεί πολλές εντολές ως ένα βήμα αναίρεσης.	Runs several commands as one undo step.
+#
+# Nouns after a verb ("Διαγραφή 3 τοίχων"): .one is the singular, .many the plural.
+engine.noun.element.one	στοιχείου	element
+engine.noun.element.many	στοιχείων	elements
+engine.noun.wall.one	τοίχου	wall
+engine.noun.wall.many	τοίχων	walls
+engine.noun.slab.one	πλάκας	slab
+engine.noun.slab.many	πλακών	slabs
+engine.noun.column.one	υποστυλώματος	column
+engine.noun.column.many	υποστυλωμάτων	columns
+engine.noun.beam.one	δοκού	beam
+engine.noun.beam.many	δοκών	beams
+engine.noun.door.one	πόρτας	door
+engine.noun.door.many	πορτών	doors
+engine.noun.window.one	παραθύρου	window
+engine.noun.window.many	παραθύρων	windows
+engine.noun.opening.one	ανοίγματος	opening
+engine.noun.opening.many	ανοιγμάτων	openings
+engine.noun.stair.one	σκάλας	stair
+engine.noun.stair.many	σκαλών	stairs
+engine.noun.roof.one	στέγης	roof
+engine.noun.roof.many	στεγών	roofs
+engine.noun.railing.one	κιγκλιδώματος	railing
+engine.noun.railing.many	κιγκλιδωμάτων	railings
+engine.noun.space.one	χώρου	space
+engine.noun.space.many	χώρων	spaces
+engine.noun.object.one	αντικειμένου	object
+engine.noun.object.many	αντικειμένων	objects
+engine.noun.dimension.one	διάστασης	dimension
+engine.noun.dimension.many	διαστάσεων	dimensions
+engine.noun.text.one	κειμένου	text
+engine.noun.text.many	κειμένων	texts
+engine.noun.level.one	στάθμης	level mark
+engine.noun.level.many	σταθμών	level marks
+engine.noun.drafting.one	γραμμής	line
+engine.noun.drafting.many	γραμμών	lines
+engine.noun.grid.one	άξονα	grid line
+engine.noun.grid.many	αξόνων	grid lines
+engine.noun.underlay.one	υποβάθρου	underlay
+engine.noun.underlay.many	υποβάθρων	underlays
+#
+# Creating one element.
+engine.new.wall	Νέος τοίχος	New wall
+engine.new.slab	Νέα πλάκα	New slab
+engine.new.column	Νέο υποστύλωμα	New column
+engine.new.beam	Νέα δοκός	New beam
+engine.new.door	Νέα πόρτα	New door
+engine.new.window	Νέο παράθυρο	New window
+engine.new.opening	Νέο άνοιγμα	New opening
+engine.new.stair	Νέα σκάλα	New stair
+engine.new.roof	Νέα στέγη	New roof
+engine.new.railing	Νέο κιγκλίδωμα	New railing
+engine.new.space	Νέος χώρος	New space
+engine.new.object	Νέο αντικείμενο	New object
+engine.new.dimension	Νέα διάσταση	New dimension
+engine.new.text	Νέο κείμενο	New text
+engine.new.level	Νέα στάθμη	New level mark
+engine.new.drafting	Νέα γραμμή	New line
+engine.new.grid	Νέος άξονας	New grid line
+engine.new.underlay	Νέο υπόβαθρο	New underlay
+#
+# Counted labels: {n} is the count, {noun} the noun in the matching form.
+engine.label.delete.one	Διαγραφή {noun}	Delete {noun}
+engine.label.delete.many	Διαγραφή {n} {noun}	Delete {n} {noun}
+engine.label.move.one	Μετακίνηση {noun}	Move {noun}
+engine.label.move.many	Μετακίνηση {n} {noun}	Move {n} {noun}
+engine.label.rotate.one	Περιστροφή {noun}	Rotate {noun}
+engine.label.rotate.many	Περιστροφή {n} {noun}	Rotate {n} {noun}
+engine.label.mirror.one	Κατοπτρισμός {noun}	Mirror {noun}
+engine.label.mirror.many	Κατοπτρισμός {n} {noun}	Mirror {n} {noun}
+engine.label.copy.one	Αντιγραφή {noun}	Copy {noun}
+engine.label.copy.many	Αντιγραφή {n} {noun}	Copy {n} {noun}
+engine.label.copy_to_storey.one	Αντιγραφή {noun} στο επίπεδο	Copy {noun} to storey
+engine.label.copy_to_storey.many	Αντιγραφή {n} {noun} στο επίπεδο	Copy {n} {noun} to storey
+engine.label.update.one	Αλλαγή {noun}	Change {noun}
+engine.label.update.many	Αλλαγή {n} {noun}	Change {n} {noun}
+engine.label.align.one	Ευθυγράμμιση {noun}	Align {noun}
+engine.label.align.many	Ευθυγράμμιση {n} {noun}	Align {n} {noun}
+engine.label.batch	Πολλαπλή αλλαγή ({n})	Multiple changes ({n})
+#
+# Generated names.
+engine.space.default_name	Χώρος {n}	Space {n}
+engine.copy_name	{name} - αντίγραφο	{name} - copy
+engine.plan_name	Κάτοψη {name}	Plan {name}
+#
+# Files and exports.
+engine.io.error.io	Δεν ήταν δυνατή η πρόσβαση στο αρχείο {path}: {reason}	Cannot access {path}: {reason}
+engine.io.error.format	Το αρχείο δεν είναι έγκυρο έγγραφο Kanavos: {reason}	The file is not a valid Kanavos document: {reason}
+engine.io.error.not_available	Δεν υποστηρίζεται ακόμη σε αυτή την έκδοση: {what}	Not supported in this build yet: {what}
+engine.export.not_available	Η εξαγωγή σε {format} δεν είναι ακόμη διαθέσιμη σε αυτή την έκδοση	{format} export is not available in this build yet
+engine.export.unsupported	Η μορφή {format} δεν μπορεί να περιέχει {what}	The {format} format cannot hold {what}
+engine.export.failed	Η εξαγωγή απέτυχε: {reason}	Export failed: {reason}
