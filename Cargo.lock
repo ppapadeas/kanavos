@@ -228,6 +228,7 @@ name = "kanavos-pdf"
 version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
+ "miniz_oxide 0.8.9",
 ]
 
 [[package]]
@@ -290,6 +291,7 @@ version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
  "kanavos-model",
+ "kanavos-pdf",
  "kanavos-raster",
  "png",
 ]

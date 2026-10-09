@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use kanavos_drawing::fonts::Fonts;
 use kanavos_drawing::svg::{SvgOptions, to_svg_with_fonts};
+use kanavos_pdf::{PdfMeta, PdfPage, write_pdf_with_fonts};
 use kanavos_raster::{RasterOptions, RasterSize, render_png_with_fonts};
 use kanavos_testkit::samples::{glyph_sheet, hatch_swatches, sample_plan};
 
@@ -44,6 +45,30 @@ fn sample_plan_svg_and_png() {
         let (w, h) = png_size(&png);
         assert!(w > 1000 && h > 800, "{w} × {h}");
         std::fs::write(dir.join(format!("sample_plan_{tag}.png")), &png).expect("write png");
+    }
+}
+
+#[test]
+fn sample_plan_pdf() {
+    let dir = out_dir();
+    let fonts = Fonts::system();
+    let pages = [
+        PdfPage::new(sample_plan(), 420.0, 297.0),
+        PdfPage::new(hatch_swatches(), 210.0, 148.0),
+        PdfPage::new(glyph_sheet(), 297.0, 210.0),
+    ];
+    for (pdfa, name) in [(false, "sample_plan.pdf"), (true, "sample_plan_pdfa.pdf")] {
+        let meta = PdfMeta {
+            title: "Κάτοψη ισογείου".into(),
+            author: "Kanavos".into(),
+            subject: "Δείγμα σχεδίου".into(),
+            pdfa,
+            ..PdfMeta::default()
+        };
+        let pdf = write_pdf_with_fonts(&pages, &meta, fonts).expect("pdf");
+        assert!(pdf.starts_with(b"%PDF-1.4"));
+        assert!(pdf.ends_with(b"%%EOF\n"));
+        std::fs::write(dir.join(name), &pdf).expect("write pdf");
     }
 }
 

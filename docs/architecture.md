@@ -162,3 +162,4 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
 | Font parsing | ttf-parser | MIT OR Apache‑2.0 |
 | Rasterising | tiny-skia (+ png) | BSD‑3‑Clause (png: MIT OR Apache‑2.0) |
+| Compression (PDF streams) | miniz_oxide | MIT OR Zlib OR Apache‑2.0 |
