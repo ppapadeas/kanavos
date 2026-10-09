@@ -4,6 +4,7 @@
 pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-units", 0),
     ("kanavos-geom", 1),
+    ("kanavos-i18n", 1),
     ("kanavos-solid", 2),
     ("kanavos-drawing", 2),
     ("kanavos-geo", 2),

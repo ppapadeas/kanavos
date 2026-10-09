@@ -9,6 +9,8 @@
 //! text heights — are always in **paper millimetres**. For a model-space drawing at scale 1:`scale`, one paper
 //! millimetre is `scale / 1000` metres in drawing coordinates (see [`Drawing::paper_mm`]).
 
+pub mod table;
+
 use std::f64::consts::TAU;
 
 use schemars::JsonSchema;

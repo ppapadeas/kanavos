@@ -1,0 +1,8 @@
+# key	el	en
+rules.area_table	Πίνακας εμβαδών	Area table
+rules.col.storey	Επίπεδο	Storey
+rules.col.gross	Μικτό εμβαδόν (m²)	Gross area (m²)
+rules.col.counted	Δόμηση (m²)	Counted floor area (m²)
+rules.col.exempt	Εξαιρούμενα (m²)	Exempt (m²)
+rules.total	Σύνολο	Total
+rules.note.no_plot	Δεν έχει σχεδιαστεί οικόπεδο· τα όρια δεν μπορούν να υπολογιστούν.	No plot has been drawn; limits cannot be computed.

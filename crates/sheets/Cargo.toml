@@ -15,3 +15,7 @@ workspace = true
 kanavos-views = { path = "../views" }
 kanavos-drawing = { path = "../drawing" }
 kanavos-model = { path = "../model" }
+kanavos-rules-gr = { path = "../rules-gr" }
+kanavos-schedules = { path = "../schedules" }
+kanavos-units = { path = "../units" }
+kanavos-i18n = { path = "../i18n" }

@@ -17,3 +17,4 @@ kanavos-elements = { path = "../elements" }
 kanavos-geom = { path = "../geom" }
 kanavos-units = { path = "../units" }
 kanavos-drawing = { path = "../drawing" }
+kanavos-i18n = { path = "../i18n" }

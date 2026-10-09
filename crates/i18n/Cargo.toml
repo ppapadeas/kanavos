@@ -1,0 +1,15 @@
+[package]
+name = "kanavos-i18n"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Message catalogue: every user-facing string in Greek and English."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kanavos-units = { path = "../units" }

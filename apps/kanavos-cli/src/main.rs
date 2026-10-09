@@ -3,8 +3,9 @@
 use std::process::ExitCode;
 
 use kanavos_engine::Session;
-use kanavos_engine::commands::{CreateStorey, CreateWall};
+use kanavos_engine::commands::CreateElement;
 use kanavos_geom::Point2;
+use kanavos_model::{ElementKind, ReferenceLine, Structure, Wall, starter};
 use kanavos_units::{Length, LengthDisplay, Locale};
 
 const HELP: &str = "\
@@ -47,24 +48,24 @@ fn main() -> ExitCode {
 }
 
 fn demo() -> Result<(), kanavos_engine::CommandError> {
-    let mut session = Session::default();
-    let created = session
-        .run(&CreateStorey {
-            name: "Ισόγειο".into(), elevation: Length::ZERO, height: Length::m(3.2)
-        })?
-        .created;
-    let Some(&storey) = created.first() else {
-        return Ok(());
-    };
+    let mut session = Session::new(starter());
+    let doc = session.document().clone();
+    let Some(storey) = doc.storeys().first().map(|s| s.id) else { return Ok(()) };
+    let Some(build_up) = doc.defaults().exterior_wall else { return Ok(()) };
     let corners = [(0.0, 0.0), (10.0, 0.0), (10.0, 8.0), (0.0, 8.0)];
     for (i, &(x, y)) in corners.iter().enumerate() {
         let &(nx, ny) = corners.get((i + 1) % corners.len()).unwrap_or(&(x, y));
-        session.run(&CreateWall::centred(
+        session.run(CreateElement::on(
             storey,
-            Point2::new(x, y),
-            Point2::new(nx, ny),
-            kanavos_model::Id(1),
-            Length::cm(25.0),
+            ElementKind::Wall(Wall {
+                start: Point2::new(x, y),
+                end: Point2::new(nx, ny),
+                bulge: 0.0,
+                reference: ReferenceLine::Centre,
+                structure: Structure::Layered { build_up },
+                height: Length::m(3.2),
+                base_offset: Length::ZERO,
+            }),
         ))?;
     }
     let doc = session.document();

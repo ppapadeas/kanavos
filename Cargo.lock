@@ -78,12 +78,17 @@ dependencies = [
  "kanavos-elements",
  "kanavos-format",
  "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-model",
+ "kanavos-objects",
  "kanavos-rules-gr",
  "kanavos-schedules",
  "kanavos-sheets",
  "kanavos-units",
  "kanavos-views",
+ "schemars",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -109,6 +114,13 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "kanavos-i18n"
+version = "0.0.1"
+dependencies = [
+ "kanavos-units",
 ]
 
 [[package]]
@@ -147,6 +159,7 @@ dependencies = [
  "kanavos-geom",
  "kanavos-model",
  "kanavos-solid",
+ "kanavos-units",
 ]
 
 [[package]]
@@ -171,6 +184,7 @@ dependencies = [
  "kanavos-drawing",
  "kanavos-elements",
  "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-model",
  "kanavos-units",
 ]
@@ -179,8 +193,11 @@ dependencies = [
 name = "kanavos-schedules"
 version = "0.0.1"
 dependencies = [
+ "kanavos-drawing",
  "kanavos-elements",
+ "kanavos-i18n",
  "kanavos-model",
+ "kanavos-units",
 ]
 
 [[package]]
@@ -188,7 +205,11 @@ name = "kanavos-sheets"
 version = "0.0.1"
 dependencies = [
  "kanavos-drawing",
+ "kanavos-i18n",
  "kanavos-model",
+ "kanavos-rules-gr",
+ "kanavos-schedules",
+ "kanavos-units",
  "kanavos-views",
 ]
 
@@ -213,8 +234,13 @@ dependencies = [
 name = "kanavos-tools"
 version = "0.0.1"
 dependencies = [
+ "kanavos-drawing",
+ "kanavos-elements",
  "kanavos-engine",
  "kanavos-geom",
+ "kanavos-i18n",
+ "kanavos-model",
+ "kanavos-units",
 ]
 
 [[package]]
@@ -242,8 +268,11 @@ dependencies = [
  "kanavos-drawing",
  "kanavos-elements",
  "kanavos-geom",
+ "kanavos-i18n",
  "kanavos-model",
+ "kanavos-objects",
  "kanavos-solid",
+ "kanavos-units",
 ]
 
 [[package]]

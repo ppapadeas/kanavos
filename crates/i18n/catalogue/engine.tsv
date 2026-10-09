@@ -1,0 +1,32 @@
+# key	el	en
+engine.error.invalid	{field}: {reason}	{field}: {reason}
+engine.error.not_found	Το αντικείμενο {id} δεν βρέθηκε	Object {id} not found
+engine.error.in_use	Το αντικείμενο {id} χρησιμοποιείται και δεν μπορεί να διαγραφεί	Object {id} is in use and cannot be deleted
+engine.error.geometry	Η γεωμετρία δεν μπορεί να υπολογιστεί: {reason}	Geometry cannot be computed: {reason}
+engine.cmd.project.set_info	Στοιχεία έργου	Project information
+engine.cmd.site.set	Οικόπεδο και όροι δόμησης	Plot and building terms
+engine.cmd.defaults.set	Προεπιλογές στοιχείων	Element defaults
+engine.cmd.storey.create	Νέο επίπεδο	New storey
+engine.cmd.storey.update	Αλλαγή επιπέδου	Change storey
+engine.cmd.storey.delete	Διαγραφή επιπέδου	Delete storey
+engine.cmd.material.create	Νέο υλικό	New material
+engine.cmd.material.update	Αλλαγή υλικού	Change material
+engine.cmd.material.delete	Διαγραφή υλικού	Delete material
+engine.cmd.build_up.create	Νέα διαστρωμάτωση	New build-up
+engine.cmd.build_up.update	Αλλαγή διαστρωμάτωσης	Change build-up
+engine.cmd.build_up.delete	Διαγραφή διαστρωμάτωσης	Delete build-up
+engine.cmd.element.create	Νέο στοιχείο	New element
+engine.cmd.element.update	Αλλαγή στοιχείου	Change element
+engine.cmd.element.delete	Διαγραφή	Delete
+engine.cmd.element.transform	Μετασχηματισμός	Transform
+engine.cmd.element.copy_to_storey	Αντιγραφή σε επίπεδο	Copy to storey
+engine.cmd.wall.split	Διαίρεση τοίχου	Split wall
+engine.cmd.space.detect	Νέος χώρος	New space
+engine.cmd.view.create	Νέα όψη σχεδίου	New view
+engine.cmd.view.update	Αλλαγή όψης σχεδίου	Change view
+engine.cmd.view.delete	Διαγραφή όψης σχεδίου	Delete view
+engine.cmd.sheet.create	Νέο φύλλο	New sheet
+engine.cmd.sheet.update	Αλλαγή φύλλου	Change sheet
+engine.cmd.sheet.delete	Διαγραφή φύλλου	Delete sheet
+engine.cmd.sheet.permit_set	Σετ σχεδίων άδειας	Permit drawing set
+engine.cmd.batch	Πολλαπλή αλλαγή	Multiple changes

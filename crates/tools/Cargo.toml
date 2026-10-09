@@ -13,4 +13,9 @@ workspace = true
 
 [dependencies]
 kanavos-engine = { path = "../engine" }
+kanavos-elements = { path = "../elements" }
+kanavos-model = { path = "../model" }
+kanavos-drawing = { path = "../drawing" }
 kanavos-geom = { path = "../geom" }
+kanavos-units = { path = "../units" }
+kanavos-i18n = { path = "../i18n" }

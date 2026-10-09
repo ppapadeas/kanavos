@@ -16,3 +16,4 @@ kanavos-model = { path = "../model" }
 kanavos-geom = { path = "../geom" }
 kanavos-solid = { path = "../solid" }
 kanavos-drawing = { path = "../drawing" }
+kanavos-units = { path = "../units" }

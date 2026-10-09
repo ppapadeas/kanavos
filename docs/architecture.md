@@ -32,7 +32,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L4  kanavos-elements (walls, slabs, openings, roofs, stairs, spaces …)   kanavos-objects (parametric objects)
  L3  kanavos-model (project document, attributes, relations, IDs)
  L2  kanavos-solid (solid modelling façade)   kanavos-drawing (2D drawing primitives)   kanavos-geo (CRS, ΕΓΣΑ87)
- L1  kanavos-geom
+ L1  kanavos-geom   kanavos-i18n (message catalogue, el/en)
  L0  kanavos-units
  dev kanavos-testkit (fixtures, golden drawings, visual diffs)
 ```
@@ -43,6 +43,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | --- | --- |
 | `kanavos-units` | Lengths, angles, areas, volumes; tolerances; locale-aware formatting (decimal comma for `el`). |
 | `kanavos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
+| `kanavos-i18n` | The message catalogue: every user-facing string, in Greek and English, one file per area. |
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
 | `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
 | `kanavos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |

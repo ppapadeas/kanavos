@@ -34,7 +34,9 @@ pub use template::starter;
 pub use view::{Camera, Paper, PaperSize, ScheduleKind, Sheet, View, ViewKind, Viewport};
 
 /// Stable identifier of anything in a document. Never reused within a document.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(transparent)]
 pub struct Id(pub u64);
 

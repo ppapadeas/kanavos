@@ -1,0 +1,17 @@
+# key	el	en
+tools.select.prompt	Επιλέξτε στοιχεία· σύρετε για μετακίνηση, Delete για διαγραφή	Select elements; drag to move, Delete to remove
+tools.wall.start	Κάντε κλικ στην αρχή του τοίχου	Click the start of the wall
+tools.wall.next	Κάντε κλικ στο επόμενο σημείο ή πληκτρολογήστε μήκος· Enter για τέλος	Click the next point or type a length; Enter to finish
+tools.field.length	Μήκος	Length
+tools.field.angle	Γωνία	Angle
+tools.snap.free	ελεύθερο	free
+tools.snap.endpoint	άκρο	endpoint
+tools.snap.midpoint	μέσο	midpoint
+tools.snap.corner	γωνία	corner
+tools.snap.centre	κέντρο	centre
+tools.snap.intersection	τομή	intersection
+tools.snap.on_edge	πάνω στην ακμή	on edge
+tools.snap.perpendicular	κάθετη	perpendicular
+tools.snap.extension	προέκταση	extension
+tools.snap.angle	γωνία κλειδωμένη	angle lock
+tools.snap.grid	κάναβος	grid

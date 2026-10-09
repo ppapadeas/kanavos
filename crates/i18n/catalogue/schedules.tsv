@@ -1,0 +1,17 @@
+# key	el	en
+schedules.not_available	Ο πίνακας δεν είναι ακόμη διαθέσιμος	This schedule is not available yet
+schedules.doors	Πίνακας θυρών	Door schedule
+schedules.windows	Πίνακας παραθύρων	Window schedule
+schedules.spaces	Πίνακας χώρων	Space schedule
+schedules.walls	Πίνακας τοίχων	Wall schedule
+schedules.total	Σύνολο	Total
+schedules.col.tag	Κωδ.	Mark
+schedules.col.storey	Επίπεδο	Storey
+schedules.col.width	Πλάτος	Width
+schedules.col.height	Ύψος	Height
+schedules.col.sill	Ποδιά	Sill
+schedules.col.number	Α/Α	No.
+schedules.col.name	Όνομα	Name
+schedules.col.area	Εμβαδόν	Area
+schedules.col.length	Μήκος	Length
+schedules.col.thickness	Πάχος	Thickness

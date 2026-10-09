@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 kanavos-model = { path = "../model" }
 kanavos-elements = { path = "../elements" }
+kanavos-objects = { path = "../objects" }
 kanavos-views = { path = "../views" }
 kanavos-schedules = { path = "../schedules" }
 kanavos-rules-gr = { path = "../rules-gr" }
@@ -21,3 +22,7 @@ kanavos-sheets = { path = "../sheets" }
 kanavos-format = { path = "../format" }
 kanavos-units = { path = "../units" }
 kanavos-geom = { path = "../geom" }
+kanavos-i18n = { path = "../i18n" }
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
