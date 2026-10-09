@@ -6,4 +6,7 @@ attribute sets are never bundled (see [clean-room protocol](docs/legal/clean-roo
 
 | Asset | Path | Author | Source | Licence |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| Single-stroke lettering font (glyph definitions) | `crates/fonts/src/stroke.rs` | The Kanavos contributors | Original design, see `specs/drawing/stroke-font.md` | MIT OR Apache‑2.0 |
+
+System fonts (for example on Windows, Linux or macOS) are found and read at run time from the user's machine and
+are never copied into the repository or the distribution.

@@ -30,10 +30,10 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf   kanavos-gltf
  L5  kanavos-views (plan/section/elevation/3D derivation, hidden-line removal)   kanavos-schedules   kanavos-rules-gr
  L4  kanavos-elements (walls, slabs, openings, roofs, stairs, spaces …)   kanavos-objects (parametric objects)
- L3  kanavos-model (project document, attributes, relations, IDs)
+ L3  kanavos-model (project document, attributes, relations, IDs)   kanavos-raster (drawing → PNG)
  L2  kanavos-solid (solid modelling façade)   kanavos-drawing (2D drawing primitives)   kanavos-geo (CRS, ΕΓΣΑ87)
  L1  kanavos-geom   kanavos-i18n (message catalogue, el/en)
- L0  kanavos-units
+ L0  kanavos-units   kanavos-fonts (font discovery, glyph outlines, built-in stroke font)
  dev kanavos-testkit (fixtures, golden drawings, visual diffs)
 ```
 
@@ -42,11 +42,13 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | Crate | Owns |
 | --- | --- |
 | `kanavos-units` | Lengths, angles, areas, volumes; tolerances; locale-aware formatting (decimal comma for `el`). |
+| `kanavos-fonts` | Discovery of an installed Greek-capable sans-serif font (fonts are not bundled), glyph outlines and advance widths, and a built-in single-stroke lettering font so text output never fails. |
 | `kanavos-geom` | 2D/3D primitives, robust predicates, polygons with holes, booleans, offsets, arcs. |
 | `kanavos-i18n` | The message catalogue: every user-facing string, in Greek and English, one file per area. |
 | `kanavos-solid` | Extrude, sweep, revolve, CSG; one façade over the chosen kernel(s) so they can be swapped. |
-| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. |
+| `kanavos-drawing` | Resolution-independent 2D drawing: strokes with line weight and line type, fills, hatches, text, dimensions. Shared by views, sheets and exports. Output helpers: hatch expansion, dashing, text layout, page placement and SVG export. |
 | `kanavos-geo` | Project survey point, true north, ΕΓΣΑ87 (EPSG:2100) ↔ project coordinates, survey import helpers. |
+| `kanavos-raster` | Antialiased rendering of drawings to RGBA images and PNG for previews and thumbnails. |
 | `kanavos-model` | The document: site, buildings, storeys, elements, attributes (materials, build-ups, line types, fills, layers), relations, stable IDs mapped to IFC GlobalIds. Persistent (structurally shared) data for cheap undo. |
 | `kanavos-elements` | Rules that turn element parameters into geometry: wall build-ups and junctions, slab edges, openings cut into hosts, roofs, stairs, spaces and their areas. |
 | `kanavos-objects` | Parametric object system for doors, windows, furniture and fixtures, in a sandboxed language (ADR‑0006). |
@@ -160,3 +162,6 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | STEP parsing | ruststep, or own Part 21 parser | Apache‑2.0 |
 | Persistent collections | im / rpds | MPL‑2.0 / MPL‑2.0 |
 | Serialisation | serde, serde_json | MIT OR Apache‑2.0 |
+| Font parsing | ttf-parser | MIT OR Apache‑2.0 |
+| Rasterising | tiny-skia (+ png) | BSD‑3‑Clause (png: MIT OR Apache‑2.0) |
+| Compression (PDF streams) | miniz_oxide | MIT OR Zlib OR Apache‑2.0 |
