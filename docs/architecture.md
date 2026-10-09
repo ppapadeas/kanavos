@@ -59,7 +59,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-pdf` | Vector PDF export, PDF/A for archiving. |
 | `kanavos-engine` | Open session, command bus, undo/redo, selection, change propagation, background job scheduling and cancellation, autosave. |
 | `kanavos-tools` | Interactive tools that turn input into commands; snapping and inference; typed numeric input. |
-| `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu). |
+| `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu): offscreen viewport image, orbit camera, picking, section box, edges, shadows and ambient occlusion; headless rendering for tests and batch export (ADR‑0007). |
 | `kanavos-control` | JSON-RPC 2.0 control protocol over stdio and local WebSocket (see [`control-protocol.md`](control-protocol.md)). |
 | `kanavos-ui` | The desktop interface (egui). Contains no model logic. |
 | `kanavos-mcp` | Exposes the control protocol as an MCP server for automation clients. |
@@ -127,6 +127,8 @@ pub trait Command {
 | Edit a wall → section updated | ≤ 300 ms, streamed |
 | Open a 50,000-element project | ≤ 2 s to first interactive view |
 | Save | ≤ 200 ms incremental, never blocks input |
+| 3D viewport frame, 5,000 elements / 0.5 M triangles at 1920 × 1080 | ≤ 16 ms (60 fps), integrated graphics |
+| Pick the element under the cursor in 3D | ≤ 1 frame (asynchronous) |
 
 `cargo xtask bench` tracks these on reference projects; regressions over 10 % fail CI.
 
@@ -152,6 +154,8 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Need | Candidate | Licence (verify on adoption) |
 | --- | --- | --- |
 | GPU | wgpu | MIT OR Apache‑2.0 |
+| GPU buffer casts | bytemuck | Zlib OR Apache‑2.0 OR MIT |
+| Blocking on GPU futures (headless) | pollster | Apache‑2.0 OR MIT |
 | UI | egui / eframe, with AccessKit | MIT OR Apache‑2.0 |
 | Mesh booleans | manifold-rust (pure-Rust port of Manifold) | Apache‑2.0 |
 | B-rep (later) | truck / monstertruck | Apache‑2.0 |

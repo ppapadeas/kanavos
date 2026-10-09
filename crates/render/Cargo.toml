@@ -14,3 +14,13 @@ workspace = true
 [dependencies]
 kanavos-drawing = { path = "../drawing" }
 kanavos-geom = { path = "../geom" }
+kanavos-solid = { path = "../solid" }
+bytemuck = { version = "1.25", features = ["derive"] }
+pollster = "1.0"
+# Same major version as egui-wgpu 0.36 so device, queue and texture types are shared with the UI.
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "dx12", "metal", "vulkan", "gles"] }
+
+[dev-dependencies]
+# Validates the WGSL shaders in plain unit tests, without a GPU (same version as wgpu's own shader compiler).
+naga = { version = "30.0.1", features = ["wgsl-in"] }
+png = "0.18"
