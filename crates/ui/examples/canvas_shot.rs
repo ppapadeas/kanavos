@@ -3,12 +3,12 @@
 //! Usage (the screenshot hook is the one built into the canvas, see `canvas::shot`):
 //!
 //! ```text
-//! KANAVOS_SHOT_SCENE=plan|detail|select|sheet|section|3d|split|bench \
+//! KANAVOS_SHOT_SCENE=plan|detail|select|sheet|section|3d|3d-storey|3d-box|3d-select|3d-top|split|bench|bench3d \
 //! KANAVOS_SHOT_HOUSES=1 KANAVOS_CANVAS_SHOT=out.png cargo run -p kanavos-ui --example canvas_shot
 //! ```
 //!
-//! `bench` pans and zooms the plan programmatically for `KANAVOS_SHOT_FRAMES` frames (default 600) and prints
-//! frame-time statistics instead of taking a screenshot.
+//! `bench` pans and zooms the plan, `bench3d` orbits the 3D view, programmatically for `KANAVOS_SHOT_FRAMES`
+//! frames (default 600), and print frame-time statistics instead of taking a screenshot.
 
 use kanavos_engine::Command;
 use kanavos_engine::commands::{CreateView, PermitSet};
@@ -16,7 +16,7 @@ use kanavos_geom::Point2;
 use kanavos_model::{Id, ViewKind};
 use kanavos_ui::canvas::{Canvas, CanvasKind, demo};
 use kanavos_ui::state::AppState;
-use kanavos_ui::viewport3d::Viewport3d;
+use kanavos_ui::viewport3d::{StandardView, StoreyFilter, Viewport3d};
 use kanavos_units::Length;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -26,9 +26,19 @@ enum Scene {
     Select,
     Sheet,
     Section,
-    ThreeD,
+    ThreeD(View3d),
     Split,
     Bench,
+    Bench3d,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum View3d {
+    Iso,
+    Storey,
+    Box,
+    Select,
+    Top,
 }
 
 struct Shot {
@@ -50,9 +60,14 @@ fn main() -> eframe::Result {
         "select" => Scene::Select,
         "sheet" => Scene::Sheet,
         "section" => Scene::Section,
-        "3d" => Scene::ThreeD,
+        "3d" => Scene::ThreeD(View3d::Iso),
+        "3d-storey" => Scene::ThreeD(View3d::Storey),
+        "3d-box" => Scene::ThreeD(View3d::Box),
+        "3d-select" => Scene::ThreeD(View3d::Select),
+        "3d-top" => Scene::ThreeD(View3d::Top),
         "split" => Scene::Split,
         "bench" => Scene::Bench,
+        "bench3d" => Scene::Bench3d,
         _ => Scene::Plan,
     };
     let houses: usize = std::env::var("KANAVOS_SHOT_HOUSES").ok().and_then(|s| s.parse().ok()).unwrap_or(1);
@@ -105,22 +120,29 @@ fn main() -> eframe::Result {
     let mut state = AppState::new(doc);
     state.active_storey = storey;
     let canvas = match scene {
-        Scene::ThreeD => None,
+        Scene::ThreeD(_) | Scene::Bench3d => None,
         Scene::Sheet => Some(Canvas::new(CanvasKind::Sheet { sheet })),
         Scene::Section => Some(Canvas::new(CanvasKind::Section { view: section_view })),
         _ => Some(Canvas::new(CanvasKind::Plan { view: plan_view })),
     };
     let first_wall = state.doc().walls_on(storey).next().map(|(w, _)| w);
-    if scene == Scene::Select
+    if matches!(scene, Scene::Select | Scene::ThreeD(View3d::Select))
         && let Some(w) = first_wall
     {
         state.selection = [w].into();
+    }
+    let mut viewport = Viewport3d::new();
+    match scene {
+        Scene::ThreeD(View3d::Storey) => viewport.set_storey_filter(StoreyFilter::UpTo(storey)),
+        Scene::ThreeD(View3d::Box) => viewport.set_section_box([-2.0, -2.0, -1.0], [13.0, 11.0, 1.4]),
+        Scene::ThreeD(View3d::Top) => viewport.set_standard_view(StandardView::Top),
+        _ => {}
     }
     let app = Shot {
         state,
         scene,
         canvas,
-        viewport: Viewport3d::new(),
+        viewport,
         frame: 0,
         frames,
         times: Vec::new(),
@@ -149,7 +171,26 @@ impl eframe::App for Shot {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.frame += 1;
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| match self.scene {
-            Scene::ThreeD => self.viewport.ui(ui, frame, &mut self.state),
+            Scene::ThreeD(_) => self.viewport.ui(ui, frame, &mut self.state),
+            Scene::Bench3d => {
+                if self.frame > 5 {
+                    // Orbit continuously, with a slow zoom in and out.
+                    let mut c = self.viewport.camera();
+                    let t = self.frame as f64 / 60.0;
+                    let (dx, dy) = (c.eye.x - c.target.x, c.eye.y - c.target.y);
+                    let r = dx.hypot(dy) * (1.0 + 0.004 * (t * 0.8).sin());
+                    let a = dy.atan2(dx) + 0.02;
+                    c.eye.x = c.target.x + r * a.cos();
+                    c.eye.y = c.target.y + r * a.sin();
+                    self.viewport.set_camera(&c);
+                }
+                self.viewport.ui(ui, frame, &mut self.state);
+                let s = self.viewport.stats();
+                if self.frame > 5 {
+                    self.times.push(s.frame_ms);
+                    self.tess.push(s.render_ms);
+                }
+            }
             Scene::Split => {
                 let w = ui.available_width() / 2.0;
                 ui.horizontal(|ui| {
@@ -184,12 +225,14 @@ impl eframe::App for Shot {
             }
         });
         self.first = false;
-        if self.scene == Scene::Bench {
+        if matches!(self.scene, Scene::Bench | Scene::Bench3d) {
             ui.ctx().request_repaint();
             if self.frame >= self.frames {
                 report(&self.times, &self.tess, self.started.elapsed().as_secs_f64(), self.frame);
                 if let Some(c) = &self.canvas {
                     eprintln!("last frame: {:?}", c.stats());
+                } else {
+                    eprintln!("last frame: {:?}", self.viewport.stats());
                 }
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }

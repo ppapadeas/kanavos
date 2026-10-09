@@ -41,7 +41,13 @@ pub fn house_commands(
         .interior_wall
         .map(|b| Structure::Layered { build_up: b })
         .unwrap_or_else(|| exterior.clone());
-    let height = doc.storey(storey).map(|s| s.height).ok_or(CommandError::NotFound(storey))?;
+    let storey_height = doc.storey(storey).map(|s| s.height).ok_or(CommandError::NotFound(storey))?;
+    // Walls stop under the slab of the storey above, when there is one.
+    let ceiling = match (doc.storey_above(storey), defaults.floor_slab) {
+        (Some(_), Some(b)) => doc.build_up(b).map(|b| b.thickness()).unwrap_or(Length::ZERO),
+        _ => Length::ZERO,
+    };
+    let height = storey_height - ceiling;
     let wall = |a: Point2, b: Point2, s: &Structure| {
         CreateElement::on(
             storey,
@@ -210,7 +216,7 @@ pub fn house_commands(
                     above,
                     ElementKind::Roof(Roof {
                         outline: rect(-t - o, -t - o, w + t + o, d + t + o),
-                        base: Length::m(0.1),
+                        base: doc.build_up(b).map(|x| x.thickness()).unwrap_or(Length::ZERO),
                         structure: Structure::Layered { build_up: b },
                         shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(25.0)); 4] },
                     }),
