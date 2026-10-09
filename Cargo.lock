@@ -1663,8 +1663,18 @@ dependencies = [
 name = "kanavos-render"
 version = "0.0.1"
 dependencies = [
+ "bytemuck",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
  "kanavos-drawing",
  "kanavos-geom",
+ "kanavos-solid",
+ "naga",
+ "png",
+ "pollster",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]
