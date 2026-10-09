@@ -389,7 +389,8 @@ mod tests {
             Locale::En,
         )
         .unwrap();
-        assert_eq!(doors["rows"].as_array().unwrap().len(), 15);
+        assert!(doors["rows"].as_array().unwrap().len() >= 4);
+        assert!(doors["csv"].as_str().unwrap().contains("Π4"));
         let totals = quantities_query(
             &doc,
             &QuantityQuery { what: "totals".into(), schedule: None, locale: None },

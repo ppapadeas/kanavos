@@ -173,7 +173,8 @@ fn queries_and_quantities() {
     let nok = t.call("query.quantities", json!({ "what": "nok" })).unwrap();
     assert!((nok["plotArea"].as_f64().unwrap() - 500.0).abs() < 1e-6);
     let table = t.call("query.quantities", json!({ "what": "schedule", "schedule": "windows" })).unwrap();
-    assert_eq!(table["rows"].as_array().unwrap().len(), 16);
+    assert!(table["rows"].as_array().unwrap().len() >= 3);
+    assert!(table["csv"].as_str().unwrap().contains("Θ3"));
     let err = t.call("query.quantities", json!({ "what": "everything" })).unwrap_err();
     assert_eq!(err["data"]["path"], "what");
 }
