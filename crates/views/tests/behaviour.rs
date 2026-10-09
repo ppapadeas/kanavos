@@ -242,3 +242,101 @@ fn titles_and_wrong_kinds() {
     assert_eq!(view_drawing(&h.doc, table, Locale::El), Err(ViewError::WrongKind(table)));
     assert_eq!(view_drawing(&h.doc, Id(999_999), Locale::El), Err(ViewError::NotFound(Id(999_999))));
 }
+
+fn poly_area(d: &Drawing, layer: &str) -> f64 {
+    d.layer_items(layer)
+        .filter_map(|i| match &i.shape {
+            Shape::Polygon { rings } => Some(
+                rings
+                    .iter()
+                    .map(|r| {
+                        let n = r.len();
+                        (0..n).map(|k| r[k].x * r[(k + 1) % n].y - r[(k + 1) % n].x * r[k].y).sum::<f64>()
+                            / 2.0
+                    })
+                    .sum::<f64>()
+                    .abs(),
+            ),
+            _ => None,
+        })
+        .sum()
+}
+
+#[test]
+fn a_rotated_house_draws_like_the_original() {
+    let h = common::house();
+    let t = kanavos_geom::Transform2::rotation_about(Point2::new(6.0, 4.5), Angle::deg(30.0));
+    let mut doc = h.doc.clone();
+    for e in h.doc.elements() {
+        let mut c = e.clone();
+        c.kind = e.kind.transformed(&t);
+        doc = doc.with_element(c);
+    }
+    for v in h.doc.views() {
+        let mut v = v.clone();
+        if let ViewKind::Section { start, end, .. } | ViewKind::Elevation { start, end, .. } = &mut v.kind {
+            *start = t.apply(*start);
+            *end = t.apply(*end);
+        }
+        doc = doc.with_view(v);
+    }
+    let p0 = plan(&h.doc, h.ground, &PlanOptions::default()).unwrap();
+    let p1 = plan(&doc, h.ground, &PlanOptions::default()).unwrap();
+    common::save_png(&p1, "rotated-plan.png");
+    let (a0, a1) = (poly_area(&p0, "wall.layer"), poly_area(&p1, "wall.layer"));
+    assert!((a0 - a1).abs() < 1e-6 * a0, "{a0} vs {a1}");
+    // Automatic dimensions follow the building's axes.
+    for d in auto_dimensions(&doc, h.ground) {
+        let off = (d.direction.as_deg() - 30.0).rem_euclid(90.0);
+        assert!(off.min(90.0 - off) < 1e-6, "{}", d.direction.as_deg());
+    }
+    // The section of the rotated house cuts the same areas.
+    let s0 = view_drawing(&h.doc, h.section, Locale::El).unwrap();
+    let s1 = view_drawing(&doc, h.section, Locale::El).unwrap();
+    common::save_png(&s1, "rotated-section.png");
+    let (c0, c1) = (poly_area(&s0, "wall.layer"), poly_area(&s1, "wall.layer"));
+    assert!((c0 - c1).abs() < 1e-3 * c0, "{c0} vs {c1}");
+}
+
+#[test]
+fn empty_projects_draw_without_failing() {
+    let doc = kanavos_model::starter();
+    let ground = doc.storeys()[0].id;
+    let d = plan(&doc, ground, &PlanOptions::default()).unwrap();
+    assert!(d.items.iter().all(|i| i.layer.starts_with("north") || i.layer.contains("marker")));
+    assert!(auto_dimensions(&doc, ground).is_empty());
+    let (doc, sid) = doc.with_new_id();
+    let doc = doc.with_view(View {
+        id: sid,
+        name: "Τομή".into(),
+        kind: ViewKind::Section {
+            start: Point2::new(0.0, 0.0),
+            end: Point2::new(10.0, 0.0),
+            depth: Length::m(5.0),
+            flip: false,
+            marker: "Α".into(),
+        },
+        scale: 50,
+        hidden_layers: Default::default(),
+    });
+    let s = view_drawing(&doc, sid, Locale::El).unwrap();
+    assert!(s.items.is_empty());
+    let axo = doc.views().find(|v| matches!(v.kind, ViewKind::ThreeD { .. })).unwrap().id;
+    assert!(view_drawing(&doc, axo, Locale::El).unwrap().items.is_empty());
+    // A view line of zero length cannot be drawn.
+    let (doc, zid) = doc.with_new_id();
+    let doc = doc.with_view(View {
+        id: zid,
+        name: "Όψη".into(),
+        kind: ViewKind::Elevation {
+            start: Point2::new(1.0, 1.0),
+            end: Point2::new(1.0, 1.0),
+            depth: Length::ZERO,
+            flip: false,
+            marker: "Γ".into(),
+        },
+        scale: 50,
+        hidden_layers: Default::default(),
+    });
+    assert_eq!(view_drawing(&doc, zid, Locale::El), Err(ViewError::WrongKind(zid)));
+}
