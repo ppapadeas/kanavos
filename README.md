@@ -7,8 +7,15 @@ the model.** Built in Rust, with Greek building regulations built in.
 > layered build-ups and clean junctions, slabs, columns, beams, doors and windows, stairs, pitched and flat roofs,
 > railings, rooms, furniture; plans, sections and elevations with hidden-line removal; live ΝΟΚ meters, the
 > coverage diagram, area tables and schedules; sheets exported to PDF, DXF, SVG and PNG; IFC 4.3 and glTF. Specs
-> are written but still awaiting clean-room review (`status: in-review`). See [ROADMAP.md](ROADMAP.md) and the
-> [getting-started guide](docs/guide/getting-started.md) ([ελληνικά](docs/guide/odigos.el.md)).
+> are approved by the project owner; an independent clean-room review is still to come. See
+> [ROADMAP.md](ROADMAP.md) and the [getting-started guide](docs/guide/getting-started.md)
+> ([ελληνικά](docs/guide/odigos.el.md)).
+
+## Download
+
+Windows and Linux packages are on the [releases page](https://github.com/ppapadeas/kanavos/releases/latest). Unpack
+the archive to a folder you can write to and run `kanavos` (`kanavos.exe` on Windows); Kanavos then keeps itself up
+to date. Details: [installing](docs/guide/install.md) ([εγκατάσταση](docs/guide/egkatastasi.el.md)).
 
 ## Why
 

@@ -35,6 +35,7 @@ First test release, for Windows and Linux (x86-64). Early alpha: expect missing 
 **Updates**
 
 - Kanavos checks for new versions, downloads them, verifies their signature and installs them on request.
+  **Help › Update channel › Test builds** also offers pre-releases.
 
 **Known limits**
 
