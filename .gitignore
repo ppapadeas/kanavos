@@ -2,3 +2,4 @@
 **/*.rs.bk
 *.kanavos.recovery
 .DS_Store
+/dist
