@@ -1,9 +1,9 @@
 ---
 id: SPEC-files-001
 title: Saving and opening projects in the native format
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - ISO/IEC 21320-1:2015 Document Container File — Part 1 (ZIP container)
   - RFC 1951 DEFLATE Compressed Data Format
@@ -145,6 +145,6 @@ and stays readable by later versions of Kanavos and by other programs.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
 
-Revised on 2026-10-10 after that review: project identity (items 19–21), elements from other programs (22–23), acceptance tests 11–12. The revision awaits review; the approval above covers the earlier text.
+Revised on 2026-10-10 after that review: project identity (items 19–21), elements from other programs (22–23), acceptance tests 11–12. The revision was approved by Pierros Papadeas on 2026-10-10.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

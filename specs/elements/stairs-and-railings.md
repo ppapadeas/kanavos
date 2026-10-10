@@ -1,9 +1,9 @@
 ---
 id: SPEC-elements-004
 title: Stairs and railings
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - Κτιριοδομικός Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11 (Κλίμακες) §2, §4 (πίνακας τύπων Ι–ΙΙΙ), §4.1–§4.6
   - Κτιριοδομικός Κανονισμός (ως άνω), άρθρο 13 (Στηθαία) §1–§3
@@ -167,6 +167,6 @@ checks of a selected stair or railing; the use is chosen in the inspector and in
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
 
-Revised on 2026-10-10 after that review: stair use and the checks per use with headroom, railings following a slope, infill material and railings along a stair, acceptance tests 6 and 8–11. The revision awaits review; the approval above covers the earlier text.
+Revised on 2026-10-10 after that review: stair use and the checks per use with headroom, railings following a slope, infill material and railings along a stair, acceptance tests 6 and 8–11. The revision was approved by Pierros Papadeas on 2026-10-10.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.
