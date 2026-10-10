@@ -16,7 +16,9 @@
 //! save → load → save is byte-identical.
 //!
 //! Older schema versions are upgraded on load through [`migrate()`]; files from a newer schema are refused with
-//! [`FormatError::NewerVersion`] rather than read wrongly.
+//! [`FormatError::NewerVersion`] rather than read wrongly. Information that older schema 1 files kept elsewhere
+//! (for example the IFC `GlobalId` of imported elements, once a user property) is moved into its current field on
+//! load ([`legacy`]).
 
 #![forbid(unsafe_code)]
 
@@ -24,6 +26,7 @@ mod container;
 mod error;
 mod files;
 mod finite;
+pub mod legacy;
 mod manifest;
 mod migrate;
 
@@ -211,6 +214,7 @@ pub fn from_bytes_with(bytes: &[u8], options: &LoadOptions) -> Result<Loaded, Fo
         warnings.push(LoadWarning::Migrated { from: manifest.schema_version, to: CURRENT_SCHEMA_VERSION });
         document
     };
+    let (document, _) = legacy::upgrade(document);
 
     let thumbnail = match archive.read(THUMBNAIL_ENTRY)? {
         Some(png) if png.starts_with(&PNG_SIGNATURE) => Some(png),

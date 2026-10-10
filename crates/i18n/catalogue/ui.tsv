@@ -154,6 +154,8 @@ ui.insp.edge_n	Πλευρά {n}	Edge {n}
 ui.insp.elevation	Ύψος από δάπεδο	Height above floor
 ui.insp.end_x	Τέλος X	End X
 ui.insp.end_y	Τέλος Y	End Y
+ui.insp.external_id	Εξωτερικό αναγνωριστικό	External id
+ui.insp.external_id_hint	Το αναγνωριστικό του στοιχείου στο αρχείο από το οποίο εισήχθη (π.χ. το GlobalId του IFC). Διατηρείται στις εξαγωγές· τα αντίγραφα δεν το κληρονομούν.	The element's identifier in the file it was imported from (e.g. the IFC GlobalId). Exports keep it; copies do not inherit it.
 ui.insp.finish	Επένδυση δαπέδου	Floor finish
 ui.insp.flip_hand	Αναστροφή φοράς	Swap hinge side
 ui.insp.flip_side	Αναστροφή πλευράς	Swap opening side

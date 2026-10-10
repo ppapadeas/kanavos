@@ -47,6 +47,7 @@ pub(crate) fn new_element(ctx: &ToolContext<'_>, i: u64, storey: Option<Id>, kin
         phase: Phase::New,
         tag: String::new(),
         properties: Default::default(),
+        external_id: None,
         kind,
     }
 }

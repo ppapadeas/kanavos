@@ -39,8 +39,11 @@ Every `GlobalId` is derived, never random:
 3. The 128 bits are written in the IFC compressed form (22 characters of `0-9A-Za-z_$`, most significant first).
 
 Exporting the same project twice gives the same identifiers, so other tools can match objects between issues of
-a model. An element imported from IFC keeps its original `GlobalId` in the property `ifc:GlobalId`; export reuses
-it (once: a copied element with the same stored identifier gets a derived one).
+a model. An element imported from IFC keeps its original `GlobalId` as its external id (`Element::external_id`);
+export reuses it when it is a valid IFC identifier not yet used in the file. Copies of elements have no external
+id, so they get derived identifiers. (Files from before the field kept the identifier in the user property
+`ifc:GlobalId`; it is moved into the field when such a file is opened, and export still honours the property for
+documents built in memory that way.)
 
 ### 1.3 Spatial structure
 
@@ -117,7 +120,7 @@ materials, build-ups, defaults, the 3D view, site plan, coverage diagram, area t
 | `IfcMaterial` | Material | Reused by name, else created; family guessed from the name and IFC category (English and Greek keywords); colour from its styled representation, else a default for the family. |
 | `IfcMapConversion` + `IfcProjectedCRS` | Georeference | EPSG code from the CRS name, eastings, northings, altitude (in the CRS map unit), rotation from the X axis direction. |
 | `IfcProject` Name, LongName; building address | Project title, location, municipality | The imported document has no project id; it gets one when first saved. |
-| `GlobalId`, `Tag`, `Pset_*Common.Status`, `Kanavos_Properties` | `ifc:GlobalId` property, tag, phase, user properties | |
+| `GlobalId`, `Tag`, `Pset_*Common.Status`, `Kanavos_Properties` | External id, tag, phase, user properties | The external id is shown, read-only, in the inspector. |
 
 ### 2.3 Report
 

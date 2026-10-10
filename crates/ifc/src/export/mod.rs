@@ -25,8 +25,9 @@ use crate::step::{P, StepWriter};
 /// Schema identifier written to `FILE_SCHEMA`.
 pub const EXPORT_SCHEMA: &str = "IFC4X3_ADD2";
 
-/// Element property holding the IFC `GlobalId` an element was imported with; export reuses it so identifiers
-/// survive an import → export round trip.
+/// User property in which imports before `Element::external_id` existed kept the IFC `GlobalId`. Files are
+/// upgraded when they are read (see `kanavos_format::legacy`); export still honours the property for documents
+/// built in memory the old way, and never writes it as a user property.
 pub const GLOBAL_ID_PROPERTY: &str = "ifc:GlobalId";
 
 /// Callback giving an element's body as a triangle mesh in project coordinates (metres, `z` above ±0.00), or
@@ -324,9 +325,13 @@ impl<'a> Exporter<'a> {
         g.to_ifc()
     }
 
-    /// The GlobalId of an element: the one it was imported with, if valid and not taken, else a derived one.
+    /// The GlobalId of an element: its external id (the one it was imported with; the legacy property for
+    /// documents without the field), if it is a valid IFC identifier not used yet in this file, else a derived
+    /// one.
     fn element_guid(&mut self, e: &Element) -> String {
-        if let Some(g) = e.properties.get(GLOBAL_ID_PROPERTY).and_then(|s| Guid::from_ifc(s))
+        let stored =
+            e.external_id.as_deref().or_else(|| e.properties.get(GLOBAL_ID_PROPERTY).map(String::as_str));
+        if let Some(g) = stored.and_then(Guid::from_ifc)
             && self.used_guids.insert(g)
         {
             return g.to_ifc();

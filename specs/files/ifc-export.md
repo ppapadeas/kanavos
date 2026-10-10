@@ -43,8 +43,10 @@ building's structure, element types, sizes, materials, quantities and position o
    `specs/files/native-format.md`, project identity), so renaming the project keeps every identifier. A document
    without a project id falls back to the version-5 UUID of the Kanavos namespace and the project's name,
    location, municipality and owner.
-8. An element carrying a valid `ifc:GlobalId` property (kept by import) is written with that identifier, unless
-   an earlier element already used it.
+8. An element whose external id is a valid IFC `GlobalId` (kept by import) is written with that identifier,
+   unless an earlier element already used it. Documents built in memory with the older `ifc:GlobalId` user
+   property are honoured the same way; the property is never written as a user property. Copies of elements have
+   no external id, so they always get derived identifiers.
 
 ### Structure
 
@@ -116,6 +118,8 @@ building's structure, element types, sizes, materials, quantities and position o
 9. With a project id set, the project's `GlobalId` is the version-5 UUID of that id and `project`; renaming the
    project and changing its location and owner keeps every `GlobalId`; another project id changes them; without a
    project id a rename changes them.
+10. A wall with an external id is written with it; its copy gets a derived identifier; an external id that is not
+    an IFC `GlobalId` is ignored.
 
 ## Open questions
 

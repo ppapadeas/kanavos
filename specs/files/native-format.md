@@ -76,6 +76,16 @@ and stays readable by later versions of Kanavos and by other programs.
     assigns a fresh id; the editing session keeps it, so later saves write the same id and undo does not remove
     it. The format library writes a document as it is, so its saves stay byte-for-byte reproducible.
 
+### Elements from other programs
+
+22. An element may carry an external id: its identifier in the file it came from (the IFC `GlobalId` of an
+    imported element). It is read-only for people, kept when the element is moved or edited, and not given to
+    copies (moving with copies, copying to another storey, duplicating a storey or a view's annotation, the second
+    part of a split wall).
+23. Schema 1 files written before the field existed kept the `GlobalId` in the user property `ifc:GlobalId`.
+    Opening such a file moves the property's value into the external id (an existing external id wins) and drops
+    the property; the next save writes the current layout. No schema version change is needed.
+
 ## Edge cases
 
 - An empty document (no storeys or elements) saves and opens.
@@ -108,6 +118,11 @@ and stays readable by later versions of Kanavos and by other programs.
 10. Two starter projects have different, non-nil version 4 ids; the same starter with a given id is identical
     twice. A document without an id saved through the engine's file adapter opens with a non-nil id and is
     otherwise unchanged; a session assigns the id once, keeps it through undo and redo and adds no undo step.
+11. A hand-written schema 1 model written before the fields added within schema 1 (no project id, a wall with the
+    legacy `ifc:GlobalId` property) opens without warnings: the id is nil and the property became the wall's
+    external id while its other properties stay; saving writes `external_id` and opening that file changes
+    nothing. Copies made by moving with copies, copying to a storey, duplicating a storey or a view, and splitting
+    a wall have no external id; the originals keep theirs.
 
 ## Open questions
 

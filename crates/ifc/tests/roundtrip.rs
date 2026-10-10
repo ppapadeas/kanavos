@@ -165,7 +165,15 @@ fn global_ids_survive_import_and_export() {
     let h = common::small_house();
     let first = export(&h.doc, &ExportOptions::default()).text;
     let back = import(first.as_bytes(), &ImportOptions::default()).unwrap().document;
-    assert!(back.elements().all(|e| e.properties.contains_key(GLOBAL_ID_PROPERTY)));
+    assert!(
+        back.elements().all(|e| e.external_id.is_some() && !e.properties.contains_key(GLOBAL_ID_PROPERTY))
+    );
+    // Each imported element's external id is the GlobalId it had in the file.
+    let written: BTreeSet<String> = {
+        let f = parse(first.as_bytes()).unwrap();
+        f.data.keys().filter_map(|id| f.get(*id)).filter_map(|e| e.str_at(0).map(str::to_owned)).collect()
+    };
+    assert!(back.elements().all(|e| e.external_id.as_ref().is_some_and(|g| written.contains(g))));
     // Export the imported document under a different project namespace: the elements keep their identifiers.
     let second = export(
         &back,

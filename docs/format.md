@@ -124,7 +124,9 @@ the file keeps it. Exports derive their stable identifiers from it (the IFC `Glo
 ### 3.3 Elements
 
 Every element has `id`, `kind` (tagged by `type`), and optionally `storey`, `view` (for annotation drawn in a
-section or elevation), `phase` (`new`, `existing`, `demolished`), `tag` and `properties` (free text pairs).
+section or elevation), `phase` (`new`, `existing`, `demolished`), `tag`, `properties` (free text pairs) and
+`external_id` (its identifier in the file it was imported from, e.g. an IFC `GlobalId`; copies of the element do
+not get it).
 For example, a straight 10 m wall on storey 28 using build-up 19:
 
 ```json
@@ -173,6 +175,9 @@ and 1.
   JSON. The user is told; the next save writes the current schema.
 - Adding an optional field with a default does not need a new schema version: older files simply lack it. Renaming,
   removing or reinterpreting a field does.
+- When an older schema 1 file kept information somewhere else before its field existed, the reader moves it into
+  place on load (`crates/format/src/legacy.rs`); the next save writes the current layout. So far: the IFC
+  `GlobalId` of imported elements, once the user property `ifc:GlobalId`, becomes `external_id`.
 
 Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-written file in the old layout.
 
@@ -181,7 +186,7 @@ Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-
 | Version | Change |
 | --- | --- |
 | 0 | Draft layout used while the format was designed. Never written by a released build; kept as the worked example of a migration. The id counter is called `last_id`, and `storeys`, `materials`, `build_ups`, `elements`, `views` and `sheets` are arrays of objects with an `id` instead of maps keyed by id. |
-| 1 | Current layout (§3). |
+| 1 | Current layout (§3). Optional fields added since the first release of schema 1, all read as their defaults from older files: `project_id` (top level), `external_id` (elements, replacing the `ifc:GlobalId` user property). |
 
 ## 5. Saving safely
 

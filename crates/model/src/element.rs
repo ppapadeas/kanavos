@@ -964,6 +964,11 @@ pub struct Element {
     /// Free user properties.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: BTreeMap<String, String>,
+    /// Identifier of this element in the file or system it came from, e.g. the IFC `GlobalId` it was imported
+    /// with, so that exports can write it again. Not edited by people; copies of the element do not carry it
+    /// (see [`Element::copied_as`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     /// Type-specific data.
     pub kind: ElementKind,
 }
@@ -982,8 +987,15 @@ impl Element {
             phase: Phase::New,
             tag: String::new(),
             properties: BTreeMap::new(),
+            external_id: None,
             kind,
         }
+    }
+
+    /// A copy of the element under a new id. The copy is a new object, so it has no external id: two elements
+    /// must never claim the same identity in another system.
+    pub fn copied_as(&self, id: Id) -> Element {
+        Element { id, external_id: None, ..self.clone() }
     }
 
     /// Category of the element.
@@ -1059,6 +1071,20 @@ mod tests {
         assert_eq!(v["storey"], 1);
         let back: Element = serde_json::from_value(v).unwrap();
         assert_eq!(back, e);
+    }
+
+    #[test]
+    fn external_ids_are_optional_and_not_copied() {
+        let mut e = Element::on_storey(Id(5), Id(1), ElementKind::Wall(wall()));
+        assert!(serde_json::to_value(&e).unwrap().get("external_id").is_none());
+        e.external_id = Some("2O2Fr$t4X7Zf8NOew3FLOH".into());
+        let v = serde_json::to_value(&e).unwrap();
+        assert_eq!(v["external_id"], "2O2Fr$t4X7Zf8NOew3FLOH");
+        assert_eq!(serde_json::from_value::<Element>(v).unwrap(), e);
+        let copy = e.copied_as(Id(9));
+        assert_eq!(copy.id, Id(9));
+        assert_eq!(copy.external_id, None);
+        assert_eq!(copy.kind, e.kind);
     }
 
     #[test]

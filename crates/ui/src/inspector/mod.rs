@@ -322,6 +322,15 @@ fn common_section(ui: &mut Ui, state: &AppState, elements: &[Element]) -> Vec<An
                 }
                 ui.end_row();
             }
+            // The identifier the element came with from another program: shown, never edited.
+            if let [only] = elements
+                && let Some(external) = &only.external_id
+            {
+                widgets::label(ui, &tr(locale, "ui.insp.external_id"))
+                    .on_hover_text(tr(locale, "ui.insp.external_id_hint"));
+                widgets::value(ui, external);
+                ui.end_row();
+            }
         });
     });
     out

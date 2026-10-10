@@ -367,3 +367,50 @@ fn empty_document_round_trips() {
     assert!(loaded.manifest.created.is_none());
     assert_eq!(bytes, to_bytes(&loaded.document, &SaveOptions::default()).unwrap());
 }
+
+/// A schema 1 model as written before the fields added within schema 1 existed: no project id, and an imported
+/// wall whose IFC GlobalId is a user property.
+fn early_schema_1_model() -> Value {
+    json!({
+        "next_id": 4,
+        "info": {"name": "Έργο του 2025"},
+        "storeys": {"1": {"id": 1, "name": "Ισόγειο", "elevation": 0.0, "height": 3.0}},
+        "materials": {"2": {"id": 2, "name": "Σκυρόδεμα", "color": {"r": 200, "g": 200, "b": 200, "a": 255}}},
+        "elements": {
+            "3": {"id": 3, "storey": 1, "tag": "Τ1",
+                  "properties": {"ifc:GlobalId": "0aWallGuid000000000001", "Σχόλιο": "υπάρχον"},
+                  "kind": {
+                "type": "wall", "start": [0.0, 0.0], "end": [5.0, 0.0],
+                "structure": {"type": "basic", "material": 2, "thickness": 0.25},
+                "height": 3.0
+            }}
+        }
+    })
+}
+
+fn schema_1_file(model: &Value) -> Vec<u8> {
+    let manifest = json!({"format": "kanavos", "schema_version": 1, "app_version": "0.0.1"});
+    archive(&[
+        (MANIFEST_ENTRY, &serde_json::to_vec(&manifest).unwrap()),
+        (MODEL_ENTRY, &serde_json::to_vec(model).unwrap()),
+    ])
+}
+
+#[test]
+fn early_schema_1_files_load_with_the_added_fields_at_their_defaults() {
+    let loaded = from_bytes(&schema_1_file(&early_schema_1_model())).unwrap();
+    assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
+    let doc = &loaded.document;
+    assert!(doc.project_id().is_nil(), "no id until the application saves the project");
+    let wall = doc.element(Id(3)).unwrap();
+    // The GlobalId kept as a user property moved into the external id; other properties stay.
+    assert_eq!(wall.external_id.as_deref(), Some("0aWallGuid000000000001"));
+    assert!(!wall.properties.contains_key("ifc:GlobalId"));
+    assert_eq!(wall.properties.get("Σχόλιο").map(String::as_str), Some("υπάρχον"));
+    // The next save writes the current layout, which reads back unchanged.
+    let bytes = to_bytes(doc, &options()).unwrap();
+    let model: Value = serde_json::from_slice(&entry(&bytes, MODEL_ENTRY)).unwrap();
+    assert_eq!(model["elements"]["3"]["external_id"], "0aWallGuid000000000001");
+    assert!(model.get("project_id").is_none());
+    assert_eq!(&from_bytes(&bytes).unwrap().document, doc);
+}

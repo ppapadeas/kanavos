@@ -183,7 +183,7 @@ impl Command for DuplicateView {
             let owned: Vec<Element> = doc.elements_in_view(self.id).cloned().collect();
             for e in owned {
                 let (d, nid) = next.with_new_id();
-                next = d.with_element(Element { id: nid, view: Some(vid), ..e });
+                next = d.with_element(Element { view: Some(vid), ..e.copied_as(nid) });
                 out.created.push(nid);
             }
         }
@@ -287,8 +287,16 @@ mod tests {
             properties: Default::default(),
         })
         .unwrap();
+        // An annotation that came from another system keeps its id; its copy does not.
+        let level = s.document().elements_in_view(v).next().unwrap().id;
+        let mut e = s.document().element(level).unwrap().clone();
+        e.external_id = Some("1kTvXnbbzCWw8lcMd1dR4o".into());
+        let doc = s.document().with_element(e);
+        s.replace_document(doc);
         let out = s.run(DuplicateView { id: v, name: None, annotations: true, locale: Locale::En }).unwrap();
         assert_eq!(out.created.len(), 2);
+        assert_eq!(s.document().element(out.created[1]).unwrap().external_id, None);
+        assert!(s.document().element(level).unwrap().external_id.is_some());
         assert_eq!(s.document().view(out.created[0]).unwrap().name, "Τομή Α-Α - copy");
         // A duplicated plan view can be deleted again; the original cannot.
         let plan = s.document().views().find(|v| matches!(v.kind, ViewKind::Plan { .. })).unwrap().id;

@@ -17,7 +17,6 @@ use kanavos_model::{
 pub use graph::Units;
 
 use crate::IfcError;
-use crate::export::GLOBAL_ID_PROPERTY;
 use crate::math::Frame3;
 use crate::step::{Entity, StepFile, Value, parse};
 use graph::{Extrusion, Geometry, ProfileKind, is_curved, project_units, unit_factor};
@@ -67,8 +66,8 @@ pub struct ImportOptions {
     pub base: ImportBase,
     /// Name of the material created for elements without one.
     pub fallback_material: String,
-    /// Keep each element's IFC `GlobalId` in its properties (key [`GLOBAL_ID_PROPERTY`]) so a later export
-    /// reuses it.
+    /// Keep each element's IFC `GlobalId` as its external id (`Element::external_id`) so a later export reuses
+    /// it.
     pub keep_global_ids: bool,
     /// Object style for doors without a Kanavos style.
     pub door_style: String,
@@ -992,7 +991,7 @@ impl<'a> Importer<'a> {
         if self.opts.keep_global_ids
             && let Some(g) = self.f.get(ifc).and_then(|e| e.str_at(0)).filter(|g| g.len() == 22)
         {
-            el.properties.insert(GLOBAL_ID_PROPERTY.to_owned(), g.to_owned());
+            el.external_id = Some(g.to_owned());
         }
         for (k, v) in self.properties(ifc, Some("Kanavos_Properties")) {
             if let Some(s) = v.as_str() {

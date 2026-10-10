@@ -424,6 +424,36 @@ fn global_ids_follow_the_project_id_and_survive_renames() {
 }
 
 #[test]
+fn external_ids_are_written_and_copies_get_their_own() {
+    let h = common::small_house();
+    let stored = Guid::v5(&Guid([2; 16]), b"imported wall").to_ifc();
+    let mut doc = h.doc.clone();
+    let mut e = doc.element(h.walls[0]).unwrap().clone();
+    e.external_id = Some(stored.clone());
+    doc = doc.with_element(e.clone());
+    // A copy made the way the engine copies (Element::copied_as) carries no external id.
+    let (d, copy) = doc.with_new_id();
+    let mut c = e.copied_as(copy);
+    if let kanavos_model::ElementKind::Wall(w) = &mut c.kind {
+        w.start = kanavos_geom::Point2::new(0.0, 20.0);
+        w.end = kanavos_geom::Point2::new(10.0, 20.0);
+    }
+    doc = d.with_element(c);
+    let (_, f) = exported(&doc);
+    let walls: Vec<String> =
+        f.of_type("IFCWALL").iter().map(|&w| f.get(w).unwrap().str_at(0).unwrap().to_owned()).collect();
+    assert_eq!(walls.len(), 5);
+    assert_eq!(walls.iter().filter(|g| **g == stored).count(), 1);
+    assert_eq!(walls[0], stored);
+    // An external id that is not an IFC GlobalId (e.g. from another system) is not written.
+    let mut e2 = doc.element(h.walls[1]).unwrap().clone();
+    e2.external_id = Some("survey-17".into());
+    let (_, f) = exported(&doc.with_element(e2));
+    let g = f.get(f.of_type("IFCWALL")[1]).unwrap().str_at(0).unwrap().to_owned();
+    assert!(Guid::from_ifc(&g).is_some() && g != "survey-17");
+}
+
+#[test]
 fn stored_global_ids_are_reused_once() {
     let h = common::small_house();
     let stored = Guid::v5(&Guid([1; 16]), b"from another tool").to_ifc();

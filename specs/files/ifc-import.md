@@ -63,7 +63,7 @@ and everything else is listed so nothing is lost silently.
 14. Flat roofs with their own extruded body become flat roofs (a banded solid on top becomes the parapet); objects
     written by Kanavos become objects again.
 15. Each element keeps its tag, its phase (from `Status`), its user properties and, unless switched off, its
-    `GlobalId` (property `ifc:GlobalId`).
+    `GlobalId` as its external id. The imported document has no project id until it is first saved.
 16. The georeference comes from the map conversion: EPSG code, eastings, northings, altitude and rotation.
 
 ### Report
@@ -97,7 +97,8 @@ and everything else is listed so nothing is lost silently.
    area, name, number, category and finish; the slab with its hole; the column; the flat roof with its parapet.
 5. The full house round trip preserves a curved wall (bulge and window position), objects, georeference, tags and
    user properties, and reports railings, stairs and the pitched roof as not imported.
-6. Identifiers survive import and a second export under a different project namespace.
+6. Identifiers survive import and a second export under a different project namespace: every imported element
+   has the `GlobalId` it was written with as its external id, and none carries it as a user property.
 7. Random edits to a valid file (bytes changed, removed, inserted; references redirected) never crash the import.
 
 ## Open questions
