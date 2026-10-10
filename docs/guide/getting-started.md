@@ -69,6 +69,9 @@ mixed ones appear as "—"; an edit applies to all.
 - **Model › Build-ups**: layers with material and thickness, a to-scale preview and the U-value. Wall layers are
   listed from the left face to the right face (looking from the wall's start to its end). The template's exterior
   build-ups list the outside layer first, so draw exterior walls clockwise; the Wall tool's rectangle mode does.
+  Doors and windows follow the same rule: unless **Swap opening side** is set, a window's outer face (sill,
+  shutters, roller shutter) is the wall's left face and a door opens towards its right face. In exterior walls
+  drawn clockwise, windows therefore face out and doors open in without swapping.
 
 ## 6. Drawings
 
