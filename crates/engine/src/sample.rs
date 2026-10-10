@@ -62,6 +62,16 @@ const H_GROUND: f64 = 3.2; // ground exterior walls run to the top of the first-
 const H_PART_GROUND: f64 = 2.925; // ground partitions to the underside of the 27,5 cm floor slab
 const H_FIRST: f64 = 3.0; // first-floor walls carry the roof
 
+/// Project id of the sample house. Fixed, so that building the sample twice (or replaying its command log on
+/// [`sample_start`]) gives the same document.
+pub const SAMPLE_PROJECT_ID: kanavos_model::ProjectId =
+    kanavos_model::ProjectId::from_u128(0x4b61_6e61_766f_4573_8a6d_706c_6548_6f75);
+
+/// The document the sample house starts from: the starter template with [`SAMPLE_PROJECT_ID`].
+pub fn sample_start() -> kanavos_model::Document {
+    kanavos_model::starter_with_id(SAMPLE_PROJECT_ID)
+}
+
 /// Ids the steps need.
 struct Builder {
     s: Session,
@@ -80,7 +90,7 @@ type OpeningSpec = (OpeningKind, &'static str, &'static str, (f64, f64), f64, f6
 
 impl Builder {
     fn new() -> Builder {
-        let doc = kanavos_model::starter();
+        let doc = sample_start();
         let storeys: Vec<Id> = doc.storeys().iter().map(|s| s.id).collect();
         let ground = storeys.first().copied().unwrap_or_default();
         let first = storeys.get(1).copied().unwrap_or_default();
@@ -834,7 +844,7 @@ mod tests {
         // Each step is one undo step and the session replays from its log.
         let log = session.log_jsonl();
         let commands = crate::log::parse_jsonl(&log).unwrap();
-        let replayed = Session::replay(kanavos_model::starter(), commands).unwrap();
+        let replayed = Session::replay(sample_start(), commands).unwrap();
         assert_eq!(replayed.document(), doc);
     }
 

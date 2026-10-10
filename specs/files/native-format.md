@@ -9,6 +9,7 @@ sources:
   - RFC 1951 DEFLATE Compressed Data Format
   - RFC 8259 The JavaScript Object Notation (JSON) Data Interchange Format
   - RFC 3339 Date and Time on the Internet: Timestamps
+  - RFC 9562 Universally Unique IDentifiers (UUIDs), §4 (text form) and §5.4 (version 4)
   - docs/architecture.md §6 and §8; ADR-0002
 ---
 
@@ -63,6 +64,18 @@ and stays readable by later versions of Kanavos and by other programs.
     manifest that differ from the model, and a thumbnail that is not a PNG (ignored).
 18. Entries whose uncompressed size exceeds 2 GiB are refused.
 
+### Project identity
+
+19. A project has a permanent 128-bit id, stored in the model as a UUID string (`project_id`, lowercase
+    `8-4-4-4-12` hexadecimal). It does not change when the project is renamed, its information is edited or the
+    file is moved.
+20. A project started from the starter template gets a new random id in the RFC 9562 version 4 layout. Building
+    the sample project uses a fixed id, so that it gives the same document every time.
+21. A model without `project_id` (written before ids existed) opens with the nil id. Documents imported from IFC
+    also start without an id. The first save by the application, the command-line tools or the control server
+    assigns a fresh id; the editing session keeps it, so later saves write the same id and undo does not remove
+    it. The format library writes a document as it is, so its saves stay byte-for-byte reproducible.
+
 ## Edge cases
 
 - An empty document (no storeys or elements) saves and opens.
@@ -92,6 +105,9 @@ and stays readable by later versions of Kanavos and by other programs.
 8. Given a hand-written schema 0 file (tables as arrays, `last_id`), opening upgrades it, warns, and the next save
    writes schema 1 that opens without warnings.
 9. Given an opening whose host wall does not exist, strict opening fails and lenient opening succeeds with a warning.
+10. Two starter projects have different, non-nil version 4 ids; the same starter with a given id is identical
+    twice. A document without an id saved through the engine's file adapter opens with a non-nil id and is
+    otherwise unchanged; a session assigns the id once, keeps it through undo and redo and adds no undo step.
 
 ## Open questions
 

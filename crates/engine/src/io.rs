@@ -3,12 +3,18 @@
 //! Documents are `.kanavos` files written by `kanavos-format` (a ZIP container with a manifest and the model as
 //! JSON, see `docs/format.md`); saves are atomic and keep the previous file as a backup. Nothing else in the
 //! engine, the control protocol or the CLI reads or writes project files directly.
+//!
+//! Project ids: every file this module writes carries a project id. A document without one (written before ids
+//! existed, or imported) gets a fresh id when it is written. Callers that keep the document in a session call
+//! [`crate::Session::ensure_project_id`] before saving, so that the session keeps the id and later saves write
+//! the same one.
 
+use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
 
 use kanavos_format::{FormatError, SaveOptions};
-use kanavos_model::Document;
+use kanavos_model::{Document, ProjectId};
 use kanavos_units::Locale;
 
 /// File extension of Kanavos documents.
@@ -101,9 +107,18 @@ fn options(created: Option<&str>) -> SaveOptions {
     }
 }
 
-/// Serialises a document to file bytes.
+/// The document as it is written to a file: unchanged when it has a project id, otherwise with a fresh one.
+pub fn with_project_id(doc: &Document) -> Cow<'_, Document> {
+    if doc.project_id().is_nil() {
+        Cow::Owned(doc.with_project_id(ProjectId::generate()))
+    } else {
+        Cow::Borrowed(doc)
+    }
+}
+
+/// Serialises a document to file bytes (with a fresh project id when it has none).
 pub fn to_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
-    Ok(kanavos_format::to_bytes(doc, &options(None))?)
+    Ok(kanavos_format::to_bytes(&with_project_id(doc), &options(None))?)
 }
 
 /// Reads a document from file bytes and checks its consistency.
@@ -111,14 +126,16 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Loaded, IoError> {
     Ok(kanavos_format::from_bytes(bytes)?.into())
 }
 
-/// Saves a document (atomically, keeping the previous file as `<name>.bak`).
+/// Saves a document (atomically, keeping the previous file as `<name>.bak`), with a fresh project id when it
+/// has none.
 pub fn save(path: &Path, doc: &Document) -> Result<(), IoError> {
     save_with(path, doc, None)
 }
 
-/// Saves a document, keeping the creation time of a project that was loaded from a file.
+/// Saves a document, keeping the creation time of a project that was loaded from a file. A document without a
+/// project id is written with a fresh one.
 pub fn save_with(path: &Path, doc: &Document, created: Option<&str>) -> Result<(), IoError> {
-    kanavos_format::save(path, doc, &options(created))?;
+    kanavos_format::save(path, &with_project_id(doc), &options(created))?;
     Ok(())
 }
 
@@ -148,6 +165,18 @@ mod tests {
         save_with(&path, &doc, Some(&created)).unwrap();
         assert_eq!(load(&path).unwrap().created, Some(created));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn written_files_always_carry_a_project_id() {
+        // An old document without an id gets one when written; one with an id keeps it.
+        let old = starter().with_project_id(ProjectId::NIL);
+        let loaded = from_bytes(&to_bytes(&old).unwrap()).unwrap().document;
+        assert!(!loaded.project_id().is_nil());
+        assert_eq!(loaded.with_project_id(ProjectId::NIL), old);
+        let doc = starter();
+        assert_eq!(from_bytes(&to_bytes(&doc).unwrap()).unwrap().document.project_id(), doc.project_id());
+        assert!(matches!(with_project_id(&doc), Cow::Borrowed(_)));
     }
 
     #[test]

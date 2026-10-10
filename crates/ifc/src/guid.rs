@@ -4,8 +4,9 @@
 //! the same identifiers and other tools can match objects between exports:
 //!
 //! 1. The project has a namespace UUID: [`ExportOptions::project_guid`](crate::ExportOptions::project_guid) if
-//!    the caller supplies one, otherwise a version-5 UUID of the Kanavos namespace and the project's descriptive
-//!    fields (see [`project_namespace`]).
+//!    the caller supplies one, otherwise the document's permanent project id (so renaming the project keeps every
+//!    identifier), and only for documents without an id a version-5 UUID of the Kanavos namespace and the
+//!    project's descriptive fields (see [`document_namespace`] and [`project_namespace`]).
 //! 2. Each object gets the version-5 UUID (RFC 9562 §5.5, SHA-1 based) of the project namespace and a stable
 //!    name such as `element:42` or `rel:contains:storey:7`.
 //! 3. The 128 bits are written in the IFC compressed form: 22 characters from the 64-character alphabet
@@ -95,8 +96,20 @@ pub fn kanavos_namespace() -> Guid {
     Guid::v5(&NAMESPACE_URL, b"urn:kanavos:ifc")
 }
 
-/// Default project namespace, from the project's descriptive fields. Renaming the project changes it, so callers
-/// that need identifiers stable across renames pass their own namespace.
+/// The namespace of a document's derived identifiers: its project id, or, when the document has none yet (files
+/// written before project ids existed), [`project_namespace`] of its descriptive fields.
+pub fn document_namespace(doc: &kanavos_model::Document) -> Guid {
+    let id = doc.project_id();
+    if id.is_nil() {
+        let info = doc.info();
+        project_namespace(&info.name, &info.location, &info.municipality, &info.owner)
+    } else {
+        Guid(id.to_bytes())
+    }
+}
+
+/// Fallback project namespace, from the project's descriptive fields, for documents without a project id.
+/// Renaming such a project changes it.
 pub fn project_namespace(name: &str, location: &str, municipality: &str, owner: &str) -> Guid {
     let key = format!("project\n{name}\n{location}\n{municipality}\n{owner}");
     Guid::v5(&kanavos_namespace(), key.as_bytes())
@@ -202,5 +215,20 @@ mod tests {
         assert_eq!(a, Guid::v5(&ns, b"element:1"));
         assert_ne!(a, Guid::v5(&ns, b"element:2"));
         assert_ne!(ns, project_namespace("Κατοικία 2", "Καλαμάτα", "", ""));
+    }
+
+    #[test]
+    fn the_project_id_is_the_namespace_and_survives_renames() {
+        use kanavos_model::{Document, ProjectId, ProjectInfo};
+        let id = ProjectId::from_u128(0x0f1e_2d3c_4b5a_4978_8695_a4b3_c2d1_e0f0);
+        let doc = Document::new()
+            .with_project_id(id)
+            .with_info(ProjectInfo { name: "Α".into(), ..ProjectInfo::default() });
+        assert_eq!(document_namespace(&doc).to_string(), id.to_string());
+        let renamed = doc.with_info(ProjectInfo { name: "Β".into(), ..ProjectInfo::default() });
+        assert_eq!(document_namespace(&renamed), document_namespace(&doc));
+        // Without an id the descriptive fields decide.
+        let old = Document::new().with_info(ProjectInfo { name: "Α".into(), ..ProjectInfo::default() });
+        assert_eq!(document_namespace(&old), project_namespace("Α", "", "", ""));
     }
 }

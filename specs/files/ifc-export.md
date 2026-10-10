@@ -39,8 +39,10 @@ building's structure, element types, sizes, materials, quantities and position o
 
 6. Every `GlobalId` is the version-5 UUID of a project namespace and a stable object name (`element:<id>`,
    `storey:<id>`, `rel:voids:<id>` …), written in the 22-character IFC compressed form.
-7. The project namespace is the one the caller gives, else the version-5 UUID of the Kanavos namespace and the
-   project's name, location, municipality and owner.
+7. The project namespace is the one the caller gives, else the document's permanent project id (see
+   `specs/files/native-format.md`, project identity), so renaming the project keeps every identifier. A document
+   without a project id falls back to the version-5 UUID of the Kanavos namespace and the project's name,
+   location, municipality and owner.
 8. An element carrying a valid `ifc:GlobalId` property (kept by import) is written with that identifier, unless
    an earlier element already used it.
 
@@ -111,6 +113,9 @@ building's structure, element types, sizes, materials, quantities and position o
 7. A mesh supplied for the column replaces its body with a faceted solid of 12 triangles.
 8. The full house exports a stair, beam, railing, pitched (hip) roof as a faceted solid, furniture, a sanitary
    terminal, a proxy, a curved wall with a trimmed-circle axis, and reports the text note as skipped.
+9. With a project id set, the project's `GlobalId` is the version-5 UUID of that id and `project`; renaming the
+   project and changing its location and owner keeps every `GlobalId`; another project id changes them; without a
+   project id a rename changes them.
 
 ## Open questions
 

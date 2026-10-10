@@ -210,6 +210,8 @@ impl KanavosApp {
 
     /// Saves to `path`; returns whether it worked.
     fn save_to(&mut self, path: PathBuf) -> bool {
+        // A project without an id (an older file or an import) gets its permanent id with its first save.
+        self.state.session.ensure_project_id();
         match persist::save(&path, self.state.doc(), self.manifest.as_ref()) {
             Ok(manifest) => {
                 self.manifest = Some(manifest);

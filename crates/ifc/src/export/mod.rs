@@ -18,7 +18,7 @@ use kanavos_solid::Mesh;
 pub(crate) use shapes::{Polyhedron, WallShape, wall_shapes};
 
 use crate::IfcError;
-use crate::guid::{Guid, project_namespace};
+use crate::guid::{Guid, document_namespace};
 use crate::math::Frame3;
 use crate::step::{P, StepWriter};
 
@@ -36,8 +36,8 @@ pub type GeometryFn<'a> = &'a dyn Fn(Id) -> Option<Mesh>;
 /// How a document is exported.
 #[derive(Clone)]
 pub struct ExportOptions<'a> {
-    /// Namespace for derived `GlobalId`s. `None` derives one from the project's name, location, municipality and
-    /// owner (see [`crate::guid`]).
+    /// Namespace for derived `GlobalId`s. `None` uses the document's project id, or, for a document without one,
+    /// a namespace derived from the project's name, location, municipality and owner (see [`crate::guid`]).
     pub project_guid: Option<Guid>,
     /// Time stamp for the file header, ISO 8601 (`YYYY-MM-DDThh:mm:ss`). Supplied by the caller so that output
     /// is reproducible.
@@ -284,10 +284,7 @@ fn material_category_key(c: kanavos_model::MaterialCategory) -> &'static str {
 
 impl<'a> Exporter<'a> {
     fn new(doc: &'a Document, opts: &'a ExportOptions<'a>) -> Exporter<'a> {
-        let info = doc.info();
-        let ns = opts.project_guid.unwrap_or_else(|| {
-            project_namespace(&info.name, &info.location, &info.municipality, &info.owner)
-        });
+        let ns = opts.project_guid.unwrap_or_else(|| document_namespace(doc));
         Exporter {
             doc,
             opts,

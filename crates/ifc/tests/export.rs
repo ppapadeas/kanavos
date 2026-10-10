@@ -384,6 +384,45 @@ fn export_is_deterministic_and_ids_follow_the_project() {
     assert_eq!(a.len(), c.len(), "only the identifiers differ");
 }
 
+/// Every `GlobalId` in a file (attribute 0 of every rooted entity).
+fn global_ids(text: &str) -> Vec<String> {
+    let f = parse(text.as_bytes()).unwrap();
+    f.data
+        .keys()
+        .filter_map(|id| f.get(*id))
+        .filter_map(|e| e.str_at(0).filter(|s| s.len() == 22 && Guid::from_ifc(s).is_some()))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn global_ids_follow_the_project_id_and_survive_renames() {
+    let h = common::small_house();
+    let id = kanavos_model::ProjectId::from_u128(0x5eed_0000_1111_4222_8333_4444_5555_6666);
+    let doc = h.doc.with_project_id(id);
+    let before = global_ids(&export(&doc, &options()).text);
+    assert!(before.len() > 20);
+    // The project namespace is the project id itself.
+    let project = Guid::v5(&Guid(id.to_bytes()), b"project").to_ifc();
+    assert!(before.contains(&project));
+    let mut info = doc.info().clone();
+    info.name = "Μετονομασμένο έργο".into();
+    info.location = "Αλλού".into();
+    info.owner = "Νέος ιδιοκτήτης".into();
+    let renamed = doc.with_info(info);
+    assert_eq!(global_ids(&export(&renamed, &options()).text), before, "a rename keeps every GlobalId");
+    // Another project id gives other identifiers.
+    let other = doc.with_project_id(kanavos_model::ProjectId::from_u128(7));
+    assert_ne!(global_ids(&export(&other, &options()).text), before);
+    // A document without an id falls back to its descriptive fields, which a rename changes.
+    let nil = doc.with_project_id(kanavos_model::ProjectId::NIL);
+    let renamed_nil = renamed.with_project_id(kanavos_model::ProjectId::NIL);
+    assert_ne!(
+        global_ids(&export(&nil, &options()).text),
+        global_ids(&export(&renamed_nil, &options()).text)
+    );
+}
+
 #[test]
 fn stored_global_ids_are_reused_once() {
     let h = common::small_house();

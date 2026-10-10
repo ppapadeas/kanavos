@@ -92,6 +92,7 @@ apart.
 | Field | Contents |
 | --- | --- |
 | `next_id` | The highest id handed out so far. Every id in the file is ≤ `next_id`; new objects get `next_id + 1`. |
+| `project_id` | The project's permanent id, a UUID string such as `"5f0c2a9e-7d41-4b8e-9a3c-1e2f3a4b5c6d"` (§3.2.1). Left out while the project has none. |
 | `tolerance` | `{"length": 0.0001, "angle": 1e-05}`: project tolerance (metres, radians). |
 | `info` | Project information printed on sheets (title, location, owner, designer, date, revision, notes). |
 | `site` | Plot boundary, street and building lines, building terms, georeferencing (EPSG code, easting, northing, rotation, altitude), terrain points, ground level. |
@@ -105,6 +106,20 @@ apart.
 
 Ids are unique across all tables and never reused. Map keys are the id written as a decimal string, and every
 object repeats its own `id`.
+
+#### 3.2.1 Project id
+
+`project_id` identifies the project for its whole life: renaming the project, editing its information or moving
+the file keeps it. Exports derive their stable identifiers from it (the IFC `GlobalId`s, see
+[`formats/ifc.md`](formats/ifc.md)).
+
+- A new project gets a random id (128 bits in the RFC 9562 version 4 layout) when it is created from the starter
+  template. The sample project uses a fixed id so that it is the same every time it is built.
+- Files written before project ids existed, and documents imported from IFC, have no id. They load with the nil id
+  and get a fresh one the first time they are saved by the application, the command-line tools or the control
+  server (the engine's file adapter, `kanavos_engine::io`, writes every file with an id; the session keeps the
+  id it was given, so later saves write the same one, and undo does not remove it).
+- The format library itself writes the document as it is: saving the same document twice gives the same bytes.
 
 ### 3.3 Elements
 

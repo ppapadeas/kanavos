@@ -10,8 +10,8 @@ use kanavos_drawing::Rgba;
 use kanavos_geom::{Angle, Length, Point2, Point3, PolygonWithHoles, Vec2, Vec3};
 use kanavos_model::{
     Beam, BuildUp, BuildUpLayer, BuildUpUsage, Column, Document, Element, ElementKind, Georef, Id, Material,
-    MaterialCategory, Opening, OpeningKind, Phase, Profile, ReferenceLine, Slab, Space, SpaceCategory,
-    Storey, Structure, View, ViewKind, Wall, starter,
+    MaterialCategory, Opening, OpeningKind, Phase, Profile, ProjectId, ReferenceLine, Slab, Space,
+    SpaceCategory, Storey, Structure, View, ViewKind, Wall, starter_with_id,
 };
 
 pub use graph::Units;
@@ -376,8 +376,10 @@ fn default_colour(c: MaterialCategory) -> Rgba {
 
 impl<'a> Importer<'a> {
     fn new(f: &'a StepFile, units: Units, opts: &'a ImportOptions) -> Importer<'a> {
+        // The import is deterministic: the new document has no project id yet; the application gives it one the
+        // first time it is saved, like any document without an id.
         let mut doc = match opts.base {
-            ImportBase::Starter => starter(),
+            ImportBase::Starter => starter_with_id(ProjectId::NIL),
             ImportBase::Empty => Document::new(),
         };
         let starter_storeys: Vec<Id> = doc.storeys().iter().map(|s| s.id).collect();

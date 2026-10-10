@@ -27,9 +27,11 @@ encoding of ISO 10303-21. The implementation is the `kanavos-ifc` crate; the beh
 
 Every `GlobalId` is derived, never random:
 
-1. A project namespace UUID: the one the caller passes (`ExportOptions::project_guid`), or else the version-5
-   UUID of the Kanavos namespace (`urn:kanavos:ifc` in the RFC 9562 URL namespace) and the project's name,
-   location, municipality and owner.
+1. A project namespace UUID: the one the caller passes (`ExportOptions::project_guid`), or else the document's
+   permanent project id ([`../format.md`](../format.md) §3.2.1). Renaming the project or editing its information
+   therefore keeps every identifier. Only a document without a project id (an older file not saved since, or a
+   fresh IFC import) falls back to the version-5 UUID of the Kanavos namespace (`urn:kanavos:ifc` in the RFC 9562
+   URL namespace) and the project's name, location, municipality and owner.
 2. Each object gets the version-5 UUID of the project namespace and a stable name: `project`, `site`, `building`,
    `storey:<id>`, `element:<id>`, `opening:<id>` (the void of a door or window), `pset:<owner>:<set name>`,
    `qto:<owner>:<set name>`, `rel:contains:storey:<id>`, `rel:aggregates:…`, `rel:voids:<id>`, `rel:fills:<id>`,
@@ -114,7 +116,7 @@ materials, build-ups, defaults, the 3D view, site plan, coverage diagram, area t
 | `IfcRelAssociatesMaterial` (on the element or its type) | Structure | A layer set (usage or direct) with layer thicknesses summing to the geometric thickness (within 2 mm or 2 %) → build-up (an existing one with the same name and layers is reused); layers stacked in the positive direction are reversed into Kanavos order (walls left → right, slabs top → bottom). Otherwise one material with the geometric thickness. |
 | `IfcMaterial` | Material | Reused by name, else created; family guessed from the name and IFC category (English and Greek keywords); colour from its styled representation, else a default for the family. |
 | `IfcMapConversion` + `IfcProjectedCRS` | Georeference | EPSG code from the CRS name, eastings, northings, altitude (in the CRS map unit), rotation from the X axis direction. |
-| `IfcProject` Name, LongName; building address | Project title, location, municipality | |
+| `IfcProject` Name, LongName; building address | Project title, location, municipality | The imported document has no project id; it gets one when first saved. |
 | `GlobalId`, `Tag`, `Pset_*Common.Status`, `Kanavos_Properties` | `ifc:GlobalId` property, tag, phase, user properties | |
 
 ### 2.3 Report
