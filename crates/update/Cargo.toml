@@ -1,0 +1,26 @@
+[package]
+name = "kanavos-update"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Over-the-air updates: discover, download, verify and install signed release packages."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+kanavos-i18n = { path = "../i18n" }
+serde.workspace = true
+serde_json.workspace = true
+semver = "1.0"
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-native-certs = "0.8"
+ring = "0.17"
+base64 = "0.23"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4", default-features = false }

@@ -1,10 +1,11 @@
 //! The application shell (docs/ux.md §2): menu bar, context bar, tool palette, project tree, view tabs with
 //! split view, inspector, status bar, attribute managers, command palette, dialogs, preferences, autosave and
-//! recovery.
+//! recovery, and over-the-air updates.
 //!
 //! Panels push [`Action`]s; [`KanavosApp::perform`] carries them out at the end of the frame. Document changes
 //! always go through engine commands on [`AppState`].
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
@@ -25,7 +26,7 @@ use crate::imports::{self, ImportError, ImportSummary, Imported};
 use crate::inspector::{Inspector, NokView, Page};
 use crate::jobs::Background;
 use crate::menu::{self, MenuContext};
-use crate::mgr::Managers;
+use crate::mgr::{Managers, UpdateSettings};
 use crate::names::{tr, trf};
 use crate::persist;
 use crate::prefs::Prefs;
@@ -36,6 +37,7 @@ use crate::status::{self, StatusInfo};
 use crate::tabs::{self, Pane, TabBody, Workspace};
 use crate::theme::{self, Theme, Tokens};
 use crate::tree::ProjectTree;
+use crate::update::{Done, Stage, UpdateEvent, Updates};
 
 /// How the application starts.
 #[derive(Debug, Clone, Default)]
@@ -73,6 +75,10 @@ pub struct KanavosApp {
     /// Manifest of the open project file (keeps its creation time when saving again).
     manifest: Option<kanavos_format::Manifest>,
     notice_seen: Option<(Notice, Instant)>,
+    /// Update checks, downloads and installation.
+    updates: Updates,
+    /// An installed update waiting for running exports and autosaves before the restart.
+    pending_restart: Option<kanavos_update::Installed>,
     allow_close: bool,
     persist: bool,
     first_frame: bool,
@@ -142,6 +148,9 @@ impl KanavosApp {
             exporting: Vec::new(),
             manifest,
             notice_seen: None,
+            // The screenshot hook never touches the network.
+            updates: Updates::new(persist),
+            pending_restart: None,
             allow_close: false,
             persist,
             first_frame: true,
@@ -269,6 +278,93 @@ impl KanavosApp {
                 self.allow_close = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            Pending::Update => self.install_update(ctx),
+        }
+    }
+
+    // ----- Updates -----------------------------------------------------------------------------------------
+
+    /// Installs the downloaded update, after the unsaved-changes question. A recovery copy is written first in
+    /// every case, so that no work is lost if installing or restarting fails; when the document has unsaved
+    /// changes and the copy cannot be written, nothing is installed.
+    fn install_update(&mut self, ctx: &egui::Context) {
+        if !self.updates.ready() {
+            return;
+        }
+        if self.persist
+            && let Err(e) = persist::write_recovery_now(self.state.doc(), self.state.file.as_deref())
+            && self.state.is_dirty()
+        {
+            self.fail(trf(self.state.locale, "ui.update.recovery_failed", &[("why", &e.to_string())]));
+            return;
+        }
+        self.updates.install(ctx);
+    }
+
+    /// Once the update is installed and no export or autosave is still writing, starts the new version with the
+    /// open project and closes this one.
+    fn restart_when_idle(&mut self, ctx: &egui::Context) {
+        if self.pending_restart.is_none() {
+            return;
+        }
+        if !self.exporting.is_empty() || self.autosave.running.is_some() {
+            // Closing now would cut a file short; look again shortly.
+            ctx.request_repaint_after(Duration::from_millis(200));
+            return;
+        }
+        let Some(installed) = self.pending_restart.take() else { return };
+        if self.persist {
+            if self.state.is_dirty() {
+                // Changes made since the copy written before installing must be in the copy the new version offers.
+                if let Err(e) = persist::write_recovery_now(self.state.doc(), self.state.file.as_deref()) {
+                    // The new version is in place; it starts the next time Kanavos is opened.
+                    let why = e.to_string();
+                    self.fail(trf(self.state.locale, "ui.update.restart_recovery_failed", &[("why", &why)]));
+                    self.updates.available = None;
+                    self.updates.stage = Stage::Idle;
+                    self.updates.open = false;
+                    return;
+                }
+            } else {
+                // Nothing unsaved: the new version does not need the safety copy.
+                persist::clear_recovery();
+            }
+        }
+        let args: Vec<OsString> = self.state.file.iter().map(|p| p.clone().into_os_string()).collect();
+        match kanavos_update::restart(&installed, &args) {
+            Ok(()) => {
+                self.prefs.split = self.work.split;
+                self.save_prefs();
+                self.allow_close = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            Err(e) => self.updates.fail(e),
+        }
+    }
+
+    /// Acts on a choice made in the update window.
+    fn update_event(&mut self, ctx: &egui::Context, event: UpdateEvent) {
+        match event {
+            UpdateEvent::Install if self.updates.ready() => self.guard(ctx, Pending::Update),
+            UpdateEvent::Install => self.updates.download(ctx),
+            UpdateEvent::Later | UpdateEvent::Close => {
+                self.updates.open = false;
+                if matches!(self.updates.stage, Stage::Failed(_) | Stage::UpToDate) {
+                    self.updates.stage =
+                        if self.updates.available.is_some() { Stage::Offer } else { Stage::Idle };
+                }
+            }
+            UpdateEvent::Skip => {
+                if let Some(a) = self.updates.available.take() {
+                    self.prefs.skipped_version = Some(a.version.to_string());
+                    self.save_prefs();
+                }
+                self.updates.stage = Stage::Idle;
+                self.updates.open = false;
+            }
+            UpdateEvent::Cancel => self.updates.cancel(),
+            UpdateEvent::Retry if self.updates.available.is_some() => self.updates.download(ctx),
+            UpdateEvent::Retry => self.updates.check(ctx, self.prefs.update_channel, true),
         }
     }
 
@@ -581,6 +677,23 @@ impl KanavosApp {
             }
             Action::OpenWindow(w) => self.managers.open(w),
             Action::CommandPalette => self.palette.show(""),
+            Action::CheckForUpdates => self.updates.check(ctx, self.prefs.update_channel, true),
+            Action::ShowUpdate => self.updates.open = true,
+            Action::SetUpdateCheck(on) => {
+                self.prefs.update_check = on;
+                self.save_prefs();
+            }
+            Action::SetUpdateChannel(c) => {
+                if self.prefs.update_channel != c {
+                    self.prefs.update_channel = c;
+                    self.save_prefs();
+                    // An offer found on the other channel no longer applies; check again to see this one.
+                    if !self.updates.busy() && !self.updates.ready() {
+                        self.updates.available = None;
+                        self.updates.stage = Stage::Idle;
+                    }
+                }
+            }
         }
     }
 
@@ -609,6 +722,12 @@ impl KanavosApp {
                 }
                 "history" => self.inspector.page = Page::History,
                 "palette" => self.palette.show(v),
+                "update" => {
+                    // A sample offer, to check the update window; nothing is downloaded.
+                    self.updates.available = Some(crate::update::sample_offer());
+                    self.updates.stage = Stage::Offer;
+                    self.updates.open = true;
+                }
                 "doc" if v == "new" => {
                     let locale = self.state.locale;
                     self.set_document(kanavos_model::starter(), None, None);
@@ -892,10 +1011,20 @@ impl eframe::App for KanavosApp {
         if self.first_frame {
             self.first_frame = false;
             self.apply_scene(&ctx);
+            if self.persist {
+                self.updates.startup(&ctx, self.prefs.update_check, self.prefs.update_channel);
+            }
         }
         self.apply_style(&ctx);
         self.nok.poll();
         self.poll_exports();
+        match self.updates.poll(self.prefs.skipped_version.as_deref()) {
+            // Another question is open: the update waits in its window until the person installs it.
+            Some(Done::Downloaded) if self.dialogs.active() => self.updates.open = true,
+            Some(Done::Downloaded) => self.guard(&ctx, Pending::Update),
+            Some(Done::Installed(installed)) => self.pending_restart = Some(installed),
+            None => {}
+        }
         self.close_request(&ctx);
         self.shortcuts(&ctx);
         self.sync_after_change(&ctx);
@@ -916,6 +1045,9 @@ impl eframe::App for KanavosApp {
                     inspector: self.prefs.show_inspector,
                     split: self.work.split,
                     table_focused,
+                    update_check: self.prefs.update_check,
+                    update_channel: self.prefs.update_channel,
+                    update_available: self.updates.available.as_ref().map(|a| a.version.to_string()),
                 };
                 menu::bar(ui, &self.state, &mc, &mut actions);
             });
@@ -940,7 +1072,10 @@ impl eframe::App for KanavosApp {
                     .inner_margin(egui::Margin::symmetric(10, 2))
                     .stroke(Stroke::new(1.0, t.border)),
             )
-            .show(ui, |ui| status::bar(ui, &mut self.state, &StatusInfo { busy, show_notice }));
+            .show(ui, |ui| {
+                let info = StatusInfo { busy, show_notice, update: self.updates.status_text(locale) };
+                status::bar(ui, &mut self.state, &info, &mut actions);
+            });
         // Project tree, collapsible to a rail.
         let focused_target = self.work.focused().map(|t| t.target);
         let side = Frame::new()
@@ -1087,7 +1222,12 @@ impl eframe::App for KanavosApp {
         });
 
         // Floating windows and dialogs.
-        self.managers.ui(&ctx, &mut self.state, &mut actions);
+        let update_settings =
+            UpdateSettings { check_at_start: self.prefs.update_check, channel: self.prefs.update_channel };
+        self.managers.ui(&ctx, &mut self.state, update_settings, &mut actions);
+        if let Some(event) = self.updates.window(&ctx, locale) {
+            self.update_event(&ctx, event);
+        }
         let rev = self.state.session.revision();
         if let Some(a) = self.palette.ui(&ctx, self.state.doc(), rev, locale) {
             actions.push(a);
@@ -1128,6 +1268,7 @@ impl eframe::App for KanavosApp {
             self.perform(&ctx, a);
         }
         self.autosave();
+        self.restart_when_idle(&ctx);
         if let Some(hook) = &mut self.screenshot {
             hook.frame(&ctx);
         }

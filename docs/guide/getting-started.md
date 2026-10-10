@@ -96,3 +96,17 @@ mixed ones appear as "—"; an edit applies to all.
 `kanavos-cli` does the same without the interface: `kanavos-cli export project.kanavos --sheets --out set.pdf`,
 command scripts (`kanavos-cli run`), a JSON-RPC control server (`serve --stdio`) and an MCP server (`mcp`). See
 `kanavos-cli help`, [`docs/control-protocol.md`](../control-protocol.md) and [`docs/commands.md`](../commands.md).
+
+## 9. Updates
+
+- At start Kanavos asks GitHub whether a newer version exists. The request carries only the Kanavos version, the
+  operating system and the architecture, never project data. A new version shows as a notice at the right of the
+  status bar and as an item in the **Help** menu.
+- **Install and restart** downloads the package, checks its checksum and digital signature, asks about unsaved
+  changes, keeps a recovery copy of your project, replaces the program files and starts again with your project
+  open. **Later** keeps the notice; **Skip this version** stops offering that version.
+- **Help › Check for updates…** checks now. **Help › Check for updates at start** turns the automatic check off,
+  and **Help › Update channel** chooses stable releases or test builds. The same settings are in **Help › About
+  Kanavos**. `KANAVOS_NO_UPDATE_CHECK=1` turns all checks off.
+- Kanavos must be in a folder your account can write (not under Program Files) to update itself.
+  `kanavos-cli update` does the same from the command line. Details: [`docs/updates.md`](../updates.md).

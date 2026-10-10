@@ -191,6 +191,12 @@ pub fn clear_recovery() {
     }
 }
 
+/// Writes a recovery copy now and waits for it (before an update replaces the program).
+pub fn write_recovery_now(doc: &Document, original: Option<&Path>) -> Result<(), PersistError> {
+    let dir = recovery_dir().ok_or_else(|| PersistError::Format("no data directory".into()))?;
+    write_recovery_in(&dir, doc, original)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

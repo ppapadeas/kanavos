@@ -62,6 +62,8 @@ pub enum Pending {
     OpenSample,
     /// Quit.
     Exit,
+    /// Install the downloaded update and restart.
+    Update,
 }
 
 /// The answer to the unsaved-changes question.
@@ -112,6 +114,10 @@ impl Dialogs {
             });
             ui.add_space(6.0);
             ui.label(trf(locale, "ui.dialog.unsaved_body", &[("name", project)]));
+            if pending == Pending::Update {
+                ui.add_space(4.0);
+                crate::widgets::hint(ui, &tr(locale, "ui.update.unsaved_note"));
+            }
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let save =

@@ -17,6 +17,7 @@
 //!   [`sample`] (first-launch project), [`jobs`] (background computation).
 //! - [`prefs`], [`dialogs`], [`fuzzy`], [`screenshot`]: preferences, file dialogs and confirmations, search
 //!   matching, and the visual-verification hook.
+//! - [`update`]: over-the-air updates (check, download, window), over `kanavos-update`.
 
 pub mod actions;
 pub mod app;
@@ -45,6 +46,7 @@ pub mod table;
 pub mod tabs;
 pub mod theme;
 pub mod tree;
+pub mod update;
 pub mod viewport3d;
 pub mod widgets;
 

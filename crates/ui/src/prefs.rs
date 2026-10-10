@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use kanavos_units::Locale;
+use kanavos_update::Channel;
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -38,6 +39,13 @@ pub struct Prefs {
     pub first_run_done: bool,
     /// Autosave interval in seconds (0 disables).
     pub autosave_secs: u64,
+    /// Look for a new version when the application starts (sends only the version and operating system to
+    /// GitHub; see `docs/updates.md`).
+    pub update_check: bool,
+    /// Which releases are offered: published releases only, or test builds too.
+    pub update_channel: Channel,
+    /// A version the person chose to skip; the automatic check does not offer it again.
+    pub skipped_version: Option<String>,
 }
 
 impl Default for Prefs {
@@ -52,6 +60,9 @@ impl Default for Prefs {
             split: true,
             first_run_done: false,
             autosave_secs: 60,
+            update_check: true,
+            update_channel: Channel::Stable,
+            skipped_version: None,
         }
     }
 }
@@ -177,5 +188,25 @@ mod tests {
         let p: Prefs = serde_json::from_str(r#"{"theme":"dark","future_field":1}"#).unwrap();
         assert_eq!(p.theme, Theme::Dark);
         assert!(p.show_tree);
+        // Preferences written before updates existed check for updates on the stable channel.
+        assert!(p.update_check);
+        assert_eq!(p.update_channel, Channel::Stable);
+        assert_eq!(p.skipped_version, None);
+    }
+
+    #[test]
+    fn update_preferences_round_trip() {
+        let dir = temp_dir("upd");
+        let p = Prefs {
+            update_check: false,
+            update_channel: Channel::Test,
+            skipped_version: Some("0.3.0".into()),
+            ..Prefs::default()
+        };
+        p.save_to(&dir).unwrap();
+        let text = std::fs::read_to_string(dir.join("prefs.json")).unwrap();
+        assert!(text.contains(r#""update_channel": "test""#), "{text}");
+        assert_eq!(Prefs::load_from(&dir), p);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

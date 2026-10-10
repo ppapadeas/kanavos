@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use kanavos_model::{Id, ScheduleKind};
 use kanavos_tools::ToolId;
 use kanavos_units::Locale;
+use kanavos_update::Channel;
 
 use crate::exports::ExportKind;
 use crate::imports::ImportKind;
@@ -131,4 +132,12 @@ pub enum Action {
     OpenWindow(Window),
     /// Open the command palette.
     CommandPalette,
+    /// Look for a new version now and show the result.
+    CheckForUpdates,
+    /// Show the update window (the offer or the download in progress).
+    ShowUpdate,
+    /// Turn the check for updates at start on or off.
+    SetUpdateCheck(bool),
+    /// Choose which releases are offered.
+    SetUpdateChannel(Channel),
 }

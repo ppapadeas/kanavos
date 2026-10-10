@@ -22,6 +22,7 @@ use crate::theme::Tokens;
 use crate::widgets::color32;
 
 pub use buildups::BuildUpsWindow;
+pub use info::UpdateSettings;
 pub use materials::MaterialsWindow;
 
 /// The attribute managers and information windows, and which are open.
@@ -51,8 +52,14 @@ impl Managers {
         any
     }
 
-    /// Shows the open windows.
-    pub fn ui(&mut self, ctx: &egui::Context, state: &mut AppState, actions: &mut Vec<Action>) {
+    /// Shows the open windows. `updates` are the update preferences shown in the About window.
+    pub fn ui(
+        &mut self,
+        ctx: &egui::Context,
+        state: &mut AppState,
+        updates: UpdateSettings,
+        actions: &mut Vec<Action>,
+    ) {
         let locale = state.locale;
         let all = [
             Window::Materials,
@@ -77,7 +84,7 @@ impl Managers {
                 Window::Site => (tr(locale, "ui.window.site"), [480.0, 660.0]),
                 Window::Defaults => (tr(locale, "ui.window.defaults"), [460.0, 320.0]),
                 Window::Shortcuts => (tr(locale, "ui.window.shortcuts"), [460.0, 520.0]),
-                Window::About => (tr(locale, "ui.window.about"), [480.0, 380.0]),
+                Window::About => (tr(locale, "ui.window.about"), [480.0, 520.0]),
             };
             let centre = ctx.content_rect().center();
             egui::Window::new(egui::RichText::new(title).family(crate::fonts::strong()))
@@ -96,7 +103,7 @@ impl Managers {
                     Window::Site => project::site_ui(ui, state, actions),
                     Window::Defaults => project::defaults_ui(ui, state),
                     Window::Shortcuts => info::shortcuts_ui(ui, locale),
-                    Window::About => info::about_ui(ui, locale),
+                    Window::About => info::about_ui(ui, locale, updates, actions),
                 });
             if !open {
                 self.open.remove(&w);
