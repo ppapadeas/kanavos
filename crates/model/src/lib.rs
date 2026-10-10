@@ -10,6 +10,7 @@
 
 mod attributes;
 mod element;
+mod project_id;
 mod site;
 mod template;
 mod view;
@@ -26,11 +27,12 @@ pub use attributes::{BuildUp, BuildUpLayer, BuildUpUsage, Material, MaterialCate
 pub use element::{
     Beam, Category, Column, Dimension, DraftShape, DraftStyle, Drafting, Element, ElementKind, GridLine,
     LevelMark, Object, Opening, OpeningKind, Parapet, Phase, Profile, Railing, RailingInfill, ReferenceLine,
-    Roof, RoofShape, Slab, Space, SpaceCategory, Stair, StairShape, Structure, TextAlign, TextNote, Underlay,
-    Wall,
+    Roof, RoofShape, Slab, Space, SpaceCategory, Stair, StairShape, StairUse, Structure, TextAlign, TextNote,
+    Underlay, Wall,
 };
+pub use project_id::{InvalidProjectId, ProjectId};
 pub use site::{BuildingTerms, Georef, ProjectInfo, Site};
-pub use template::starter;
+pub use template::{starter, starter_with_id};
 pub use view::{Camera, Paper, PaperSize, ScheduleKind, Sheet, View, ViewKind, Viewport};
 
 /// Stable identifier of anything in a document. Never reused within a document.
@@ -131,6 +133,9 @@ impl std::error::Error for InvalidDocument {}
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Document {
     next_id: u64,
+    /// Permanent project id; nil until one is assigned (see [`ProjectId`]).
+    #[serde(default, skip_serializing_if = "ProjectId::is_nil")]
+    project_id: ProjectId,
     #[serde(default)]
     tolerance: Tolerance,
     #[serde(default)]
@@ -160,6 +165,12 @@ impl Document {
     }
 
     // ----- Reading -------------------------------------------------------------------------------------------
+
+    /// The project's permanent id. Nil for empty documents and for files written before ids existed; the
+    /// application assigns one the first time such a document is saved.
+    pub fn project_id(&self) -> ProjectId {
+        self.project_id
+    }
 
     /// Project tolerance.
     pub fn tolerance(&self) -> Tolerance {
@@ -346,7 +357,7 @@ impl Document {
                 ElementKind::Column(c) => c.material == id,
                 ElementKind::Beam(b) => b.material == id,
                 ElementKind::Stair(s) => s.material == id,
-                ElementKind::Railing(r) => r.material == id,
+                ElementKind::Railing(r) => r.material == id || r.infill_material == Some(id),
                 _ => false,
             })
     }
@@ -370,6 +381,12 @@ impl Document {
         next.next_id += 1;
         let id = Id(next.next_id);
         (next, id)
+    }
+
+    /// Returns a document with a different project id. Only for creating, importing or first saving a project:
+    /// the id identifies the project for its whole life.
+    pub fn with_project_id(&self, id: ProjectId) -> Document {
+        Document { project_id: id, ..self.clone() }
     }
 
     /// Returns a document with a different tolerance.
@@ -683,5 +700,18 @@ mod tests {
         assert_eq!(doc, back);
         // Deterministic: serialising again gives the same text.
         assert_eq!(json, serde_json::to_string_pretty(&back).unwrap());
+    }
+
+    #[test]
+    fn project_id_is_written_as_a_uuid_and_optional_when_reading() {
+        let id = ProjectId::from_u128(0x1234_5678_9abc_4def_8123_4567_89ab_cdef);
+        let doc = Document::new().with_project_id(id);
+        let v = serde_json::to_value(&doc).unwrap();
+        assert_eq!(v["project_id"], "12345678-9abc-4def-8123-456789abcdef");
+        assert_eq!(serde_json::from_value::<Document>(v).unwrap().project_id(), id);
+        // Documents without an id (older files, empty documents) read and write without the key.
+        let old: Document = serde_json::from_str(r#"{"next_id": 0}"#).unwrap();
+        assert!(old.project_id().is_nil());
+        assert!(serde_json::to_value(&old).unwrap().get("project_id").is_none());
     }
 }

@@ -64,7 +64,7 @@ fn layer_volumes(sol: &[crate::ElementSolid]) -> Vec<LayerVolume> {
 /// minus openings), net area of each face after junction clean-up, and the exact volume of each layer (junctions,
 /// openings and roof clipping included). Roofs: plan area (`gross_area`), true sloped area (`area`) per plane and
 /// in total, volume of each layer. Stairs: walking-line length, rise, plan area of treads and landings, volume.
-/// Railings: length, height, volume.
+/// Railings: length along the rail (true length on a slope), height, volume.
 pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities, GeometryError> {
     let e = element(doc, id)?;
     let mut d = DetailedQuantities::default();
@@ -111,7 +111,8 @@ pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities,
             q.area = Some(Area::m2(true_area));
             q.gross_area = Some(Area::m2(plan));
             q.thickness = Some(Length::m(g.thickness));
-            q.perimeter = Some(r.outline.perimeter());
+            // Eaves and verges plus the edges of the holes (where flashings run).
+            q.perimeter = Some(r.outline.perimeter() + r.holes.iter().map(|h| h.perimeter()).sum());
             d.planes = g
                 .planes
                 .iter()
@@ -163,12 +164,8 @@ pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities,
             q.length = Some(o.width);
         }
         ElementKind::Railing(r) => {
-            let length: Length = r
-                .path
-                .windows(2)
-                .filter_map(|w| if let [a, b] = w { Some(a.distance(*b)) } else { None })
-                .sum();
-            q.length = Some(length);
+            // Along the rail: a railing that follows a slope is longer than its plan.
+            q.length = Some(crate::railing::railing_length(r));
             q.height = Some(r.height);
             d.layers = layer_volumes(&solids(doc, id)?);
             q.volume = Some(d.layers.iter().map(|l| l.volume).sum());

@@ -220,7 +220,10 @@ fn deps_of(doc: &Document, e: &Element) -> Deps {
         ElementKind::Column(c) => materials.push(c.material),
         ElementKind::Beam(b) => materials.push(b.material),
         ElementKind::Stair(s) => materials.push(s.material),
-        ElementKind::Railing(r) => materials.push(r.material),
+        ElementKind::Railing(r) => {
+            materials.push(r.material);
+            materials.extend(r.infill_material);
+        }
         ElementKind::Opening(o) => {
             if let Some(host) = doc.element(o.host) {
                 related.push(host.clone());

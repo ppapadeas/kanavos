@@ -7,7 +7,7 @@ mod common;
 
 use common::*;
 use kanavos_engine::AnyCommand;
-use kanavos_model::{ElementKind, OpeningKind, StairShape};
+use kanavos_model::{ElementKind, OpeningKind, StairShape, StairUse};
 use kanavos_tools::{Key, ToolId};
 
 #[test]
@@ -99,18 +99,21 @@ fn stair_from_origin_and_direction() {
     assert_eq!(s.risers, 18, "3.20 m at most 18 cm per riser");
     assert!(s.riser_height().as_m() <= 0.18 + 1e-9);
     assert_eq!(s.shape, StairShape::Straight);
+    assert_eq!(s.usage, StairUse::DwellingInternal, "the default use");
 }
 
 #[test]
 fn half_turn_stair_with_typed_direction() {
     let mut h = Harness::new(ToolId::Stair);
     h.settings.stair.shape = StairShape::HalfTurnLeft;
+    h.settings.stair.usage = StairUse::Residential;
     h.click(0.0, 0.0);
     h.text("0");
     h.key(Key::Enter);
     let ElementKind::Stair(s) = &h.of("stair")[0].kind else { unreachable!() };
     assert!(near_m(s.direction.as_deg(), 0.0));
     assert_eq!(s.shape, StairShape::HalfTurnLeft);
+    assert_eq!(s.usage, StairUse::Residential, "the use comes from the tool settings");
 }
 
 #[test]
@@ -123,6 +126,20 @@ fn railing_along_a_path() {
     let ElementKind::Railing(r) = &h.of("railing")[0].kind else { unreachable!() };
     assert_eq!(r.path.len(), 3);
     assert!(near_m(r.height.as_m(), 1.0));
+    assert!(r.elevations.is_empty(), "a drawn railing is flat");
+    assert_eq!(r.infill_material, None, "bars use the frame's material");
+}
+
+#[test]
+fn glass_railings_get_the_glass_material() {
+    let mut h = Harness::new(ToolId::Railing);
+    h.settings.railing.infill = kanavos_model::RailingInfill::Glass;
+    h.click(0.0, 0.0);
+    h.click(3.0, 0.0);
+    h.key(Key::Enter);
+    let ElementKind::Railing(r) = &h.of("railing")[0].kind else { unreachable!() };
+    let glass = h.doc.materials().find(|m| m.category == kanavos_model::MaterialCategory::Glass).unwrap();
+    assert_eq!(r.infill_material, Some(glass.id));
 }
 
 fn opening(h: &Harness, i: usize) -> kanavos_model::Opening {

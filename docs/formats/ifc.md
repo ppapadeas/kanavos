@@ -27,9 +27,11 @@ encoding of ISO 10303-21. The implementation is the `kanavos-ifc` crate; the beh
 
 Every `GlobalId` is derived, never random:
 
-1. A project namespace UUID: the one the caller passes (`ExportOptions::project_guid`), or else the version-5
-   UUID of the Kanavos namespace (`urn:kanavos:ifc` in the RFC 9562 URL namespace) and the project's name,
-   location, municipality and owner.
+1. A project namespace UUID: the one the caller passes (`ExportOptions::project_guid`), or else the document's
+   permanent project id ([`../format.md`](../format.md) §3.2.1). Renaming the project or editing its information
+   therefore keeps every identifier. Only a document without a project id (an older file not saved since, or a
+   fresh IFC import) falls back to the version-5 UUID of the Kanavos namespace (`urn:kanavos:ifc` in the RFC 9562
+   URL namespace) and the project's name, location, municipality and owner.
 2. Each object gets the version-5 UUID of the project namespace and a stable name: `project`, `site`, `building`,
    `storey:<id>`, `element:<id>`, `opening:<id>` (the void of a door or window), `pset:<owner>:<set name>`,
    `qto:<owner>:<set name>`, `rel:contains:storey:<id>`, `rel:aggregates:…`, `rel:voids:<id>`, `rel:fills:<id>`,
@@ -37,8 +39,11 @@ Every `GlobalId` is derived, never random:
 3. The 128 bits are written in the IFC compressed form (22 characters of `0-9A-Za-z_$`, most significant first).
 
 Exporting the same project twice gives the same identifiers, so other tools can match objects between issues of
-a model. An element imported from IFC keeps its original `GlobalId` in the property `ifc:GlobalId`; export reuses
-it (once: a copied element with the same stored identifier gets a derived one).
+a model. An element imported from IFC keeps its original `GlobalId` as its external id (`Element::external_id`);
+export reuses it when it is a valid IFC identifier not yet used in the file. Copies of elements have no external
+id, so they get derived identifiers. (Files from before the field kept the identifier in the user property
+`ifc:GlobalId`; it is moved into the field when such a file is opened, and export still honours the property for
+documents built in memory that way.)
 
 ### 1.3 Spatial structure
 
@@ -68,9 +73,10 @@ user properties in `Kanavos_Properties`.
 | Beam | `IfcBeam` (BEAM) | At the start, X along the beam, Z at the top | `Axis` polyline; extrusion of the cross-section along the beam | `IfcMaterial` | `Pset_BeamCommon`; `Qto_BeamBaseQuantities` |
 | Space | `IfcSpace` (INTERNAL, EXTERNAL for balconies, semi-open spaces and pilotis, PARKING) | At the storey floor | `FootPrint` polyline; extrusion of the boundary by the space height (storey height when not set) | — | Name = number, LongName = name; `Pset_SpaceCommon` (Reference, IsExternal); `Kanavos_Space` (Category = ΝΟΚ use category key, Finish); `Qto_SpaceBaseQuantities` (Height, perimeters, floor areas, volumes) |
 | Stair | `IfcStair` (STRAIGHT_RUN, QUARTER_TURN, HALF_TURN) | At the first riser, X along the walking direction | One extruded side profile per flight (sawtooth over a soffit parallel to the pitch line, waist measured perpendicular), extruded across the width; extruded landings | `IfcMaterial` | `Pset_StairCommon` (NumberOfRiser, NumberOfTreads, RiserHeight, TreadLength) |
-| Roof (flat) | `IfcRoof` (FLAT_ROOF) | At the storey floor | Extrusion of the outline downwards from the roof top; parapet as an extruded band (outline minus the outline inset by the parapet thickness) | `IfcMaterialLayerSetUsage` (AXIS3, NEGATIVE, offset = roof base) | `Pset_RoofCommon`; `Qto_RoofBaseQuantities` |
+| Roof (flat) | `IfcRoof` (FLAT_ROOF) | At the storey floor | Extrusion of the outline downwards from the roof top, holes as `IfcArbitraryProfileDefWithVoids`; parapet as an extruded band (outline minus the outline inset by the parapet thickness) | `IfcMaterialLayerSetUsage` (AXIS3, NEGATIVE, offset = roof base) | `Pset_RoofCommon`; `Qto_RoofBaseQuantities` (GrossArea over the whole outline, NetArea without the holes, ProjectedArea without the holes) |
+| Roof hole | `IfcOpeningElement` (OPENING) + `IfcRelVoidsElement` to the roof, one per hole | Relative to the roof | Extrusion of the hole polygon vertically through the whole roof (from below the lowest underside to above the highest point the steepest plane reaches) | — | `Qto_OpeningElementBaseQuantities` (Area, Depth). The roof body already has the holes cut; the openings state them for tools that list or fill openings. |
 | Roof (pitched) | `IfcRoof` (SHED / GABLE / HIP) | At the storey floor | `IfcFacetedBrep`: top = lower envelope of one plane per sloped edge, bottom = the same planes lowered by thickness / cos(pitch), vertical sides and gables. Concave outlines are exported flat, with a warning | `IfcMaterialLayerSet` | as above (GrossArea = sloped top area, ProjectedArea) |
-| Railing | `IfcRailing` (GUARDRAIL) | At the base | Per path segment: a 60 × 40 mm top rail and a 20 mm infill panel | `IfcMaterial` | `Pset_RailingCommon` (Height); `Qto_RailingBaseQuantities` (Length) |
+| Railing | `IfcRailing` (GUARDRAIL) | At the base | Per path segment: a 60 × 40 mm top rail and a 20 mm infill panel; on a sloped segment both are profiles in the segment's vertical plane extruded across it, following the base | `IfcMaterial`, or with an infill material an `IfcMaterialConstituentSet` (constituents `Frame` and `Infill`); the panels are styled with the infill material | `Pset_RailingCommon` (Height); `Qto_RailingBaseQuantities` (Length along the rail) |
 | Object | `IfcFurniture` (`furniture.*`, `kitchen.*`), `IfcSanitaryTerminal` (`sanitary.*`, `bathroom.*`; WC, basin, shower, bath, bidet, sink recognised from the name), else `IfcBuildingElementProxy` | At the insertion point, rotated | Placeholder box from the `width`, `depth`, `height` parameters (defaults 0.6 × 0.6 × 0.75 m) | — | ObjectType = catalogue identifier; `Kanavos_Object` (Definition, Mirrored, parameters) |
 | Dimension, text, level, drafting, grid, underlay | not exported (counted in the report) | | | | |
 
@@ -109,13 +115,14 @@ materials, build-ups, defaults, the 3D view, site plan, coverage diagram, area t
 | `IfcSpace` | Space | Boundary from the extruded profile; height = extrusion height; name = LongName, number = Name (name = Name when LongName is empty); category and finish from `Kanavos_Space`. |
 | `IfcOpeningElement` in a wall (`IfcRelVoidsElement`) with `IfcDoor` / `IfcWindow` (`IfcRelFillsElement`), or without filling | Opening (door, window, void) | Position = centre of the opening body along the wall's reference line (arc length for curved walls); width and height = OverallWidth/OverallHeight of the filling when given, else the body extents; sill = bottom of the body above the storey. Style and parameters from `Kanavos_Opening`, else the defaults in `ImportOptions`. |
 | `IfcOpeningElement` in a slab | Hole in the slab outline | When its vertical body lies inside the slab outline. |
-| `IfcRoof` with its own extruded body | Flat roof | Outline and thickness from the solid slab; a band with a hole on top becomes the parapet. Roofs made of parts are imported through the parts; pitched roof bodies are not imported yet. |
+| `IfcRoof` with its own extruded body | Flat roof | Outline, holes and thickness from the lowest solid (the roof slab); a band with a hole on top becomes the parapet. Roofs made of parts are imported through the parts; pitched roof bodies are not imported yet. |
+| `IfcOpeningElement` in a roof | Hole in the roof | When its vertical body lies inside the roof outline; an opening matching a hole already in the roof body is recorded as mapped without adding it twice. |
 | `IfcFurniture`, `IfcFurnishingElement`, `IfcSanitaryTerminal`, `IfcFlowTerminal`, `IfcBuildingElementProxy` with a `Kanavos_Object` set | Object | Position and rotation from the placement. Others have no Kanavos equivalent yet. |
 | `IfcRelAssociatesMaterial` (on the element or its type) | Structure | A layer set (usage or direct) with layer thicknesses summing to the geometric thickness (within 2 mm or 2 %) → build-up (an existing one with the same name and layers is reused); layers stacked in the positive direction are reversed into Kanavos order (walls left → right, slabs top → bottom). Otherwise one material with the geometric thickness. |
 | `IfcMaterial` | Material | Reused by name, else created; family guessed from the name and IFC category (English and Greek keywords); colour from its styled representation, else a default for the family. |
 | `IfcMapConversion` + `IfcProjectedCRS` | Georeference | EPSG code from the CRS name, eastings, northings, altitude (in the CRS map unit), rotation from the X axis direction. |
-| `IfcProject` Name, LongName; building address | Project title, location, municipality | |
-| `GlobalId`, `Tag`, `Pset_*Common.Status`, `Kanavos_Properties` | `ifc:GlobalId` property, tag, phase, user properties | |
+| `IfcProject` Name, LongName; building address | Project title, location, municipality | The imported document has no project id; it gets one when first saved. |
+| `GlobalId`, `Tag`, `Pset_*Common.Status`, `Kanavos_Properties` | External id, tag, phase, user properties | The external id is shown, read-only, in the inspector. |
 
 ### 2.3 Report
 

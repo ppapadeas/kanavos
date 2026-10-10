@@ -153,6 +153,7 @@ impl Fx {
                 outline: Polygon2::from_m(outline),
                 base: Length::m(base),
                 structure,
+                holes: Vec::new(),
                 shape: RoofShape::Pitched { slopes: slopes.into_iter().map(|s| s.map(Angle::deg)).collect() },
             }),
         )
@@ -188,6 +189,7 @@ impl Fx {
                 gap: Length::m(0.1),
                 thickness: Length::m(0.15),
                 material,
+                usage: Default::default(),
                 base_offset: Length::ZERO,
             }),
         )
@@ -204,7 +206,9 @@ impl Fx {
                 base_offset: Length::ZERO,
                 post_spacing: Length::m(1.2),
                 infill,
+                elevations: Vec::new(),
                 material,
+                infill_material: None,
             }),
         )
     }

@@ -238,6 +238,7 @@ fn scene_cache_rebuilds_walls_when_a_roof_on_their_storey_changes() {
                 material: h.doc.materials().next().unwrap().id,
                 thickness: Length::cm(20.0),
             },
+            holes: Vec::new(),
             shape: kanavos_model::RoofShape::Flat { parapet: None },
         })
     };

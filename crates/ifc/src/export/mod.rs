@@ -18,15 +18,16 @@ use kanavos_solid::Mesh;
 pub(crate) use shapes::{Polyhedron, WallShape, wall_shapes};
 
 use crate::IfcError;
-use crate::guid::{Guid, project_namespace};
+use crate::guid::{Guid, document_namespace};
 use crate::math::Frame3;
 use crate::step::{P, StepWriter};
 
 /// Schema identifier written to `FILE_SCHEMA`.
 pub const EXPORT_SCHEMA: &str = "IFC4X3_ADD2";
 
-/// Element property holding the IFC `GlobalId` an element was imported with; export reuses it so identifiers
-/// survive an import → export round trip.
+/// User property in which imports before `Element::external_id` existed kept the IFC `GlobalId`. Files are
+/// upgraded when they are read (see `kanavos_format::legacy`); export still honours the property for documents
+/// built in memory the old way, and never writes it as a user property.
 pub const GLOBAL_ID_PROPERTY: &str = "ifc:GlobalId";
 
 /// Callback giving an element's body as a triangle mesh in project coordinates (metres, `z` above ±0.00), or
@@ -36,8 +37,8 @@ pub type GeometryFn<'a> = &'a dyn Fn(Id) -> Option<Mesh>;
 /// How a document is exported.
 #[derive(Clone)]
 pub struct ExportOptions<'a> {
-    /// Namespace for derived `GlobalId`s. `None` derives one from the project's name, location, municipality and
-    /// owner (see [`crate::guid`]).
+    /// Namespace for derived `GlobalId`s. `None` uses the document's project id, or, for a document without one,
+    /// a namespace derived from the project's name, location, municipality and owner (see [`crate::guid`]).
     pub project_guid: Option<Guid>,
     /// Time stamp for the file header, ISO 8601 (`YYYY-MM-DDThh:mm:ss`). Supplied by the caller so that output
     /// is reproducible.
@@ -284,10 +285,7 @@ fn material_category_key(c: kanavos_model::MaterialCategory) -> &'static str {
 
 impl<'a> Exporter<'a> {
     fn new(doc: &'a Document, opts: &'a ExportOptions<'a>) -> Exporter<'a> {
-        let info = doc.info();
-        let ns = opts.project_guid.unwrap_or_else(|| {
-            project_namespace(&info.name, &info.location, &info.municipality, &info.owner)
-        });
+        let ns = opts.project_guid.unwrap_or_else(|| document_namespace(doc));
         Exporter {
             doc,
             opts,
@@ -327,9 +325,13 @@ impl<'a> Exporter<'a> {
         g.to_ifc()
     }
 
-    /// The GlobalId of an element: the one it was imported with, if valid and not taken, else a derived one.
+    /// The GlobalId of an element: its external id (the one it was imported with; the legacy property for
+    /// documents without the field), if it is a valid IFC identifier not used yet in this file, else a derived
+    /// one.
     fn element_guid(&mut self, e: &Element) -> String {
-        if let Some(g) = e.properties.get(GLOBAL_ID_PROPERTY).and_then(|s| Guid::from_ifc(s))
+        let stored =
+            e.external_id.as_deref().or_else(|| e.properties.get(GLOBAL_ID_PROPERTY).map(String::as_str));
+        if let Some(g) = stored.and_then(Guid::from_ifc)
             && self.used_guids.insert(g)
         {
             return g.to_ifc();
@@ -1613,6 +1615,7 @@ impl<'a> Exporter<'a> {
         let style = core.map(StyleKey::Material).unwrap_or(StyleKey::Default);
         let mut flat = matches!(r.shape, RoofShape::Flat { .. });
         let mut projected = r.outline.area().as_m2();
+        // Top area over the whole outline, holes included (they are subtracted for the net area below).
         let mut surface = projected;
         let body = match self.callback_body(e.id, &world) {
             Some(rep) => rep,
@@ -1637,7 +1640,9 @@ impl<'a> Exporter<'a> {
                     Some(rep) => rep,
                     None => {
                         let mut items = Vec::new();
-                        let profile = self.profile(&PolygonWithHoles::from(r.outline.clone()));
+                        // The holes are voids of the slab's profile (and openings voiding the roof, below).
+                        let profile = self
+                            .profile(&PolygonWithHoles { outer: r.outline.clone(), holes: r.holes.clone() });
                         let position = Frame3::translation(Vec3::new(0.0, 0.0, r.base.as_m()));
                         items.push(self.extrusion(profile, &position, Vec3::new(0.0, 0.0, -1.0), thickness));
                         if let RoofShape::Flat { parapet: Some(p) } = &r.shape {
@@ -1680,6 +1685,7 @@ impl<'a> Exporter<'a> {
         };
         let product = self.product("IFCROOF", e, P::Null, placement, Some(shape), vec![P::e(predefined)]);
         self.count("IfcRoof");
+        self.roof_openings(e, r, placement, product, thickness);
         if flat {
             // The roof slab hangs below its top surface at `base`, like a floor slab below its top.
             self.associate_layers(product, &r.structure, "AXIS3", r.base.as_m());
@@ -1694,26 +1700,87 @@ impl<'a> Exporter<'a> {
             "Pset_RoofCommon",
             vec![("IsExternal", Pv::Bool(true)), ("Status", Pv::Enum(status(e.phase)))],
         );
+        // Holes: their plan area, scaled by the roof's mean slope factor for the sloped surface.
+        let holes: f64 = r.holes.iter().map(|h| h.area().as_m2()).sum();
+        let slope_factor = if projected > 1e-12 { surface / projected } else { 1.0 };
         self.qto(
             &key,
             product,
             "Qto_RoofBaseQuantities",
             vec![
                 Q::Area("GrossArea", surface),
-                Q::Area("NetArea", surface),
-                Q::Area("ProjectedArea", projected),
+                Q::Area("NetArea", (surface - holes * slope_factor).max(0.0)),
+                Q::Area("ProjectedArea", (projected - holes).max(0.0)),
             ],
         );
         self.user_properties(e, product);
     }
 
+    /// One `IfcOpeningElement` voiding the roof per hole: the hole extruded vertically through the whole roof.
+    /// The roof body already has the holes; the openings state them for tools that list or fill openings.
+    fn roof_openings(&mut self, e: &Element, r: &Roof, roof_placement: u64, roof: u64, thickness: f64) {
+        if r.holes.is_empty() {
+            return;
+        }
+        let base = r.base.as_m();
+        let margin = 0.05;
+        // A vertical range that contains the roof over every hole: from below the lowest underside to above the
+        // highest point the steepest plane can reach inside the outline.
+        let steepest = match &r.shape {
+            RoofShape::Flat { .. } => 0.0,
+            RoofShape::Pitched { slopes } => slopes.iter().flatten().map(|a| a.as_rad()).fold(0.0, f64::max),
+        };
+        let reach = r.outline.bbox().map(|b| b.width().as_m().max(b.height().as_m()) / 2.0).unwrap_or(0.0);
+        let z0 = base - thickness / steepest.cos().max(1e-3) - margin;
+        let z1 = base + steepest.tan() * reach + margin;
+        for (i, hole) in r.holes.iter().enumerate() {
+            let n = i + 1;
+            let placement = self.placement(Some(roof_placement), &Frame3::IDENTITY);
+            let profile = self.profile(&PolygonWithHoles::from(hole.clone()));
+            let position = Frame3::translation(Vec3::new(0.0, 0.0, z0));
+            let solid = self.extrusion(profile, &position, Vec3::Z, z1 - z0);
+            let rep = self.shape_rep(self.body_ctx, "Body", "SweptSolid", vec![solid]);
+            let shape = self.product_shape(vec![rep]);
+            let key = format!("roof_opening:{}:{n}", e.id.0);
+            let guid = self.guid(&key);
+            let opening = self.w.add(
+                "IFCOPENINGELEMENT",
+                vec![
+                    P::s(guid),
+                    P::Null,
+                    P::s(format!("{} opening {n}", Self::name_of(e))),
+                    P::Null,
+                    P::Null,
+                    P::Ref(placement),
+                    P::Ref(shape),
+                    P::Null,
+                    P::e("OPENING"),
+                ],
+            );
+            self.count("IfcOpeningElement");
+            let g = self.guid(&format!("rel:voids:roof:{}:{n}", e.id.0));
+            self.w.add(
+                "IFCRELVOIDSELEMENT",
+                vec![P::s(g), P::Null, P::Null, P::Null, P::Ref(roof), P::Ref(opening)],
+            );
+            self.qto(
+                &key,
+                opening,
+                "Qto_OpeningElementBaseQuantities",
+                vec![Q::Area("Area", hole.area().as_m2()), Q::Length("Depth", z1 - z0)],
+            );
+        }
+    }
+
     fn railing(&mut self, e: &Element, r: &Railing) {
         let height = r.height.as_m();
-        let segments: Vec<(Point2, Point2)> = r
-            .path
+        // Segments with their base relative to the railing's placement (at `base_offset`) at both ends.
+        let based: Vec<(Point2, f64)> =
+            r.path.iter().enumerate().map(|(i, p)| (*p, (r.base_at(i) - r.base_offset).as_m())).collect();
+        let segments: Vec<(Point2, f64, Point2, f64)> = based
             .windows(2)
             .filter_map(|w| match w {
-                [a, b] if a.distance(*b).as_m() > 1e-6 => Some((*a, *b)),
+                [(a, za), (b, zb)] if a.distance(*b).as_m() > 1e-6 => Some((*a, *za, *b, *zb)),
                 _ => None,
             })
             .collect();
@@ -1729,31 +1796,51 @@ impl<'a> Exporter<'a> {
         let body = match self.callback_body(e.id, &world) {
             Some(rep) => rep,
             None => {
-                // Each segment: a 60 × 40 mm top rail and a 20 mm infill panel below it.
-                let mut items = Vec::new();
-                for (a, b) in &segments {
-                    if let Some(rail) = shapes::band(*a, *b, 0.06) {
-                        let profile = self.profile(&PolygonWithHoles::from(rail));
-                        let position = Frame3::translation(Vec3::new(0.0, 0.0, height - 0.04));
-                        items.push(self.extrusion(profile, &position, Vec3::Z, 0.04));
-                    }
-                    if let Some(panel) = shapes::band(*a, *b, 0.02) {
-                        let profile = self.profile(&PolygonWithHoles::from(panel));
-                        let position = Frame3::translation(Vec3::new(0.0, 0.0, 0.05));
-                        items.push(self.extrusion(profile, &position, Vec3::Z, (height - 0.09).max(0.01)));
+                // Each segment: a 60 × 40 mm top rail and a 20 mm infill panel below it; on a sloped segment
+                // both follow the slope (profiles in the segment's vertical plane, extruded across it).
+                let mut rails = Vec::new();
+                let mut panels = Vec::new();
+                for &(a, za, b, zb) in &segments {
+                    if (zb - za).abs() <= 1e-6 {
+                        if let Some(rail) = shapes::band(a, b, 0.06) {
+                            let profile = self.profile(&PolygonWithHoles::from(rail));
+                            let position = Frame3::translation(Vec3::new(0.0, 0.0, za + height - 0.04));
+                            rails.push(self.extrusion(profile, &position, Vec3::Z, 0.04));
+                        }
+                        if let Some(panel) = shapes::band(a, b, 0.02) {
+                            let profile = self.profile(&PolygonWithHoles::from(panel));
+                            let position = Frame3::translation(Vec3::new(0.0, 0.0, za + 0.05));
+                            let depth = (height - 0.09).max(0.01);
+                            panels.push(self.extrusion(profile, &position, Vec3::Z, depth));
+                        }
+                    } else {
+                        let rail = (za + height - 0.04, zb + height - 0.04, za + height, zb + height);
+                        rails.extend(self.sloped_band(a, b, 0.06, rail));
+                        let top = (height - 0.04).max(0.06);
+                        let panel = (za + 0.05, zb + 0.05, za + top, zb + top);
+                        panels.extend(self.sloped_band(a, b, 0.02, panel));
                     }
                 }
-                self.styled(&items, StyleKey::Material(r.material));
-                self.shape_rep(self.body_ctx, "Body", "SweptSolid", items)
+                self.styled(&rails, StyleKey::Material(r.material));
+                self.styled(&panels, StyleKey::Material(r.infill_material_or_frame()));
+                rails.extend(panels);
+                self.shape_rep(self.body_ctx, "Body", "SweptSolid", rails)
             }
         };
         let shape = self.product_shape(vec![body]);
         let product = self.product("IFCRAILING", e, P::Null, placement, Some(shape), vec![P::e("GUARDRAIL")]);
         self.count("IfcRailing");
-        self.associate_material(product, r.material);
+        match r.infill_material.filter(|m| *m != r.material) {
+            Some(infill) => self.associate_constituents(product, r.material, infill),
+            None => self.associate_material(product, r.material),
+        }
         self.contain(&host, product);
         let key = format!("element:{}", e.id.0);
-        let length: f64 = segments.iter().map(|(a, b)| a.distance(*b).as_m()).sum();
+        // Along the rail: a sloped segment is longer than its plan.
+        let length: f64 = segments
+            .iter()
+            .map(|(a, za, b, zb)| (a.distance(*b).as_m().powi(2) + (zb - za).powi(2)).sqrt())
+            .sum();
         self.pset(
             &key,
             product,
@@ -1762,6 +1849,53 @@ impl<'a> Exporter<'a> {
         );
         self.qto(&key, product, "Qto_RailingBaseQuantities", vec![Q::Length("Length", length)]);
         self.user_properties(e, product);
+    }
+
+    /// A band `width` wide centred on the plan segment `a → b`, between a bottom line from `z.0` (at `a`) to `z.1`
+    /// (at `b`) and a top line from `z.2` to `z.3`: a profile in the segment's vertical plane extruded across it.
+    fn sloped_band(&mut self, a: Point2, b: Point2, width: f64, z: (f64, f64, f64, f64)) -> Option<u64> {
+        let d = (b - a).normalized()?;
+        let len = a.distance(b).as_m();
+        let left = d.perp();
+        let edge = a + left * (width / 2.0);
+        // Profile x along the segment, y up; extruded to the right of the segment.
+        let position = Frame3::from_axes(
+            Point3::from_plan(edge, 0.0),
+            Some(Vec3::new(-left.x, -left.y, 0.0)),
+            Some(Vec3::new(d.x, d.y, 0.0)),
+        );
+        let (b0, b1, t0, t1) = z;
+        let outline = Polygon2::new(vec![
+            Point2::new(0.0, b0),
+            Point2::new(len, b1),
+            Point2::new(len, t1),
+            Point2::new(0.0, t0),
+        ]);
+        if outline.signed_area() <= 1e-9 {
+            return None;
+        }
+        let profile = self.profile(&PolygonWithHoles::from(outline));
+        Some(self.extrusion(profile, &position, Vec3::Z, width))
+    }
+
+    /// Associates a frame and an infill material with a product as an `IfcMaterialConstituentSet` (constituents
+    /// `Frame` and `Infill`), shared by products with the same pair.
+    fn associate_constituents(&mut self, product: u64, frame: Id, infill: Id) {
+        let key = format!("constituents:{}:{}", frame.0, infill.0);
+        if let Some((_, products)) = self.material_rels.get_mut(&key) {
+            products.push(product);
+            return;
+        }
+        let f = self.material(frame);
+        let i = self.material(infill);
+        let cf = self
+            .w
+            .add("IFCMATERIALCONSTITUENT", vec![P::s("Frame"), P::Null, P::Ref(f), P::Null, P::s("Frame")]);
+        let ci = self
+            .w
+            .add("IFCMATERIALCONSTITUENT", vec![P::s("Infill"), P::Null, P::Ref(i), P::Null, P::s("Infill")]);
+        let set = self.w.add("IFCMATERIALCONSTITUENTSET", vec![P::s("Railing"), P::Null, P::refs([cf, ci])]);
+        self.material_rels.insert(key, (set, vec![product]));
     }
 
     fn object(&mut self, e: &Element, o: &Object) {

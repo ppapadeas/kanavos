@@ -392,3 +392,76 @@ fn empty_document_round_trips() {
     assert!(loaded.manifest.created.is_none());
     assert_eq!(bytes, to_bytes(&loaded.document, &SaveOptions::default()).unwrap());
 }
+
+/// A schema 1 model as written before the optional fields added since existed: no project id, an imported wall
+/// whose IFC GlobalId is a user property, and a roof, a stair and a railing with only their original fields.
+fn early_schema_1_model() -> Value {
+    json!({
+        "next_id": 7,
+        "info": {"name": "Έργο του 2025"},
+        "storeys": {"1": {"id": 1, "name": "Ισόγειο", "elevation": 0.0, "height": 3.0}},
+        "materials": {"2": {"id": 2, "name": "Σκυρόδεμα", "color": {"r": 200, "g": 200, "b": 200, "a": 255}}},
+        "elements": {
+            "3": {"id": 3, "storey": 1, "tag": "Τ1",
+                  "properties": {"ifc:GlobalId": "0aWallGuid000000000001", "Σχόλιο": "υπάρχον"},
+                  "kind": {
+                "type": "wall", "start": [0.0, 0.0], "end": [5.0, 0.0],
+                "structure": {"type": "basic", "material": 2, "thickness": 0.25},
+                "height": 3.0
+            }},
+            "4": {"id": 4, "storey": 1, "kind": {
+                "type": "roof", "outline": [[-0.5, -0.5], [5.5, -0.5], [5.5, 4.5], [-0.5, 4.5]], "base": 3.2,
+                "structure": {"type": "basic", "material": 2, "thickness": 0.2},
+                "shape": {"type": "pitched", "slopes": [0.4, 0.4, 0.4, 0.4]}
+            }},
+            "5": {"id": 5, "storey": 1, "kind": {
+                "type": "stair", "origin": [1.0, 1.0], "direction": 1.5, "width": 1.0, "rise": 3.0,
+                "risers": 17, "going": 0.28, "thickness": 0.15, "material": 2
+            }},
+            "6": {"id": 6, "storey": 1, "kind": {
+                "type": "railing", "path": [[0.0, 0.0], [3.0, 0.0]], "height": 1.0, "post_spacing": 1.2,
+                "infill": "glass", "material": 2
+            }}
+        }
+    })
+}
+
+fn schema_1_file(model: &Value) -> Vec<u8> {
+    let manifest = json!({"format": "kanavos", "schema_version": 1, "app_version": "0.0.1"});
+    archive(&[
+        (MANIFEST_ENTRY, &serde_json::to_vec(&manifest).unwrap()),
+        (MODEL_ENTRY, &serde_json::to_vec(model).unwrap()),
+    ])
+}
+
+#[test]
+fn early_schema_1_files_load_with_the_added_fields_at_their_defaults() {
+    let loaded = from_bytes(&schema_1_file(&early_schema_1_model())).unwrap();
+    // The only remark is the schema upgrade; the added fields need none.
+    assert_eq!(loaded.warnings, vec![LoadWarning::Migrated { from: 1, to: CURRENT_SCHEMA_VERSION }]);
+    let doc = &loaded.document;
+    assert!(doc.project_id().is_nil(), "no id until the application saves the project");
+    let wall = doc.element(Id(3)).unwrap();
+    // The GlobalId kept as a user property moved into the external id; other properties stay.
+    assert_eq!(wall.external_id.as_deref(), Some("0aWallGuid000000000001"));
+    assert!(!wall.properties.contains_key("ifc:GlobalId"));
+    assert_eq!(wall.properties.get("Σχόλιο").map(String::as_str), Some("υπάρχον"));
+    // Roofs have no holes, stairs serve a single dwelling, railings are flat with the frame's material.
+    let kind = |id: u64| &doc.element(Id(id)).unwrap().kind;
+    let ElementKind::Roof(roof) = kind(4) else { panic!("not a roof") };
+    assert!(roof.holes.is_empty());
+    let ElementKind::Stair(stair) = kind(5) else { panic!("not a stair") };
+    assert_eq!(stair.usage, kanavos_model::StairUse::DwellingInternal);
+    let ElementKind::Railing(railing) = kind(6) else { panic!("not a railing") };
+    assert!(railing.elevations.is_empty() && railing.infill_material.is_none());
+    // The next save writes the current layout, which reads back unchanged.
+    let bytes = to_bytes(doc, &options()).unwrap();
+    let model: Value = serde_json::from_slice(&entry(&bytes, MODEL_ENTRY)).unwrap();
+    assert_eq!(model["elements"]["3"]["external_id"], "0aWallGuid000000000001");
+    assert!(model.get("project_id").is_none());
+    // Fields at their defaults stay out of the file, so older builds read it as before.
+    for (id, field) in [(4, "holes"), (5, "usage"), (6, "elevations"), (6, "infill_material")] {
+        assert!(model["elements"][id.to_string()]["kind"].get(field).is_none(), "{field}");
+    }
+    assert_eq!(&from_bytes(&bytes).unwrap().document, doc);
+}

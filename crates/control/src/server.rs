@@ -460,9 +460,12 @@ impl Server {
         }
         let p: P = params(p)?;
         let missing = self.msg("cli.rpc.no_path", &[]);
-        let o = self.open_ref()?;
+        let o = self.open_mut()?;
         let path =
             p.path.or_else(|| o.path.clone()).ok_or_else(|| RpcError::invalid_params("path", missing))?;
+        // A document without a project id gets one now; the session keeps it for later saves.
+        o.session.ensure_project_id();
+        let o = self.open_ref()?;
         kanavos_engine::io::save(&path, o.session.document()).map_err(|e| self.io_error(&e))?;
         let o = self.open_mut()?;
         o.session.mark_saved();

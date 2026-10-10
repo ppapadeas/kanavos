@@ -1,14 +1,15 @@
 ---
 id: SPEC-files-001
 title: Saving and opening projects in the native format
-status: approved
+status: in-review
 author: Pierros Papadeas
-reviewer: Pierros Papadeas
+reviewer: pending
 sources:
   - ISO/IEC 21320-1:2015 Document Container File — Part 1 (ZIP container)
   - RFC 1951 DEFLATE Compressed Data Format
   - RFC 8259 The JavaScript Object Notation (JSON) Data Interchange Format
   - RFC 3339 Date and Time on the Internet: Timestamps
+  - RFC 9562 Universally Unique IDentifiers (UUIDs), §4 (text form) and §5.4 (version 4)
   - docs/architecture.md §6 and §8; ADR-0002
 ---
 
@@ -63,6 +64,29 @@ and stays readable by later versions of Kanavos and by other programs.
     manifest that differ from the model, and a thumbnail that is not a PNG (ignored).
 18. Entries whose uncompressed size exceeds 2 GiB are refused.
 
+### Project identity
+
+19. A project has a permanent 128-bit id, stored in the model as a UUID string (`project_id`, lowercase
+    `8-4-4-4-12` hexadecimal). It does not change when the project is renamed, its information is edited or the
+    file is moved.
+20. A project started from the starter template gets a new random id in the RFC 9562 version 4 layout. Building
+    the sample project uses a fixed id, so that it gives the same document every time.
+21. A model without `project_id` (written before ids existed) opens with the nil id. Documents imported from IFC
+    also start without an id. The first save by the application, the command-line tools or the control server
+    assigns a fresh id; the editing session keeps it, so later saves write the same id and undo does not remove
+    it. The format library writes a document as it is, so its saves stay byte-for-byte reproducible.
+
+### Elements from other programs
+
+22. An element may carry an external id: its identifier in the file it came from (the IFC `GlobalId` of an
+    imported element). It is read-only for people, kept when the element is moved or edited, and not given to
+    copies (moving with copies, copying to another storey, duplicating a storey or a view's annotation, the second
+    part of a split wall).
+23. Files written before the field existed kept the `GlobalId` in the user property `ifc:GlobalId`. Opening such
+    a file (after any schema migration) moves the property's value into the external id (an existing external id
+    wins) and drops the property; the next save writes the current layout. Adding the field needs no schema
+    version change, so builds that do not know it still read new files.
+
 ## Edge cases
 
 - An empty document (no storeys or elements) saves and opens.
@@ -94,6 +118,14 @@ and stays readable by later versions of Kanavos and by other programs.
 9. Given an opening whose host wall does not exist, strict opening fails and lenient opening succeeds with a warning.
 10. Given a schema 1 file with doors and windows, opening it warns of the upgrade and inverts every opening's swap
     side flag, so each door and window keeps its physical orientation (SPEC-objects-006).
+11. Two starter projects have different, non-nil version 4 ids; the same starter with a given id is identical
+    twice. A document without an id saved through the engine's file adapter opens with a non-nil id and is
+    otherwise unchanged; a session assigns the id once, keeps it through undo and redo and adds no undo step.
+12. A hand-written schema 1 model written before the optional fields above existed (no project id, a wall with
+    the legacy `ifc:GlobalId` property) opens with only the schema upgrade warning: the id is nil and the property became the wall's
+    external id while its other properties stay; saving writes `external_id` and opening that file changes
+    nothing. Copies made by moving with copies, copying to a storey, duplicating a storey or a view, and splitting
+    a wall have no external id; the originals keep theirs.
 
 ## Open questions
 
@@ -112,5 +144,7 @@ and stays readable by later versions of Kanavos and by other programs.
 - [x] Describes behaviour, not implementation details of the reference product.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Revised on 2026-10-10 after that review: project identity (items 19–21), elements from other programs (22–23), acceptance tests 11–12. The revision awaits review; the approval above covers the earlier text.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

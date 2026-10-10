@@ -92,6 +92,7 @@ apart.
 | Field | Contents |
 | --- | --- |
 | `next_id` | The highest id handed out so far. Every id in the file is ≤ `next_id`; new objects get `next_id + 1`. |
+| `project_id` | The project's permanent id, a UUID string such as `"5f0c2a9e-7d41-4b8e-9a3c-1e2f3a4b5c6d"` (§3.2.1). Left out while the project has none. |
 | `tolerance` | `{"length": 0.0001, "angle": 1e-05}`: project tolerance (metres, radians). |
 | `info` | Project information printed on sheets (title, location, owner, designer, date, revision, notes). |
 | `site` | Plot boundary, street and building lines, building terms, georeferencing (EPSG code, easting, northing, rotation, altitude), terrain points, ground level. |
@@ -106,10 +107,26 @@ apart.
 Ids are unique across all tables and never reused. Map keys are the id written as a decimal string, and every
 object repeats its own `id`.
 
+#### 3.2.1 Project id
+
+`project_id` identifies the project for its whole life: renaming the project, editing its information or moving
+the file keeps it. Exports derive their stable identifiers from it (the IFC `GlobalId`s, see
+[`formats/ifc.md`](formats/ifc.md)).
+
+- A new project gets a random id (128 bits in the RFC 9562 version 4 layout) when it is created from the starter
+  template. The sample project uses a fixed id so that it is the same every time it is built.
+- Files written before project ids existed, and documents imported from IFC, have no id. They load with the nil id
+  and get a fresh one the first time they are saved by the application, the command-line tools or the control
+  server (the engine's file adapter, `kanavos_engine::io`, writes every file with an id; the session keeps the
+  id it was given, so later saves write the same one, and undo does not remove it).
+- The format library itself writes the document as it is: saving the same document twice gives the same bytes.
+
 ### 3.3 Elements
 
 Every element has `id`, `kind` (tagged by `type`), and optionally `storey`, `view` (for annotation drawn in a
-section or elevation), `phase` (`new`, `existing`, `demolished`), `tag` and `properties` (free text pairs).
+section or elevation), `phase` (`new`, `existing`, `demolished`), `tag`, `properties` (free text pairs) and
+`external_id` (its identifier in the file it was imported from, e.g. an IFC `GlobalId`; copies of the element do
+not get it).
 For example, a straight 10 m wall on storey 28 using build-up 19:
 
 ```json
@@ -158,6 +175,9 @@ problem as a warning).
   JSON. The user is told; the next save writes the current schema.
 - Adding an optional field with a default does not need a new schema version: older files simply lack it. Renaming,
   removing or reinterpreting a field does.
+- When an older file kept information somewhere else before its field existed, the reader moves it into place on
+  load, after any schema migration (`crates/format/src/legacy.rs`); the next save writes the current layout. So far: the IFC
+  `GlobalId` of imported elements, once the user property `ifc:GlobalId`, becomes `external_id`.
 
 Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-written file in the old layout.
 
@@ -168,6 +188,10 @@ Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-
 | 0 | Draft layout used while the format was designed. Never written by a released build; kept as the worked example of a migration. The id counter is called `last_id`, and `storeys`, `materials`, `build_ups`, `elements`, `views` and `sheets` are arrays of objects with an `id` instead of maps keyed by id. |
 | 1 | The layout of §3, with the earlier meaning of an opening's `flip_side`: unflipped, a door opened towards its wall's left face and a window's outer face was the right face. |
 | 2 | Current layout (§3). An opening's `flip_side` follows the wall build-ups (SPEC-objects-006): unflipped, a window's outer face is its wall's left face and a door opens towards the right face. Upgrading from schema 1 inverts every opening's `flip_side`, so doors and windows stay where they were. |
+
+Optional fields added without a new schema version, all read as their defaults from files that lack them (of any
+schema): `project_id` (top level), `external_id` (elements, replacing the `ifc:GlobalId` user property, which is
+moved into it on load), roof `holes`, stair `usage`, railing `elevations` and `infill_material`.
 
 ## 5. Saving safely
 

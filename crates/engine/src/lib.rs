@@ -25,7 +25,7 @@ pub mod sample;
 
 use std::fmt;
 
-use kanavos_model::{Document, Id};
+use kanavos_model::{Document, Id, ProjectId};
 use kanavos_units::Locale;
 
 pub use commands::{AnyCommand, command_schema};
@@ -322,6 +322,28 @@ impl Session {
         self.saved_revision = self.revision;
     }
 
+    /// Gives the document a permanent project id when it has none (files written before project ids existed,
+    /// IFC imports, empty documents) and returns the id. Call it before saving so that every save of the session
+    /// writes the same id.
+    ///
+    /// The id is set on every version in the history as well, so undo and redo keep it. It is not an edit: no
+    /// undo step is added and the revision and the saved state do not change.
+    pub fn ensure_project_id(&mut self) -> ProjectId {
+        let current = self.current.project_id();
+        if !current.is_nil() {
+            return current;
+        }
+        let id = ProjectId::generate();
+        self.current = self.current.with_project_id(id);
+        for step in &mut self.past {
+            step.before = step.before.with_project_id(id);
+        }
+        for (doc, _) in &mut self.future {
+            *doc = doc.with_project_id(id);
+        }
+        id
+    }
+
     /// Records that the current revision has been saved.
     pub fn mark_saved(&mut self) {
         self.saved_revision = self.revision;
@@ -453,6 +475,28 @@ mod tests {
         let commands: Vec<AnyCommand> = vec![wall(Id(4242), 3.0).into()];
         let err = Session::replay(kanavos_model::starter(), commands).unwrap_err();
         assert_eq!(err.index, 0);
+    }
+
+    #[test]
+    fn a_project_id_is_assigned_once_and_kept_through_undo() {
+        let mut s = Session::new(kanavos_model::starter().with_project_id(ProjectId::NIL));
+        let st = storey(&mut s);
+        s.run(wall(st, 3.0)).unwrap();
+        s.undo();
+        let revision = s.revision();
+        let id = s.ensure_project_id();
+        assert!(!id.is_nil());
+        assert_eq!(s.document().project_id(), id);
+        assert_eq!(s.ensure_project_id(), id, "the id never changes once assigned");
+        assert_eq!(s.revision(), revision);
+        s.redo();
+        assert_eq!(s.document().project_id(), id, "redo keeps the id");
+        s.undo_to(0);
+        assert_eq!(s.document().project_id(), id, "undo keeps the id");
+        // A document that already has an id keeps it.
+        let mut t = session();
+        let given = t.document().project_id();
+        assert_eq!(t.ensure_project_id(), given);
     }
 
     #[test]

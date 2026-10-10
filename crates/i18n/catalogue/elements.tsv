@@ -7,13 +7,14 @@ elements.check.stair.going_type_ii	Πάτημα {value} m: επιτρέπετα�
 elements.check.stair.step_rule_low	Άθροισμα 2υ + π = {value} m: μικρότερο από {limit} m, η κλίμακα θα είναι άβολη ({source})	Two risers plus one going = {value} m is below {limit} m; the stair will be uncomfortable ({source})
 elements.check.stair.step_rule_high	Άθροισμα 2υ + π = {value} m: μεγαλύτερο από {limit} m, η κλίμακα θα είναι άβολη ({source})	Two risers plus one going = {value} m exceeds {limit} m; the stair will be uncomfortable ({source})
 elements.check.stair.width_narrow	Ελεύθερο πλάτος κλίμακας {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Clear stair width {value} m is below the minimum of {limit} m ({source})
-elements.check.stair.width_dwelling_only	Ελεύθερο πλάτος {value} m: αρκεί μόνο για εσωτερική κλίμακα μίας κατοικίας (αλλιώς τουλάχιστον {limit} m, {source})	Clear width {value} m is enough only for the internal stair of a single dwelling (otherwise at least {limit} m, {source})
 elements.check.stair.flight_rise	Υψομετρική διαφορά {value} m χωρίς πλατύσκαλο: μεγαλύτερη από {limit} m ({source})	Rise of {value} m without a landing exceeds {limit} m ({source})
 elements.check.stair.landing_short	Μήκος πλατύσκαλου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Landing length {value} m is below the minimum of {limit} m ({source})
 elements.check.stair.riser_count	Πολλά ρίχτια ({value}) για το ύψος της κλίμακας: το πολύ {limit} ({source})	Too many risers ({value}) for the stair's rise: at most {limit} ({source})
 elements.check.stair.rise_mismatch	Η κλίμακα ανεβαίνει {value} m, ενώ ο επόμενος όροφος είναι {limit} m ψηλότερα	The stair rises {value} m while the next storey is {limit} m higher
 elements.check.railing.low	Ύψος στηθαίου {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Guard height {value} m is below the minimum of {limit} m ({source})
 elements.check.railing.solid_high	Συμπαγές στηθαίο ύψους {value} m: μεγαλύτερο από το επιτρεπόμενο {limit} m ({source})	Solid guard height {value} m exceeds the permitted {limit} m ({source})
+elements.check.stair.headroom	Ελεύθερο ύψος πάνω από τις βαθμίδες {value} m: μικρότερο από το ελάχιστο {limit} m ({source})	Clear headroom above the steps of {value} m is below the minimum of {limit} m ({source})
+elements.check.stair.width_one_main	Ελεύθερο πλάτος {value} m: το κτίριο χρειάζεται και μία κλίμακα πλάτους τουλάχιστον {limit} m ({source})	Clear width {value} m: the building also needs a stair at least {limit} m wide ({source})
 elements.junction.corner	Γωνία	Corner
 elements.junction.continuation	Συνέχεια	Continuation
 elements.junction.tee	Σύνδεση Τ	Tee

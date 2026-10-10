@@ -220,6 +220,7 @@ pub fn house_commands(
                         outline: rect(-t - o, -t - o, w + t + o, d + t + o),
                         base: doc.build_up(b).map(|x| x.thickness()).unwrap_or(Length::ZERO),
                         structure: Structure::Layered { build_up: b },
+                        holes: Vec::new(),
                         shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(25.0)); 4] },
                     }),
                 )

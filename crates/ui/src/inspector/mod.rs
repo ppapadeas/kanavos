@@ -172,6 +172,7 @@ fn selection_panel(ui: &mut Ui, state: &mut AppState, actions: &mut Vec<Action>)
     commands.extend(common_section(ui, state, &elements));
     if let [only] = elements.as_slice() {
         quantities_section(ui, &doc, only, locale);
+        checks_section(ui, &doc, only, locale);
     }
     if !commands.is_empty() {
         let label = if elements.len() == 1 {
@@ -322,6 +323,15 @@ fn common_section(ui: &mut Ui, state: &AppState, elements: &[Element]) -> Vec<An
                 }
                 ui.end_row();
             }
+            // The identifier the element came with from another program: shown, never edited.
+            if let [only] = elements
+                && let Some(external) = &only.external_id
+            {
+                widgets::label(ui, &tr(locale, "ui.insp.external_id"))
+                    .on_hover_text(tr(locale, "ui.insp.external_id_hint"));
+                widgets::value(ui, external);
+                ui.end_row();
+            }
         });
     });
     out
@@ -352,6 +362,33 @@ fn quantities_section(ui: &mut Ui, doc: &kanavos_model::Document, e: &Element, l
                 ui.end_row();
             }
         });
+    });
+}
+
+/// The regulation checks of a stair or railing (article 11 and 13 of the building regulation), most severe first.
+fn checks_section(ui: &mut Ui, doc: &kanavos_model::Document, e: &Element, locale: Locale) {
+    let checks = match &e.kind {
+        ElementKind::Stair(_) => kanavos_elements::stair_checks(doc, e.id),
+        ElementKind::Railing(_) => kanavos_elements::railing_checks(doc, e.id),
+        _ => return,
+    };
+    let Ok(mut checks) = checks else { return };
+    checks.sort_by_key(|c| std::cmp::Reverse(c.level));
+    let t = Tokens::of(ui);
+    widgets::section(ui, "insp-checks", &tr(locale, "ui.insp.group.checks"), true, |ui| {
+        if checks.is_empty() {
+            widgets::hint(ui, &tr(locale, "ui.insp.checks_ok"));
+        }
+        for c in &checks {
+            let (icon, color) = match c.level {
+                kanavos_elements::CheckLevel::Warning => (Icon::Warning, t.warning),
+                kanavos_elements::CheckLevel::Note => (Icon::Info, t.text_muted),
+            };
+            ui.horizontal_wrapped(|ui| {
+                icons::inline(ui, icon, color);
+                ui.label(RichText::new(c.message(locale)).small().color(color));
+            });
+        }
     });
 }
 

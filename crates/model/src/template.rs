@@ -9,7 +9,7 @@ use kanavos_geom::Length;
 
 use crate::{
     BuildUp, BuildUpLayer, BuildUpUsage, Camera, Defaults, Document, Id, Material, MaterialCategory,
-    ProjectInfo, ScheduleKind, Storey, View, ViewKind,
+    ProjectId, ProjectInfo, ScheduleKind, Storey, View, ViewKind,
 };
 
 struct MaterialSpec {
@@ -305,9 +305,16 @@ const BUILD_UPS: &[BuildUpSpec] = &[
 ];
 
 /// A new project: materials, build-ups, a ground floor and a first floor, their plans, a 3D view, a site plan,
-/// a coverage diagram, an area table and the main schedules.
+/// a coverage diagram, an area table and the main schedules. Every call gives the project a new random id
+/// ([`ProjectId::generate`]); callers that need the same document every time use [`starter_with_id`].
 pub fn starter() -> Document {
-    let mut doc = Document::new().with_info(ProjectInfo {
+    starter_with_id(ProjectId::generate())
+}
+
+/// The starter project (see [`starter`]) with a given project id, for deterministic callers such as tests, the
+/// sample project and replays of a command log.
+pub fn starter_with_id(id: ProjectId) -> Document {
+    let mut doc = Document::new().with_project_id(id).with_info(ProjectInfo {
         name: "Νέο έργο".into(),
         revision: "0".into(),
         ..ProjectInfo::default()
@@ -402,6 +409,18 @@ mod tests {
         // A reasonable U-value for an insulated wall: below the 0.40 W/m²K of the strictest Greek climate zone.
         let u = ext.u_value(|m| doc.material(m).and_then(|m| m.conductivity)).unwrap();
         assert!(u > 0.2 && u < 0.45, "U = {u}");
+    }
+
+    #[test]
+    fn every_starter_project_gets_its_own_id() {
+        let (a, b) = (starter(), starter());
+        assert!(!a.project_id().is_nil());
+        assert_ne!(a.project_id(), b.project_id());
+        // Apart from the id, the template is the same.
+        assert_eq!(a.with_project_id(ProjectId::NIL), b.with_project_id(ProjectId::NIL));
+        let fixed = ProjectId::from_u128(42);
+        assert_eq!(starter_with_id(fixed), starter_with_id(fixed));
+        assert_eq!(starter_with_id(fixed).project_id(), fixed);
     }
 
     #[test]

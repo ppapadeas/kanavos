@@ -7,7 +7,7 @@ mod common;
 
 use std::collections::{BTreeMap, HashSet};
 
-use kanavos_geom::Point3;
+use kanavos_geom::{Length, Point3};
 use kanavos_ifc::step::{Entity, StepFile, Value, parse};
 use kanavos_ifc::{ExportOptions, GLOBAL_ID_PROPERTY, Guid, export};
 use kanavos_model::{Document, Id};
@@ -384,6 +384,75 @@ fn export_is_deterministic_and_ids_follow_the_project() {
     assert_eq!(a.len(), c.len(), "only the identifiers differ");
 }
 
+/// Every `GlobalId` in a file (attribute 0 of every rooted entity).
+fn global_ids(text: &str) -> Vec<String> {
+    let f = parse(text.as_bytes()).unwrap();
+    f.data
+        .keys()
+        .filter_map(|id| f.get(*id))
+        .filter_map(|e| e.str_at(0).filter(|s| s.len() == 22 && Guid::from_ifc(s).is_some()))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn global_ids_follow_the_project_id_and_survive_renames() {
+    let h = common::small_house();
+    let id = kanavos_model::ProjectId::from_u128(0x5eed_0000_1111_4222_8333_4444_5555_6666);
+    let doc = h.doc.with_project_id(id);
+    let before = global_ids(&export(&doc, &options()).text);
+    assert!(before.len() > 20);
+    // The project namespace is the project id itself.
+    let project = Guid::v5(&Guid(id.to_bytes()), b"project").to_ifc();
+    assert!(before.contains(&project));
+    let mut info = doc.info().clone();
+    info.name = "Μετονομασμένο έργο".into();
+    info.location = "Αλλού".into();
+    info.owner = "Νέος ιδιοκτήτης".into();
+    let renamed = doc.with_info(info);
+    assert_eq!(global_ids(&export(&renamed, &options()).text), before, "a rename keeps every GlobalId");
+    // Another project id gives other identifiers.
+    let other = doc.with_project_id(kanavos_model::ProjectId::from_u128(7));
+    assert_ne!(global_ids(&export(&other, &options()).text), before);
+    // A document without an id falls back to its descriptive fields, which a rename changes.
+    let nil = doc.with_project_id(kanavos_model::ProjectId::NIL);
+    let renamed_nil = renamed.with_project_id(kanavos_model::ProjectId::NIL);
+    assert_ne!(
+        global_ids(&export(&nil, &options()).text),
+        global_ids(&export(&renamed_nil, &options()).text)
+    );
+}
+
+#[test]
+fn external_ids_are_written_and_copies_get_their_own() {
+    let h = common::small_house();
+    let stored = Guid::v5(&Guid([2; 16]), b"imported wall").to_ifc();
+    let mut doc = h.doc.clone();
+    let mut e = doc.element(h.walls[0]).unwrap().clone();
+    e.external_id = Some(stored.clone());
+    doc = doc.with_element(e.clone());
+    // A copy made the way the engine copies (Element::copied_as) carries no external id.
+    let (d, copy) = doc.with_new_id();
+    let mut c = e.copied_as(copy);
+    if let kanavos_model::ElementKind::Wall(w) = &mut c.kind {
+        w.start = kanavos_geom::Point2::new(0.0, 20.0);
+        w.end = kanavos_geom::Point2::new(10.0, 20.0);
+    }
+    doc = d.with_element(c);
+    let (_, f) = exported(&doc);
+    let walls: Vec<String> =
+        f.of_type("IFCWALL").iter().map(|&w| f.get(w).unwrap().str_at(0).unwrap().to_owned()).collect();
+    assert_eq!(walls.len(), 5);
+    assert_eq!(walls.iter().filter(|g| **g == stored).count(), 1);
+    assert_eq!(walls[0], stored);
+    // An external id that is not an IFC GlobalId (e.g. from another system) is not written.
+    let mut e2 = doc.element(h.walls[1]).unwrap().clone();
+    e2.external_id = Some("survey-17".into());
+    let (_, f) = exported(&doc.with_element(e2));
+    let g = f.get(f.of_type("IFCWALL")[1]).unwrap().str_at(0).unwrap().to_owned();
+    assert!(Guid::from_ifc(&g).is_some() && g != "survey-17");
+}
+
 #[test]
 fn stored_global_ids_are_reused_once() {
     let h = common::small_house();
@@ -467,4 +536,107 @@ fn writes_a_sample_file() {
     let f = parse(text.as_bytes()).unwrap();
     assert_eq!(report.instances as usize, f.data.len());
     assert!(!path.with_extension("ifc.tmp").exists());
+}
+
+#[test]
+fn pitched_roofs_with_holes_get_openings_and_net_areas() {
+    let h = common::full_house();
+    let hip = h
+        .doc
+        .elements()
+        .find(|e| matches!(&e.kind, kanavos_model::ElementKind::Roof(r) if matches!(r.shape, kanavos_model::RoofShape::Pitched { .. })))
+        .unwrap()
+        .clone();
+    let mut e = hip.clone();
+    let kanavos_model::ElementKind::Roof(r) = &mut e.kind else { panic!() };
+    let b = r.outline.bbox().unwrap();
+    let c = b.centre();
+    let (cx, cy) = (c.x.as_m(), c.y.as_m());
+    r.holes = vec![kanavos_geom::Polygon2::from_m(&[
+        (cx - 0.5, cy - 0.4),
+        (cx + 0.5, cy - 0.4),
+        (cx + 0.5, cy + 0.4),
+        (cx - 0.5, cy + 0.4),
+    ])];
+    let doc = h.doc.with_element(e);
+    let (_, f) = exported(&doc);
+    let before = exported(&h.doc).1;
+    assert_eq!(count(&f, "IFCOPENINGELEMENT"), count(&before, "IFCOPENINGELEMENT") + 1);
+    assert_eq!(count(&f, "IFCRELVOIDSELEMENT"), count(&before, "IFCRELVOIDSELEMENT") + 1);
+    assert!(f.dangling_references().is_empty());
+    let roof_of = |f: &StepFile| {
+        f.of_type("IFCROOF")
+            .iter()
+            .copied()
+            .find(|&r| f.get(r).unwrap().enum_at(8) == Some("HIP_ROOF"))
+            .unwrap()
+    };
+    let q = quantities(&f, roof_of(&f));
+    let q0 = quantities(&before, roof_of(&before));
+    assert!(close(q["ProjectedArea"], q0["ProjectedArea"] - 0.8));
+    assert!(close(q["GrossArea"], q0["GrossArea"]));
+    assert!(q["NetArea"] < q["GrossArea"] - 0.8, "{q:?}");
+    // The opening reaches through the roof: its depth covers the roof's height range.
+    let opening = f
+        .of_type("IFCOPENINGELEMENT")
+        .iter()
+        .copied()
+        .find(|&o| f.get(o).unwrap().str_at(2).is_some_and(|n| n.contains("opening 1")))
+        .unwrap();
+    let depth = quantities(&f, opening)["Depth"];
+    assert!(depth > 0.5, "{depth}");
+}
+
+#[test]
+fn sloped_railings_follow_their_bases_and_name_their_infill() {
+    let h = common::full_house();
+    let id = h.doc.elements().find(|e| matches!(e.kind, kanavos_model::ElementKind::Railing(_))).unwrap().id;
+    let glass = h.doc.materials().find(|m| m.category == kanavos_model::MaterialCategory::Glass).unwrap().id;
+    let mut e = h.doc.element(id).unwrap().clone();
+    let kanavos_model::ElementKind::Railing(r) = &mut e.kind else { panic!() };
+    // Rising 1.5 m along the first 5 m segment, then flat.
+    r.elevations = vec![Length::ZERO, Length::m(1.5), Length::m(1.5)];
+    r.infill = kanavos_model::RailingInfill::Glass;
+    r.infill_material = Some(glass);
+    let doc = h.doc.with_element(e);
+    let out = export(&doc, &options());
+    assert!(out.report.warnings.is_empty(), "{:?}", out.report.warnings);
+    let f = parse(out.text.as_bytes()).unwrap();
+    assert!(f.dangling_references().is_empty());
+    let railing = f.of_type("IFCRAILING")[0];
+    // Length along the rail: the sloped 5 m segment is 5.22 m long.
+    let q = quantities(&f, railing);
+    assert!(close(q["Length"], (25.0f64 + 2.25).sqrt() + 3.0), "{q:?}");
+    // Frame and infill materials as a constituent set.
+    let set = f.get(f.of_type("IFCMATERIALCONSTITUENTSET")[0]).unwrap();
+    let names: Vec<&str> = set.refs_at(2).iter().map(|c| f.get(*c).unwrap().str_at(0).unwrap()).collect();
+    assert_eq!(names, ["Frame", "Infill"]);
+    let infill = f.get(set.refs_at(2)[1]).unwrap();
+    let mat = f.get(infill.ref_at(2).unwrap()).unwrap();
+    assert_eq!(mat.str_at(0), Some(h.doc.material(glass).unwrap().name.as_str()));
+    let rel = f
+        .of_type("IFCRELASSOCIATESMATERIAL")
+        .iter()
+        .map(|&r| f.get(r).unwrap())
+        .find(|r| r.refs_at(4).contains(&railing))
+        .unwrap();
+    assert_eq!(f.type_of(rel.ref_at(5).unwrap()), Some("IFCMATERIALCONSTITUENTSET"));
+    // The sloped segment's rail and panel are profiles in its vertical plane: their extrusion positions have a
+    // horizontal Z axis. The flat segment keeps vertical extrusions.
+    let shape = f.get(f.get(railing).unwrap().ref_at(6).unwrap()).unwrap();
+    let rep = f.get(shape.refs_at(2)[0]).unwrap();
+    let mut horizontal = 0;
+    for item in rep.refs_at(3) {
+        let solid = f.get(item).unwrap();
+        let pos = f.get(solid.ref_at(1).unwrap()).unwrap();
+        if let Some(z) = pos.ref_at(1) {
+            let dir = f.get(z).unwrap();
+            let c = dir.attr(0).unwrap().as_list().unwrap();
+            if c.get(2).and_then(Value::as_f64).is_some_and(|z| z.abs() < 1e-9) {
+                horizontal += 1;
+            }
+        }
+    }
+    assert_eq!(horizontal, 2, "rail and panel of the sloped segment");
+    assert_eq!(rep.refs_at(3).len(), 4);
 }

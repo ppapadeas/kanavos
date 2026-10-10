@@ -66,7 +66,8 @@ fn ifc2x3_house_in_millimetres() {
     assert_eq!(names, ["Gypsum plaster", "Brick", "Render"]);
     assert_eq!(doc.material(b.layers[1].material).unwrap().category, MaterialCategory::Masonry);
     assert_eq!(w.tag, "W1");
-    assert_eq!(w.properties.get(GLOBAL_ID_PROPERTY).map(String::as_str), Some("0aWallGuid000000000001"));
+    assert_eq!(w.external_id.as_deref(), Some("0aWallGuid000000000001"));
+    assert!(!w.properties.contains_key(GLOBAL_ID_PROPERTY), "the identifier is not a user property");
 
     // The door, from its opening (extruded across the wall) and its overall size.
     let d = only(&doc, Category::Door);
@@ -217,7 +218,9 @@ fn starter_base_keeps_materials_and_views() {
 fn global_ids_can_be_left_out() {
     let opts = ImportOptions { keep_global_ids: false, ..Default::default() };
     let doc = import_file(&data("house-ifc2x3.ifc"), &opts).unwrap().document;
-    assert!(doc.elements().all(|e| !e.properties.contains_key(GLOBAL_ID_PROPERTY)));
+    assert!(
+        doc.elements().all(|e| e.external_id.is_none() && !e.properties.contains_key(GLOBAL_ID_PROPERTY))
+    );
 }
 
 #[test]

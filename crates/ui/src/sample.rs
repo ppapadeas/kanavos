@@ -227,6 +227,7 @@ fn build(locale: Locale) -> (Document, usize) {
             gap: Length::cm(10.0),
             thickness: Length::cm(15.0),
             material: concrete,
+            usage: Default::default(),
             base_offset: Length::ZERO,
         }),
     );
@@ -299,6 +300,7 @@ fn build(locale: Locale) -> (Document, usize) {
                 outline: rect(-0.6, -0.6, 12.6, 9.6),
                 base: Length::m(h1),
                 structure: roof,
+                holes: Vec::new(),
                 shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(22.0)); 4] },
             }),
         );

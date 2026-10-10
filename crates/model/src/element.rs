@@ -354,6 +354,61 @@ pub enum StairShape {
     HalfTurnRight,
 }
 
+/// What a stair serves. It decides which limits of the Greek building regulation apply to it (Κτιριοδομικός
+/// Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11): the clear width of §2 and the stair
+/// types I–III of the table in §4 that §4.1–§4.5 allow for each use of the building. The limits themselves are
+/// in `kanavos-elements` (`stair_limits`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StairUse {
+    /// The internal stair of a single dwelling (εσωτερική κλίμακα κατοικίας): clear width from 0.60 m (§2); any
+    /// of types I–III (§4.1).
+    #[default]
+    DwellingInternal,
+    /// A stair shared by the dwellings of a residential building (category Α): clear width 1.20 m, or 0.90 m in
+    /// buildings of up to three storeys (§2); any of types I–III (§4.1).
+    Residential,
+    /// Temporary accommodation, correctional, commerce, offices, industry, storage and parking buildings
+    /// (categories Β, Ζ, Η, Θ, Ι, Κ, Λ): types I or II (§4.2).
+    OtherUses,
+    /// Assembly and education buildings (categories Γ, Δ): type I (§4.4).
+    AssemblyEducation,
+    /// Health and social care buildings (category Ε): type I (§4.3).
+    HealthCare,
+    /// A stair serving only auxiliary rooms of an industrial building, or only storage rooms of a commerce or
+    /// storage building, with the relaxed limits of §4.5.
+    Auxiliary,
+}
+
+impl StairUse {
+    /// Every use, in display order.
+    pub const ALL: [StairUse; 6] = [
+        StairUse::DwellingInternal,
+        StairUse::Residential,
+        StairUse::OtherUses,
+        StairUse::AssemblyEducation,
+        StairUse::HealthCare,
+        StairUse::Auxiliary,
+    ];
+
+    /// Stable snake_case key, as in the native format.
+    pub fn key(self) -> &'static str {
+        match self {
+            StairUse::DwellingInternal => "dwelling_internal",
+            StairUse::Residential => "residential",
+            StairUse::OtherUses => "other_uses",
+            StairUse::AssemblyEducation => "assembly_education",
+            StairUse::HealthCare => "health_care",
+            StairUse::Auxiliary => "auxiliary",
+        }
+    }
+
+    /// Whether this is the default use (left out of saved files).
+    pub fn is_default(&self) -> bool {
+        *self == StairUse::default()
+    }
+}
+
 /// A stair.
 ///
 /// `origin` is the midpoint of the front edge of the first step; `direction` is the walking direction up the
@@ -385,6 +440,9 @@ pub struct Stair {
     pub thickness: Length,
     /// Material.
     pub material: Id,
+    /// What the stair serves, for the regulation's checks; default the internal stair of a dwelling.
+    #[serde(default, skip_serializing_if = "StairUse::is_default")]
+    pub usage: StairUse,
     /// Base relative to the storey's floor elevation.
     #[serde(default)]
     pub base_offset: Length,
@@ -430,6 +488,11 @@ pub enum RoofShape {
 pub struct Roof {
     /// Plan outline at the eaves.
     pub outline: Polygon2,
+    /// Openings through the roof in plan (light wells, skylights, chimneys, a courtyard): each a polygon inside the
+    /// outline, not overlapping the others. They are cut vertically through the roof planes, which keep the slope
+    /// they have over the outline.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub holes: Vec<Polygon2>,
     /// Height of the roof's top surface at the eaves line, relative to the storey's floor elevation.
     pub base: Length,
     /// Material or build-up (layers top to bottom); thickness is measured perpendicular to the roof plane.
@@ -461,13 +524,47 @@ pub struct Railing {
     /// Base relative to the storey's floor elevation.
     #[serde(default)]
     pub base_offset: Length,
+    /// Base relative to the storey's floor at each path point, one value per point, for a railing that follows a
+    /// slope (a stair flight, a ramp); the base runs straight between points. Empty: the whole railing stands at
+    /// `base_offset`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub elevations: Vec<Length>,
     /// Maximum distance between posts.
     pub post_spacing: Length,
     /// Infill.
     #[serde(default)]
     pub infill: RailingInfill,
-    /// Material.
+    /// Material of the posts and rails.
     pub material: Id,
+    /// Material of the infill (bars, glass or panels); `None` uses `material`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infill_material: Option<Id>,
+}
+
+impl Railing {
+    /// Base relative to the storey's floor at path point `i`: its elevation when the railing follows a slope,
+    /// else `base_offset`.
+    pub fn base_at(&self, i: usize) -> Length {
+        if self.elevations.is_empty() {
+            self.base_offset
+        } else {
+            self.elevations.get(i).copied().unwrap_or(self.base_offset)
+        }
+    }
+
+    /// Whether the base changes along the path (by more than 0.1 mm).
+    pub fn is_sloped(&self) -> bool {
+        let mut it = self.elevations.iter();
+        match it.next() {
+            Some(first) => it.any(|e| (e.as_m() - first.as_m()).abs() > 1e-4),
+            None => false,
+        }
+    }
+
+    /// The material of the infill: its own, or the frame's.
+    pub fn infill_material_or_frame(&self) -> Id {
+        self.infill_material.unwrap_or(self.material)
+    }
 }
 
 /// Use category of a space, as needed for the Greek building code (ΝΟΚ, ν. 4067/2012) area calculations.
@@ -851,6 +948,7 @@ impl ElementKind {
             ElementKind::Roof(r) => {
                 let mut r = r.clone();
                 r.outline = Polygon2::new(r.outline.vertices.iter().map(|&q| p(q)).collect());
+                r.holes = r.holes.iter().map(|h| h.transformed(t)).collect();
                 if mirror {
                     // Reverse the ring and keep each slope attached to the same physical edge.
                     r.outline.vertices.reverse();
@@ -965,6 +1063,11 @@ pub struct Element {
     /// Free user properties.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: BTreeMap<String, String>,
+    /// Identifier of this element in the file or system it came from, e.g. the IFC `GlobalId` it was imported
+    /// with, so that exports can write it again. Not edited by people; copies of the element do not carry it
+    /// (see [`Element::copied_as`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     /// Type-specific data.
     pub kind: ElementKind,
 }
@@ -983,8 +1086,15 @@ impl Element {
             phase: Phase::New,
             tag: String::new(),
             properties: BTreeMap::new(),
+            external_id: None,
             kind,
         }
+    }
+
+    /// A copy of the element under a new id. The copy is a new object, so it has no external id: two elements
+    /// must never claim the same identity in another system.
+    pub fn copied_as(&self, id: Id) -> Element {
+        Element { id, external_id: None, ..self.clone() }
     }
 
     /// Category of the element.
@@ -1063,9 +1173,24 @@ mod tests {
     }
 
     #[test]
+    fn external_ids_are_optional_and_not_copied() {
+        let mut e = Element::on_storey(Id(5), Id(1), ElementKind::Wall(wall()));
+        assert!(serde_json::to_value(&e).unwrap().get("external_id").is_none());
+        e.external_id = Some("2O2Fr$t4X7Zf8NOew3FLOH".into());
+        let v = serde_json::to_value(&e).unwrap();
+        assert_eq!(v["external_id"], "2O2Fr$t4X7Zf8NOew3FLOH");
+        assert_eq!(serde_json::from_value::<Element>(v).unwrap(), e);
+        let copy = e.copied_as(Id(9));
+        assert_eq!(copy.id, Id(9));
+        assert_eq!(copy.external_id, None);
+        assert_eq!(copy.kind, e.kind);
+    }
+
+    #[test]
     fn roof_mirror_keeps_slopes_on_their_edges() {
         let roof = Roof {
             outline: Polygon2::from_m(&[(0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (0.0, 2.0)]),
+            holes: vec![Polygon2::from_m(&[(1.0, 0.5), (2.0, 0.5), (2.0, 1.0), (1.0, 1.0)])],
             base: Length::m(3.0),
             structure: Structure::Basic { material: Id(1), thickness: Length::cm(20.0) },
             // Only the south edge (0,0)→(4,0) slopes.
@@ -1079,5 +1204,17 @@ mod tests {
         let e = r.outline.edge(i).unwrap();
         let tol = Tolerance::default();
         assert!(tol.equal_m(e.start.y.as_m(), 2.0) && tol.equal_m(e.end.y.as_m(), 2.0));
+        // Holes are mirrored with the outline: (1..2, 0.5..1) becomes (1..2, 1..1.5).
+        let b = r.holes[0].bbox().unwrap();
+        assert!(tol.equal_m(b.min.y.as_m(), 1.0) && tol.equal_m(b.max.y.as_m(), 1.5));
+    }
+
+    #[test]
+    fn roofs_without_holes_read_and_write_without_the_key() {
+        let json = r#"{"outline": [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0]], "base": 3.0,
+            "structure": {"type": "basic", "material": 1, "thickness": 0.2}, "shape": {"type": "flat"}}"#;
+        let r: Roof = serde_json::from_str(json).unwrap();
+        assert!(r.holes.is_empty());
+        assert!(serde_json::to_value(&r).unwrap().get("holes").is_none());
     }
 }

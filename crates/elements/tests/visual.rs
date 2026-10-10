@@ -138,6 +138,7 @@ fn house_plan_roof_and_section() {
             RoofLineKind::Eave => [0, 0, 0],
             RoofLineKind::Verge => [120, 0, 120],
             RoofLineKind::Step => [255, 120, 0],
+            RoofLineKind::Opening => [0, 160, 160],
         };
         roof_img.line(&l.segment, c);
     }

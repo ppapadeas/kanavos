@@ -1,16 +1,20 @@
 //! Roofs: roof planes (flat, lower envelope for convex outlines, weighted straight skeleton otherwise), ridge,
-//! hip, valley, eave and verge lines, plan parts and 3D solids with thickness measured perpendicular to the
-//! planes.
+//! hip, valley, eave, verge and opening lines, plan parts and 3D solids with thickness measured perpendicular to
+//! the planes.
+//!
+//! Holes (light wells, skylights, chimneys, a courtyard) are cut vertically through the planes computed for the
+//! outline: the planes keep their slope, and a hole's sides are plumb. A courtyard whose planes slope down
+//! towards it (eaves around the hole) is a different roof form and is not modelled.
 
 use kanavos_geom::{
     Angle, HalfPlane, JoinStyle, Plane, Point2, Point3, Polygon2, PolygonWithHoles, Segment2, Tolerance,
-    Vec2, Vec3, clip_convex, offset_polygon, shared_boundaries, weighted_straight_skeleton,
+    Vec2, Vec3, clip_convex, difference, offset_polygon, shared_boundaries, weighted_straight_skeleton,
 };
 use kanavos_model::{Document, Element, ElementKind, Id, Roof, RoofShape};
 use kanavos_solid::{ColumnPiece, ZPlane, column_solid, extrude};
 
 use crate::junction::WallInfo;
-use crate::region::{Clip, apply_clip};
+use crate::region::{Clip, apply_clip, simple_pieces};
 use crate::{CutArea, ElementSolid, GeometryError, PlanParts, SolidPart, element};
 
 /// One plane of a roof.
@@ -59,6 +63,8 @@ pub enum RoofLineKind {
     Verge,
     /// Line where two planes of different pitch meet at a vertical step.
     Step,
+    /// Edge of an opening (hole) through the roof, on the top surface.
+    Opening,
 }
 
 /// A line of a roof (an edge of its top surface).
@@ -136,6 +142,7 @@ pub(crate) fn roof_geometry(doc: &Document, e: &Element) -> Result<RoofGeometry,
         }
         RoofShape::Pitched { slopes } => pitched_planes(r, slopes, base, id)?,
     };
+    let planes = cut_holes(planes, r, id)?;
     let lines = roof_lines_of(r, &planes, base, &tol);
     Ok(RoofGeometry {
         planes,
@@ -247,6 +254,59 @@ fn pitched_planes(
     Ok(planes)
 }
 
+/// The roof's holes as regions.
+pub(crate) fn hole_regions(r: &Roof) -> Vec<PolygonWithHoles> {
+    r.holes.iter().map(|h| h.to_ccw().into()).collect()
+}
+
+/// Removes the holes from every plane's region; planes left without area are dropped.
+fn cut_holes(planes: Vec<RoofPlane>, r: &Roof, id: Id) -> Result<Vec<RoofPlane>, GeometryError> {
+    if r.holes.is_empty() {
+        return Ok(planes);
+    }
+    let holes = hole_regions(r);
+    let mut out = Vec::with_capacity(planes.len());
+    for mut p in planes {
+        p.region = difference(&p.region, &holes).map_err(|e| GeometryError::Invalid {
+            id: Some(id),
+            field: "holes",
+            reason: e.to_string(),
+        })?;
+        if p.plan_area() > 1e-9 {
+            out.push(p);
+        }
+    }
+    Ok(out)
+}
+
+/// The parts of segment `e` that run along the boundary of a plane, as roof lines of a kind chosen from their
+/// heights (`kind(za, zb)`).
+fn lines_along(
+    e: &Segment2,
+    planes: &[RoofPlane],
+    tol: &Tolerance,
+    kind: impl Fn(f64, f64) -> RoofLineKind,
+) -> Vec<RoofLine> {
+    let fine = Tolerance { length: kanavos_units::Length::m(1e-5), ..*tol };
+    let mut out = Vec::new();
+    for p in planes {
+        for region in &p.region {
+            for ring in region.rings() {
+                for pe in ring.edges() {
+                    if let kanavos_geom::SegmentIntersection::Overlap { segment, .. } =
+                        kanavos_geom::segment_intersection(e, &pe, &fine)
+                        && segment.length().as_m() > 1e-4
+                    {
+                        let (za, zb) = (p.height.at(segment.start), p.height.at(segment.end));
+                        out.push(RoofLine { kind: kind(za, zb), segment, z: (za, zb) });
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 fn roof_lines_of(r: &Roof, planes: &[RoofPlane], base: f64, tol: &Tolerance) -> Vec<RoofLine> {
     let mut lines = Vec::new();
     let eps = 1e-3;
@@ -287,30 +347,16 @@ fn roof_lines_of(r: &Roof, planes: &[RoofPlane], base: f64, tol: &Tolerance) -> 
     for (k, e) in outline.edges().enumerate() {
         let input = if ccw { k } else { (2 * n - 2 - k) % n };
         let sloped = slopes.is_none_or(|s| s.get(input).copied().flatten().is_some());
-        let mut pieces: Vec<RoofLine> = Vec::new();
-        for p in planes {
-            for region in &p.region {
-                for ring in region.rings() {
-                    for pe in ring.edges() {
-                        if let kanavos_geom::SegmentIntersection::Overlap { segment, .. } =
-                            kanavos_geom::segment_intersection(
-                                &e,
-                                &pe,
-                                &Tolerance { length: kanavos_units::Length::m(1e-5), ..*tol },
-                            )
-                            && segment.length().as_m() > 1e-4
-                        {
-                            let (za, zb) = (p.height.at(segment.start), p.height.at(segment.end));
-                            let horizontal = (za - zb).abs() < eps && (za - base).abs() < eps;
-                            let kind =
-                                if sloped && horizontal { RoofLineKind::Eave } else { RoofLineKind::Verge };
-                            pieces.push(RoofLine { kind, segment, z: (za, zb) });
-                        }
-                    }
-                }
-            }
+        lines.extend(lines_along(&e, planes, tol, |za, zb| {
+            let horizontal = (za - zb).abs() < eps && (za - base).abs() < eps;
+            if sloped && horizontal { RoofLineKind::Eave } else { RoofLineKind::Verge }
+        }));
+    }
+    // Hole edges, split where the planes around them change.
+    for hole in &r.holes {
+        for e in hole.edges() {
+            lines.extend(lines_along(&e, planes, tol, |_, _| RoofLineKind::Opening));
         }
-        lines.extend(pieces);
     }
     lines
 }
@@ -324,7 +370,7 @@ pub fn roof_planes(doc: &Document, id: Id) -> Result<Vec<RoofPlane>, GeometryErr
     Ok(roof_geometry(doc, element(doc, id)?)?.planes)
 }
 
-/// The lines of a roof's top surface: ridges, hips, valleys, steps, eaves and verges.
+/// The lines of a roof's top surface: ridges, hips, valleys, steps, eaves, verges and the edges of its holes.
 pub fn roof_lines(doc: &Document, id: Id) -> Result<Vec<RoofLine>, GeometryError> {
     Ok(roof_geometry(doc, element(doc, id)?)?.lines)
 }
@@ -342,7 +388,7 @@ pub(crate) fn roof_plan_parts(doc: &Document, e: &Element, cut: f64) -> Result<P
     for p in &g.planes {
         let bottom = p.height.shifted(-vertical(g.thickness, p.pitch));
         // Region where the roof slab is cut: bottom < cut < top.
-        let mut region: Vec<Polygon2> = p.region.iter().map(|r| r.outer.clone()).collect();
+        let mut region: Vec<Polygon2> = simple_pieces(&p.region);
         for (z, keep_above) in [(p.height, true), (bottom, false)] {
             region = clip_by_height(region, &z, cut, keep_above);
         }
@@ -414,8 +460,8 @@ pub(crate) fn roof_solids(doc: &Document, e: &Element) -> Result<Vec<ElementSoli
         for p in &g.planes {
             let top = p.height.shifted(-vertical(depth, p.pitch));
             let bottom = p.height.shifted(-vertical(depth + t, p.pitch));
-            for region in &p.region {
-                pieces.push(ColumnPiece { region: region.outer.clone(), intervals: vec![(bottom, top)] });
+            for region in simple_pieces(&p.region) {
+                pieces.push(ColumnPiece { region, intervals: vec![(bottom, top)] });
             }
         }
         let mesh = column_solid(&pieces, 1e-6).map_err(err)?;
@@ -471,8 +517,9 @@ impl RoofCap {
             let Ok(g) = roof_geometry(doc, e) else { continue };
             for p in &g.planes {
                 let underside = p.height.shifted(-vertical(g.thickness, p.pitch));
-                for region in &p.region {
-                    out.push(RoofCap { region: region.outer.clone(), underside });
+                // Walls under a hole are not capped there.
+                for region in simple_pieces(&p.region) {
+                    out.push(RoofCap { region, underside });
                 }
             }
         }

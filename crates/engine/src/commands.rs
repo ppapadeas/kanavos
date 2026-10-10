@@ -11,7 +11,10 @@ pub mod examples;
 mod sheet;
 mod site;
 
-pub use build::{AutoDimensions, DetectAllSpaces, PlaceOpening, RoofFromWalls, RoofKind, SlabFromWalls};
+pub use build::{
+    AutoDimensions, DetectAllSpaces, PlaceOpening, RailingAlongStair, RoofFromWalls, RoofKind, SlabFromWalls,
+    StairSide,
+};
 pub use dup::{DuplicateBuildUp, DuplicateMaterial, DuplicateStorey, DuplicateView};
 pub use edit::{AlignEdge, AlignElements, JoinWalls};
 pub use sheet::{MoveViewport, PlaceView, RemoveViewport};
@@ -486,6 +489,7 @@ impl Command for CreateElement {
             phase: self.phase,
             tag: self.tag.clone(),
             properties: self.properties.clone(),
+            external_id: None,
             kind: self.kind.clone(),
         };
         kanavos_elements::validate(&next, &e).map_err(geometry)?;
@@ -726,10 +730,9 @@ impl Command for TransformElements {
             let mut order: Vec<&Element> = self.ids.iter().filter_map(|id| doc.element(*id)).collect();
             order.sort_by_key(|e| matches!(e.kind, ElementKind::Opening(_)));
             for e in order {
-                let mut c = e.clone();
                 let (d, nid) = next.with_new_id();
                 next = d;
-                c.id = nid;
+                let mut c = e.copied_as(nid);
                 match &e.kind {
                     ElementKind::Opening(o) => {
                         let Some(host) = new_ids.get(&o.host) else { continue };
@@ -756,8 +759,7 @@ impl Command for TransformElements {
                     next = d;
                     let mut op2 = op.clone();
                     op2.host = new_wall;
-                    next =
-                        next.with_element(Element { id: nid, kind: ElementKind::Opening(op2), ..o.clone() });
+                    next = next.with_element(Element { kind: ElementKind::Opening(op2), ..o.copied_as(nid) });
                     out.created.push(nid);
                 }
             }
@@ -815,10 +817,9 @@ impl Command for CopyToStorey {
         order.sort_by_key(|e| matches!(e.kind, ElementKind::Opening(_)));
         let selected: BTreeSet<Id> = self.ids.iter().copied().collect();
         for e in order {
-            let mut c = e.clone();
             let (d, nid) = next.with_new_id();
             next = d;
-            c.id = nid;
+            let mut c = e.copied_as(nid);
             c.storey = Some(self.storey);
             if let ElementKind::Opening(o) = &e.kind {
                 let Some(host) = map.get(&o.host) else { continue };
@@ -843,10 +844,9 @@ impl Command for CopyToStorey {
                 let mut op2 = op.clone();
                 op2.host = new_wall;
                 next = next.with_element(Element {
-                    id: nid,
                     storey: Some(self.storey),
                     kind: ElementKind::Opening(op2),
-                    ..o.clone()
+                    ..o.copied_as(nid)
                 });
                 out.created.push(nid);
             }
@@ -908,7 +908,8 @@ impl Command for SplitWall {
         let (next, nid) = doc.with_new_id();
         let mut w2 = w.clone();
         w2.start = split;
-        let second = Element { id: nid, kind: ElementKind::Wall(w2), ..e.clone() };
+        // The second part is a new element: the external id stays with the original.
+        let second = Element { kind: ElementKind::Wall(w2), ..e.copied_as(nid) };
         let mut next = next.with_element(first).with_element(second);
         let cut = Length::m(t * len);
         let hosted: Vec<Element> =
@@ -1429,6 +1430,7 @@ any_command! {
     "opening.place" => PlaceOpening,
     "slab.from_walls" => SlabFromWalls,
     "roof.from_walls" => RoofFromWalls,
+    "railing.along_stair" => RailingAlongStair,
     "space.detect" => DetectSpace,
     "space.detect_all" => DetectAllSpaces,
     "dimension.auto" => AutoDimensions,
@@ -1578,5 +1580,52 @@ mod tests {
         let bad: AnyCommand = CreateElement::on(st, wall(&doc, (1.0, 1.0), (1.0, 1.0))).into();
         let err = Batch { label: String::new(), commands: vec![good, bad] }.apply(&doc);
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn copies_never_inherit_an_external_id() {
+        let doc = starter();
+        let (st, first) = (doc.storeys()[0].id, doc.storeys()[1].id);
+        let (doc, out) = CreateElement::on(st, wall(&doc, (0.0, 0.0), (6.0, 0.0))).apply(&doc).unwrap();
+        let w = out.created[0];
+        let mut e = doc.element(w).unwrap().clone();
+        e.external_id = Some("3vB2YO$MX4xv5uCqZZG05x".into());
+        let doc = doc.with_element(e);
+        let ext = |d: &Document, id: Id| d.element(id).unwrap().external_id.clone();
+        let original = ext(&doc, w);
+        let copies = |d: &Document, created: &[Id]| created.iter().all(|id| ext(d, *id).is_none());
+
+        let move_spec = TransformSpec::Move { dx: 0.0, dy: 3.0 };
+        let (d, out) = TransformElements { ids: vec![w], transform: move_spec.clone(), copy: true, count: 2 }
+            .apply(&doc)
+            .unwrap();
+        assert_eq!(out.created.len(), 2);
+        assert!(copies(&d, &out.created));
+        assert_eq!(ext(&d, w), original, "the original keeps its id");
+        // Moving is not copying: the element keeps its id.
+        let (d, _) = TransformElements { ids: vec![w], transform: move_spec, copy: false, count: 1 }
+            .apply(&doc)
+            .unwrap();
+        assert_eq!(ext(&d, w), original);
+
+        let (d, out) = CopyToStorey { ids: vec![w], storey: first }.apply(&doc).unwrap();
+        assert!(copies(&d, &out.created));
+
+        let (d, out) = super::dup::DuplicateStorey {
+            id: st,
+            name: None,
+            elevation: None,
+            shift_above: true,
+            locale: Locale::En,
+        }
+        .apply(&doc)
+        .unwrap();
+        let copied: Vec<Id> = out.created.iter().copied().filter(|id| d.element(*id).is_some()).collect();
+        assert_eq!(copied.len(), 1);
+        assert!(copies(&d, &copied));
+
+        let (d, out) = SplitWall { id: w, at: Point2::new(2.0, 0.0) }.apply(&doc).unwrap();
+        assert_eq!(ext(&d, w), original, "the first part is the original wall");
+        assert!(copies(&d, &out.created));
     }
 }

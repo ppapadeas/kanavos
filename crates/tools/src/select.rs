@@ -118,7 +118,9 @@ fn rings_of(kind: &ElementKind) -> Vec<(Vec<Point2>, bool)> {
     };
     match kind {
         ElementKind::Slab(s) => region(&s.outline),
-        ElementKind::Roof(r) => vec![(r.outline.vertices.clone(), true)],
+        ElementKind::Roof(r) => {
+            std::iter::once(&r.outline).chain(&r.holes).map(|p| (p.vertices.clone(), true)).collect()
+        }
         ElementKind::Space(s) => region(&s.boundary),
         ElementKind::Railing(r) => vec![(r.path.clone(), false)],
         ElementKind::Drafting(d) => match &d.shape {
@@ -138,7 +140,10 @@ fn ring_mut(kind: &mut ElementKind, ring: usize) -> Option<&mut Vec<Point2>> {
     let region = region_ring;
     match kind {
         ElementKind::Slab(s) => region(&mut s.outline, ring),
-        ElementKind::Roof(r) if ring == 0 => Some(&mut r.outline.vertices),
+        ElementKind::Roof(r) => match ring.checked_sub(1) {
+            None => Some(&mut r.outline.vertices),
+            Some(hole) => r.holes.get_mut(hole).map(|h| &mut h.vertices),
+        },
         ElementKind::Space(s) => region(&mut s.boundary, ring),
         ElementKind::Railing(r) if ring == 0 => Some(&mut r.path),
         ElementKind::Drafting(d) => match &mut d.shape {
@@ -457,11 +462,24 @@ impl SelectTool {
                     && index < r.len()
                 {
                     r.insert(index + 1, to);
-                    if let ElementKind::Roof(roof) = &mut k
+                    // Only the outline has a slope per edge; holes have none.
+                    if ring == 0
+                        && let ElementKind::Roof(roof) = &mut k
                         && let kanavos_model::RoofShape::Pitched { slopes } = &mut roof.shape
                     {
                         let s = slopes.get(index).copied().flatten();
                         slopes.insert((index + 1).min(slopes.len()), s);
+                    }
+                    // A railing that follows a slope gets a base at the new point, interpolated along the edge.
+                    if let ElementKind::Railing(rl) = &mut k
+                        && !rl.elevations.is_empty()
+                        && let (Some(a), Some(b)) =
+                            (rl.path.get(index).copied(), rl.path.get(index + 2).copied())
+                        && let (Some(za), Some(zb)) =
+                            (rl.elevations.get(index).copied(), rl.elevations.get(index + 1).copied())
+                    {
+                        let t = kanavos_geom::Segment2::new(a, b).project_param(to).clamp(0.0, 1.0);
+                        rl.elevations.insert(index + 1, za + (zb - za) * t);
                     }
                     cmds.push(update(element, k));
                 }

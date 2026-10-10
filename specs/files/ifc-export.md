@@ -1,9 +1,9 @@
 ---
 id: SPEC-files-003
 title: Exporting a model as IFC 4.3
-status: approved
+status: in-review
 author: Pierros Papadeas
-reviewer: Pierros Papadeas
+reviewer: pending
 sources:
   - ISO 16739-1:2024 (IFC 4.3), entities and property/quantity set templates named below
   - buildingSMART IFC 4.3 ADD2 documentation (IfcGloballyUniqueId compression, IfcMaterialLayerSetUsage,
@@ -39,10 +39,14 @@ building's structure, element types, sizes, materials, quantities and position o
 
 6. Every `GlobalId` is the version-5 UUID of a project namespace and a stable object name (`element:<id>`,
    `storey:<id>`, `rel:voids:<id>` …), written in the 22-character IFC compressed form.
-7. The project namespace is the one the caller gives, else the version-5 UUID of the Kanavos namespace and the
-   project's name, location, municipality and owner.
-8. An element carrying a valid `ifc:GlobalId` property (kept by import) is written with that identifier, unless
-   an earlier element already used it.
+7. The project namespace is the one the caller gives, else the document's permanent project id (see
+   `specs/files/native-format.md`, project identity), so renaming the project keeps every identifier. A document
+   without a project id falls back to the version-5 UUID of the Kanavos namespace and the project's name,
+   location, municipality and owner.
+8. An element whose external id is a valid IFC `GlobalId` (kept by import) is written with that identifier,
+   unless an earlier element already used it. Documents built in memory with the older `ifc:GlobalId` user
+   property are honoured the same way; the property is never written as a user property. Copies of elements have
+   no external id, so they always get derived identifiers.
 
 ### Structure
 
@@ -111,6 +115,11 @@ building's structure, element types, sizes, materials, quantities and position o
 7. A mesh supplied for the column replaces its body with a faceted solid of 12 triangles.
 8. The full house exports a stair, beam, railing, pitched (hip) roof as a faceted solid, furniture, a sanitary
    terminal, a proxy, a curved wall with a trimmed-circle axis, and reports the text note as skipped.
+9. With a project id set, the project's `GlobalId` is the version-5 UUID of that id and `project`; renaming the
+   project and changing its location and owner keeps every `GlobalId`; another project id changes them; without a
+   project id a rename changes them.
+10. A wall with an external id is written with it; its copy gets a derived identifier; an external id that is not
+    an IFC `GlobalId` is ignored.
 
 ## Open questions
 
@@ -129,5 +138,7 @@ building's structure, element types, sizes, materials, quantities and position o
 - [x] Describes behaviour, not implementation details of the reference product.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Revised on 2026-10-10 after that review: identifiers from the project id and external ids (items 7–8), acceptance tests 9–10. The revision awaits review; the approval above covers the earlier text.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

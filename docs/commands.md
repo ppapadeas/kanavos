@@ -36,6 +36,7 @@ Units are SI: lengths in metres, areas in m², angles in radians unless an argum
 | [`opening.place`](#openingplace) | Τοποθέτηση ανοίγματος | Place opening | Places a door, window or void in the wall nearest to a point. |
 | [`slab.from_walls`](#slabfrom_walls) | Πλάκα από τοίχους | Slab from walls | Adds a slab outlined by the walls' outer or core faces. |
 | [`roof.from_walls`](#rooffrom_walls) | Στέγη από τοίχους | Roof from walls | Adds a flat or pitched roof over the walls, with an overhang. |
+| [`railing.along_stair`](#railingalong_stair) | Κιγκλίδωμα κατά μήκος κλίμακας | Railing along a stair | Adds a railing along one side of each flight of a stair, following its slope. |
 | [`space.detect`](#spacedetect) | Νέος χώρος | New space | Creates a space from the walls around a point. |
 | [`space.detect_all`](#spacedetect_all) | Αυτόματοι χώροι | Detect all spaces | Creates a space in every room closed by walls on a storey. |
 | [`dimension.auto`](#dimensionauto) | Αυτόματες διαστάσεις | Automatic dimensions | Adds exterior dimension chains on the four sides. |
@@ -422,6 +423,32 @@ Example:
 {"name":"project.set_info","args":{"info":{"date":"Οκτώβριος 2026","designer":"Στέλιος Παραδειγματάκης","location":"Οδός Λεμονιάς 7","municipality":"Δήμος Δειγματούπολης","name":"Νέα διώροφη κατοικία","owner":"Μαρίνα Δοκιμάκη","revision":"0"}}}
 ```
 
+## railing
+
+### `railing.along_stair`
+
+Κιγκλίδωμα κατά μήκος κλίμακας · Railing along a stair
+
+Adds a railing along one side of every flight of a stair. Each railing follows the line of the flight's tread nosings, from the first nosing up to the level of the landing or floor the flight arrives at, so its height is measured from the nosings. Landings are not railed; draw them with the railing tool.
+
+| Argument | Type | Required | Description |
+| --- | --- | --- | --- |
+| `height` | `Length` |  | Height of the top rail above the nosing line (default 1.00 m). Default: `1.0`. |
+| `infill` | `RailingInfill` |  | Infill (default bars). Default: `"bars"`. |
+| `infill_material` | `Id` or null |  | Material of the infill; default: the frame's. |
+| `inset` | `Length` |  | Distance of the railing's line from the flight's edge, inwards (default 5 cm). Default: `0.05`. |
+| `material` | `Id` or null |  | Material of posts and rails; default: the railing default, else the stair's material. |
+| `post_spacing` | `Length` |  | Largest distance between posts (default 1.20 m). Default: `1.2`. |
+| `side` | `StairSide` |  | Which side, looking up the flights (default left). Default: `"left"`. |
+| `stair` | `Id` | yes | The stair. |
+| `tag` | string |  | User mark. Default: `""`. |
+
+Example:
+
+```json
+{"name":"railing.along_stair","args":{"height":1.0,"infill":"glass","infill_material":14,"side":"right","stair":160}}
+```
+
 ## roof
 
 ### `roof.from_walls`
@@ -436,6 +463,7 @@ Adds a roof over the walls of a storey: the outer faces plus an overhang, flat o
 | --- | --- | --- | --- |
 | `base` | `Length` or null |  | Height of the roof's top surface at the eaves above the storey's floor; default: resting on the tallest wall of the storey. |
 | `build_up` | `Id` or null |  | Build-up; default: the pitched-roof or flat-roof default. |
+| `holes` | array of `Polygon2` |  | Openings through the roof (light wells, skylights, chimneys, a courtyard), each a polygon inside the roof outline that does not overlap the others (none by default). |
 | `kind` | `RoofKind` |  | Shape (default hip). Default: `"hip"`. |
 | `overhang` | `Length` |  | Overhang beyond the outer wall faces (default 0.50 m; 0 for none). Default: `0.5`. |
 | `parapet` | `Parapet` or null |  | Parapet of a flat roof (none by default). |
@@ -956,11 +984,11 @@ Example:
 | `Profile` | Cross-section of a column or beam. Variants (`type`): `rectangle`, `circle`. |
 | `ProjectInfo` | Project information printed in title blocks and reports. Fields: `date` (string), `designer` (string), `designer_details` (string), `location` (string), `municipality` (string), `name` (string), `notes` (string), `owner` (string), `revision` (string). |
 | `Pt` | A point in drawing coordinates. Fields: `x` (number), `y` (number). |
-| `Railing` | A railing along a path. Fields: `base_offset` (`Length`), `height` (`Length`), `infill` (`RailingInfill`), `material` (`Id`), `path` (array of `Point2`), `post_spacing` (`Length`). |
+| `Railing` | A railing along a path. Fields: `base_offset` (`Length`), `elevations` (array of `Length`), `height` (`Length`), `infill` (`RailingInfill`), `infill_material` (`Id` or null), `material` (`Id`), `path` (array of `Point2`), `post_spacing` (`Length`). |
 | `RailingInfill` | Infill of a railing. One of `"bars"`, `"glass"`, `"solid"`. |
 | `ReferenceLine` | Where a wall's reference line sits relative to its thickness. One of `"left"`, `"centre"`, `"right"`. |
 | `Rgba` | An RGBA colour, 8 bits per channel. Fields: `a` (integer), `b` (integer), `g` (integer), `r` (integer). |
-| `Roof` | A roof over an outline (eaves line, including the overhang). Fields: `base` (`Length`), `outline` (`Polygon2`), `shape` (`RoofShape`), `structure` (`Structure`). |
+| `Roof` | A roof over an outline (eaves line, including the overhang). Fields: `base` (`Length`), `holes` (array of `Polygon2`), `outline` (`Polygon2`), `shape` (`RoofShape`), `structure` (`Structure`). |
 | `RoofKind` | Shape of a roof made by `roof.from_walls`. One of `"hip"`, `"gable"`, `"mono"`, `"flat"`. |
 | `RoofShape` | Geometry rule of a roof. Variants (`type`): `flat`, `pitched`. |
 | `ScheduleKind` | Which schedule a schedule view shows. One of `"doors"`, `"windows"`, `"spaces"`, `"walls"`, `"slabs"`, `"materials"`, `"objects"`. |
@@ -970,8 +998,10 @@ Example:
 | `Slab` | A floor, ceiling or other horizontal slab. Build-up layers are listed from top to bottom. Fields: `outline` (`PolygonWithHoles`), `structure` (`Structure`), `top_offset` (`Length`). |
 | `Space` | A space (room), bounded by walls or drawn by hand. Fields: `boundary` (`PolygonWithHoles`), `category` (`SpaceCategory`), `finish` (string), `height` (`Length` or null), `name` (string), `number` (string), `stamp` (`Point2` or null). |
 | `SpaceCategory` | Use category of a space, as needed for the Greek building code (ΝΟΚ, ν. 4067/2012) area calculations. One of `"main_use"`, `"auxiliary"`, `"stairwell"`, `"lift_shaft"`, `"semi_open"`, `"balcony"`, `"pilotis"`, `"parking"`, `"attic"`, `"technical"`, `"shaft"`, `"other"`. |
-| `Stair` | A stair.  `origin` is the midpoint of the front edge of the first step; `direction` is the walking direction up the first flight. Fields: `base_offset` (`Length`), `direction` (`Angle`), `first_flight_risers` (integer or null), `gap` (`Length`), `going` (`Length`), `material` (`Id`), `origin` (`Point2`), `rise` (`Length`), `risers` (integer), `shape` (`StairShape`), `thickness` (`Length`), `width` (`Length`). |
+| `Stair` | A stair.  `origin` is the midpoint of the front edge of the first step; `direction` is the walking direction up the first flight. Fields: `base_offset` (`Length`), `direction` (`Angle`), `first_flight_risers` (integer or null), `gap` (`Length`), `going` (`Length`), `material` (`Id`), `origin` (`Point2`), `rise` (`Length`), `risers` (integer), `shape` (`StairShape`), `thickness` (`Length`), `usage` (`StairUse`), `width` (`Length`). |
 | `StairShape` | Plan shape of a stair. One of `"straight"`, `"quarter_turn_left"`, `"quarter_turn_right"`, `"half_turn_left"`, `"half_turn_right"`. |
+| `StairSide` | A side of a stair, looking up its flights. One of `"left"`, `"right"`. |
+| `StairUse` | What a stair serves. It decides which limits of the Greek building regulation apply to it (Κτιριοδομικός Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11): the clear width of §2 and the stair types I–III of the table in §4 that §4.1–§4.5 allow for each use of the building. The limits themselves are in `kanavos-elements` (`stair_limits`). One of `"dwelling_internal"`, `"residential"`, `"other_uses"`, `"assembly_education"`, `"health_care"`, `"auxiliary"`. |
 | `Stroke` | How an outline is stroked. Fields: `color` (`Rgba`), `pattern` (`LinePattern`), `weight_mm` (number). |
 | `Structure` | What a layered element is made of. Variants (`type`): `basic`, `layered`. |
 | `Text` | A single line of text. Fields: `anchor` (`Anchor`), `bold` (boolean), `color` (`Rgba`), `content` (string), `height_mm` (number), `position` (`Pt`), `rotation` (number). |

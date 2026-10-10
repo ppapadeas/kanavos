@@ -4,10 +4,12 @@
 
 mod common;
 
-use common::{close, fx};
-use kanavos_elements::{RoofLineKind, plan_parts, quantities, roof_lines, roof_planes, solids};
-use kanavos_geom::Length;
-use kanavos_model::{ElementKind, Parapet, RoofShape};
+use common::{Fx, close, fx};
+use kanavos_elements::{
+    GeometryError, RoofLineKind, footprint, plan_parts, quantities, roof_lines, roof_planes, solids, validate,
+};
+use kanavos_geom::{Length, Polygon2};
+use kanavos_model::{ElementKind, Id, Parapet, RoofShape};
 
 const RECT: [(f64, f64); 4] = [(0.0, 0.0), (10.0, 0.0), (10.0, 6.0), (0.0, 6.0)];
 const L: [(f64, f64); 6] = [(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (5.0, 5.0), (5.0, 10.0), (0.0, 10.0)];
@@ -201,4 +203,171 @@ fn gable_wall_is_clipped_to_the_roof_underside() {
         a += under(y) * 5.4 / n as f64;
     }
     assert!(close(s[0].mesh.volume(), a * 0.3, 1e-4), "{} vs {}", s[0].mesh.volume(), a * 0.3);
+}
+
+/// Gives roof `r` these holes (and optionally a flat shape with a parapet).
+fn with_holes(f: &mut Fx, r: Id, holes: &[&[(f64, f64)]], flat: Option<Option<Parapet>>) {
+    let mut e = f.doc.element(r).unwrap().clone();
+    if let ElementKind::Roof(roof) = &mut e.kind {
+        roof.holes = holes.iter().map(|h| Polygon2::from_m(h)).collect();
+        if let Some(parapet) = flat {
+            roof.shape = RoofShape::Flat { parapet };
+        }
+    }
+    f.doc = f.doc.with_element(e);
+}
+
+/// A ring of plan points.
+type Ring = &'static [(f64, f64)];
+
+/// Total thickness of the pitched-roof build-up of the starter template.
+const T: f64 = 0.03 + 0.005 + 0.08 + 0.15 + 0.015;
+
+#[test]
+fn a_skylight_is_cut_through_every_layer_of_a_hip_roof() {
+    let mut f = fx();
+    let r = f.roof(&RECT, vec![Some(30.0); 4], 3.0);
+    // 2 × 1 m inside the south plane.
+    with_holes(&mut f, r, &[&[(4.0, 0.5), (6.0, 0.5), (6.0, 1.5), (4.0, 1.5)]], None);
+    validate(&f.doc, f.doc.element(r).unwrap()).unwrap();
+    let planes = roof_planes(&f.doc, r).unwrap();
+    assert_eq!(planes.len(), 4);
+    let total: f64 = planes.iter().map(|p| p.plan_area()).sum();
+    assert!(close(total, 58.0, 1e-6), "{total}");
+    let lines = roof_lines(&f.doc, r).unwrap();
+    assert_eq!(count(&lines, RoofLineKind::Opening), 4);
+    let cos = 30f64.to_radians().cos();
+    let tan = 30f64.to_radians().tan();
+    // The lower edge of the hole lies 0.5 m up the south plane.
+    assert!(lines.iter().any(|l| l.kind == RoofLineKind::Opening && close(l.z.0, 3.0 + 0.5 * tan, 1e-6)));
+    assert_eq!(count(&lines, RoofLineKind::Hip), 4);
+    assert_eq!(count(&lines, RoofLineKind::Eave), 4);
+    // Quantities: plan and true area without the hole; the hole edges add to the perimeter.
+    let q = quantities(&f.doc, r).unwrap();
+    assert!(close(q.gross_area.unwrap().as_m2(), 58.0, 1e-6));
+    assert!(close(q.area.unwrap().as_m2(), 58.0 / cos, 1e-6));
+    assert!(close(q.perimeter.unwrap().as_m(), 32.0 + 6.0, 1e-9));
+    // Every layer is a closed solid with the hole cut vertically through it.
+    let s = solids(&f.doc, r).unwrap();
+    assert_eq!(s.len(), 5);
+    let mut volume = 0.0;
+    for solid in &s {
+        assert!(
+            solid.mesh.is_closed(1e-6),
+            "{:?}: {} open",
+            solid.part,
+            solid.mesh.welded(1e-7).open_edge_count()
+        );
+        volume += solid.mesh.volume();
+    }
+    assert!(close(volume, 58.0 * T / cos, 1e-6), "{volume}");
+    // The footprint keeps the hole; a cut above everything shows the hole edges with the other lines.
+    let fp = footprint(&f.doc, r).unwrap().unwrap();
+    assert!(close(fp.area().as_m2(), 58.0, 1e-9));
+    let p = plan_parts(&f.doc, r, Length::m(20.0)).unwrap();
+    assert_eq!(p.below.len(), 4 + 4 + 1 + 4);
+    // A cut through the roof slab at the hole: the cut band has a gap where the hole is.
+    let p = plan_parts(&f.doc, r, Length::m(3.0 + 1.0 * tan - 0.05)).unwrap();
+    let cut: f64 = p.cut.iter().map(|c| c.region.area().as_m2()).sum();
+    assert!(cut > 0.0);
+    assert!(
+        p.cut.iter().all(|c| !c.region.contains(kanavos_geom::Point2::new(5.0, 1.0), &Default::default()))
+    );
+}
+
+#[test]
+fn a_hole_across_the_ridge_splits_it() {
+    let mut f = fx();
+    let r = f.roof(&RECT, vec![Some(30.0), None, Some(30.0), None], 3.0);
+    with_holes(&mut f, r, &[&[(4.0, 2.5), (6.0, 2.5), (6.0, 3.5), (4.0, 3.5)]], None);
+    let planes = roof_planes(&f.doc, r).unwrap();
+    assert_eq!(planes.len(), 2);
+    for p in &planes {
+        assert!(close(p.plan_area(), 29.0, 1e-6));
+    }
+    let lines = roof_lines(&f.doc, r).unwrap();
+    // The ridge stops at the hole: two pieces of 4 m.
+    let ridges: Vec<_> = lines.iter().filter(|l| l.kind == RoofLineKind::Ridge).collect();
+    assert_eq!(ridges.len(), 2);
+    assert!(ridges.iter().all(|l| close(l.segment.length().as_m(), 4.0, 1e-6)));
+    // The hole's sides each run over both planes.
+    assert_eq!(count(&lines, RoofLineKind::Opening), 6);
+    for solid in solids(&f.doc, r).unwrap() {
+        assert!(solid.mesh.is_closed(1e-6));
+    }
+}
+
+#[test]
+fn a_courtyard_in_a_flat_roof_keeps_the_parapet() {
+    let mut f = fx();
+    let r = f.roof(&RECT, vec![None; 4], 3.0);
+    let parapet = Parapet { height: Length::m(0.6), thickness: Length::m(0.2) };
+    with_holes(&mut f, r, &[&[(3.0, 2.0), (7.0, 2.0), (7.0, 4.0), (3.0, 4.0)]], Some(Some(parapet)));
+    validate(&f.doc, f.doc.element(r).unwrap()).unwrap();
+    let s = solids(&f.doc, r).unwrap();
+    let layers: f64 =
+        s.iter().filter(|x| x.part != kanavos_elements::SolidPart::Parapet).map(|x| x.mesh.volume()).sum();
+    assert!(close(layers, 52.0 * T, 1e-6), "{layers}");
+    let par = s.iter().find(|x| x.part == kanavos_elements::SolidPart::Parapet).unwrap();
+    assert!(close(par.mesh.volume(), (60.0 - 9.6 * 5.6) * 0.6, 1e-6));
+    assert_eq!(count(&roof_lines(&f.doc, r).unwrap(), RoofLineKind::Opening), 4);
+}
+
+#[test]
+fn walls_under_a_hole_are_not_capped_there() {
+    let mut f = fx();
+    let r = f.roof(&RECT, vec![None; 4], 3.0);
+    with_holes(&mut f, r, &[&[(4.0, 2.0), (6.0, 2.0), (6.0, 4.0), (4.0, 4.0)]], Some(None));
+    let w = f.basic_wall((3.0, 3.0), (7.0, 3.0), 0.3, 8.0);
+    let s = solids(&f.doc, w).unwrap();
+    assert!(s[0].mesh.is_closed(1e-6), "open edges {}", s[0].mesh.welded(1e-7).open_edge_count());
+    assert!(close(s[0].mesh.bbox().unwrap().max.z, 8.0, 1e-9), "the wall rises through the hole");
+    // 2 m under the roof (to its underside) and 2 m through the hole.
+    let expected = 0.3 * (2.0 * (3.0 - T) + 2.0 * 8.0);
+    assert!(close(s[0].mesh.volume(), expected, 1e-6), "{} vs {expected}", s[0].mesh.volume());
+}
+
+#[test]
+fn bad_holes_are_refused() {
+    let mut f = fx();
+    let r = f.roof(&RECT, vec![Some(30.0); 4], 3.0);
+    let check = |f: &Fx| validate(&f.doc, f.doc.element(r).unwrap());
+    let field_of = |e: GeometryError| match e {
+        GeometryError::Invalid { field, reason, .. } => (field, reason),
+        other => panic!("{other:?}"),
+    };
+    let cases: [(&[Ring], &str); 5] = [
+        (&[&[(9.0, 1.0), (11.0, 1.0), (11.0, 2.0), (9.0, 2.0)]], "inside"),
+        (
+            &[
+                &[(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0)],
+                &[(2.0, 2.0), (4.0, 2.0), (4.0, 4.0), (2.0, 4.0)],
+            ],
+            "overlap",
+        ),
+        (&[&[(1.0, 1.0), (1.0, 1.0), (2.0, 1.0)]], "three points"),
+        (&[&[(1.0, 1.0), (3.0, 3.0), (3.0, 1.0), (1.0, 2.0)]], "cross"),
+        (&[&[(0.0, 0.0), (10.0, 0.0), (10.0, 6.0), (0.0, 6.0)]], "no roof"),
+    ];
+    for (holes, why) in cases {
+        with_holes(&mut f, r, holes, None);
+        let (field, reason) = field_of(check(&f).unwrap_err());
+        assert_eq!(field, "holes");
+        assert!(reason.contains(why), "{why}: {reason}");
+    }
+    // Two holes that only touch, and a hole on the outline's edge, are fine.
+    with_holes(
+        &mut f,
+        r,
+        &[
+            &[(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0)],
+            &[(3.0, 1.0), (5.0, 1.0), (5.0, 3.0), (3.0, 3.0)],
+        ],
+        None,
+    );
+    check(&f).unwrap();
+    // On a flat roof with a parapet, holes keep clear of the parapet.
+    let parapet = Parapet { height: Length::m(1.0), thickness: Length::m(0.3) };
+    with_holes(&mut f, r, &[&[(0.1, 1.0), (2.0, 1.0), (2.0, 2.0), (0.1, 2.0)]], Some(Some(parapet)));
+    assert!(field_of(check(&f).unwrap_err()).1.contains("parapet"));
 }

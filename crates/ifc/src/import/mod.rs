@@ -10,14 +10,13 @@ use kanavos_drawing::Rgba;
 use kanavos_geom::{Angle, Length, Point2, Point3, PolygonWithHoles, Vec2, Vec3};
 use kanavos_model::{
     Beam, BuildUp, BuildUpLayer, BuildUpUsage, Column, Document, Element, ElementKind, Georef, Id, Material,
-    MaterialCategory, Opening, OpeningKind, Phase, Profile, ReferenceLine, Slab, Space, SpaceCategory,
-    Storey, Structure, View, ViewKind, Wall, starter,
+    MaterialCategory, Opening, OpeningKind, Phase, Profile, ProjectId, ReferenceLine, Slab, Space,
+    SpaceCategory, Storey, Structure, View, ViewKind, Wall, starter_with_id,
 };
 
 pub use graph::Units;
 
 use crate::IfcError;
-use crate::export::GLOBAL_ID_PROPERTY;
 use crate::math::Frame3;
 use crate::step::{Entity, StepFile, Value, parse};
 use graph::{Extrusion, Geometry, ProfileKind, is_curved, project_units, unit_factor};
@@ -67,8 +66,8 @@ pub struct ImportOptions {
     pub base: ImportBase,
     /// Name of the material created for elements without one.
     pub fallback_material: String,
-    /// Keep each element's IFC `GlobalId` in its properties (key [`GLOBAL_ID_PROPERTY`]) so a later export
-    /// reuses it.
+    /// Keep each element's IFC `GlobalId` as its external id (`Element::external_id`) so a later export reuses
+    /// it.
     pub keep_global_ids: bool,
     /// Object style for doors without a Kanavos style.
     pub door_style: String,
@@ -276,6 +275,7 @@ struct Importer<'a> {
     build_up_cache: HashMap<(u64, bool), Option<(Id, f64)>>,
     walls: HashMap<u64, WallFrame>,
     slabs: HashMap<u64, Id>,
+    roofs: HashMap<u64, Id>,
     handled: HashSet<u64>,
 }
 
@@ -376,8 +376,10 @@ fn default_colour(c: MaterialCategory) -> Rgba {
 
 impl<'a> Importer<'a> {
     fn new(f: &'a StepFile, units: Units, opts: &'a ImportOptions) -> Importer<'a> {
+        // The import is deterministic: the new document has no project id yet; the application gives it one the
+        // first time it is saved, like any document without an id.
         let mut doc = match opts.base {
-            ImportBase::Starter => starter(),
+            ImportBase::Starter => starter_with_id(ProjectId::NIL),
             ImportBase::Empty => Document::new(),
         };
         let starter_storeys: Vec<Id> = doc.storeys().iter().map(|s| s.id).collect();
@@ -406,6 +408,7 @@ impl<'a> Importer<'a> {
             build_up_cache: HashMap::new(),
             walls: HashMap::new(),
             slabs: HashMap::new(),
+            roofs: HashMap::new(),
             handled: HashSet::new(),
         }
     }
@@ -990,7 +993,7 @@ impl<'a> Importer<'a> {
         if self.opts.keep_global_ids
             && let Some(g) = self.f.get(ifc).and_then(|e| e.str_at(0)).filter(|g| g.len() == 22)
         {
-            el.properties.insert(GLOBAL_ID_PROPERTY.to_owned(), g.to_owned());
+            el.external_id = Some(g.to_owned());
         }
         for (k, v) in self.properties(ifc, Some("Kanavos_Properties")) {
             if let Some(s) = v.as_str() {
@@ -1234,8 +1237,9 @@ impl<'a> Importer<'a> {
         Ok(())
     }
 
-    /// Roofs with their own extruded body become flat roofs; a second extrusion with a hole sitting on top of
-    /// the roof slab becomes its parapet. Roofs built from parts are imported through the parts (slabs).
+    /// Roofs with their own extruded body become flat roofs; the voids of the slab's profile become holes, and a
+    /// second extrusion with a hole sitting on top of the roof slab becomes its parapet. Roofs built from parts
+    /// are imported through the parts (slabs).
     fn map_roof(&mut self, id: u64, e: &'a Entity) -> Result<(), String> {
         let mut notes = Vec::new();
         if self.g.representation(e, "Body").is_none() {
@@ -1250,11 +1254,10 @@ impl<'a> Importer<'a> {
         if solids.iter().any(|s| !s.vertical) || solids.is_empty() {
             return Err("pitched roof geometry is not imported yet".into());
         }
-        let Some(main) = solids
-            .iter()
-            .filter(|s| s.area.holes.is_empty())
-            .max_by(|a, b| a.area.area().total_cmp(&b.area.area()))
-        else {
+        // The roof slab is the lowest solid (the largest of equals); a parapet band stands on top of it.
+        let Some(main) = solids.iter().min_by(|a, b| {
+            a.zmin.total_cmp(&b.zmin).then(b.area.outer.area().total_cmp(&a.area.outer.area()))
+        }) else {
             return Err("the roof has no solid slab".into());
         };
         let thickness = main.zmax - main.zmin;
@@ -1280,9 +1283,11 @@ impl<'a> Importer<'a> {
             outline: main.area.outer.clone(),
             base: Length::m(main.zmax - elevation),
             structure,
+            holes: main.area.holes.clone(),
             shape: kanavos_model::RoofShape::Flat { parapet },
         };
-        self.add_element(id, storey, e.str_at(7), ElementKind::Roof(roof));
+        let el = self.add_element(id, storey, e.str_at(7), ElementKind::Roof(roof));
+        self.roofs.insert(id, el);
         self.simplified(notes);
         Ok(())
     }
@@ -1325,6 +1330,16 @@ impl<'a> Importer<'a> {
                 continue;
             }
             let filling = self.fills.get(&opening).copied();
+            if self.roofs.contains_key(&host) {
+                match self.map_roof_opening(host, opening) {
+                    Ok(()) => self.mapped(opening),
+                    Err(reason) => self.skipped(opening, &reason),
+                }
+                if let Some(fl) = filling {
+                    self.skipped(fl, "windows in roofs are not imported");
+                }
+                continue;
+            }
             if self.slabs.contains_key(&host) {
                 match self.map_slab_opening(host, opening) {
                     Ok(()) => self.mapped(opening),
@@ -1388,6 +1403,53 @@ impl<'a> Importer<'a> {
             self.doc = self.doc.with_element(element);
         }
         notes.push("slab opening imported as a hole in the slab".into());
+        self.simplified(notes);
+        Ok(())
+    }
+
+    /// An opening through a roof becomes a hole in the roof, unless the roof's body already has that hole.
+    fn map_roof_opening(&mut self, host: u64, opening: u64) -> Result<(), String> {
+        let f = self.f;
+        let roof_id = *self.roofs.get(&host).ok_or("the host is not an imported roof")?;
+        let o = f.get(opening).ok_or("missing opening")?;
+        let mut notes = Vec::new();
+        let solids: Vec<Solid> = self.solids(o, &mut notes).into_iter().filter(|s| s.vertical).collect();
+        let ring = solids
+            .iter()
+            .max_by(|a, b| a.area.outer.area().total_cmp(&b.area.outer.area()))
+            .map(|s| s.area.outer.clone())
+            .ok_or("the roof opening is not a vertical extrusion")?;
+        let Some(ElementKind::Roof(roof)) = self.doc.element(roof_id).map(|e| e.kind.clone()) else {
+            return Err("the host is not an imported roof".into());
+        };
+        let tol = self.doc.tolerance();
+        if !ring.vertices.iter().all(|p| roof.outline.contains(*p, &tol)) {
+            return Err("the roof opening is not inside the roof outline".into());
+        }
+        let area = ring.area().as_m2();
+        let centre = ring.centroid().ok_or("the roof opening is degenerate")?;
+        let same = |h: &kanavos_geom::Polygon2| {
+            (h.area().as_m2() - area).abs() <= 1e-4_f64.max(area * 1e-4)
+                && h.centroid().is_some_and(|c| c.distance(centre).as_m() < 1e-3)
+        };
+        if roof.holes.iter().any(same) {
+            notes.push("roof opening already cut in the roof body".into());
+            self.simplified(notes);
+            return Ok(());
+        }
+        if roof.holes.iter().any(|h| {
+            h.contains(centre, &tol)
+                || ring.vertices.iter().any(|p| h.classify(*p, &tol) == kanavos_geom::Containment::Inside)
+        }) {
+            return Err("the roof opening overlaps another hole".into());
+        }
+        let mut roof = roof;
+        roof.holes.push(ring);
+        if let Some(mut element) = self.doc.element(roof_id).cloned() {
+            element.kind = ElementKind::Roof(roof);
+            self.doc = self.doc.with_element(element);
+        }
+        notes.push("roof opening imported as a hole in the roof".into());
         self.simplified(notes);
         Ok(())
     }

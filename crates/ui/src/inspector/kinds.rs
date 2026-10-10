@@ -7,7 +7,7 @@ use kanavos_geom::Point2;
 use kanavos_model::{
     Beam, BuildUpUsage, Column, Dimension, Document, DraftShape, Drafting, ElementKind, GridLine, Id,
     LevelMark, Object, Opening, OpeningKind, Parapet, Profile, Railing, ReferenceLine, Roof, RoofShape, Slab,
-    Space, Stair, Structure, TextAlign, TextNote, Underlay, Wall,
+    Space, Stair, StairUse, Structure, TextAlign, TextNote, Underlay, Wall,
 };
 use kanavos_objects::{ObjectCategory, ParamKind};
 use kanavos_units::{Angle, AreaDisplay, Length, LengthDisplay, Locale};
@@ -453,6 +453,8 @@ pub fn stairs(ui: &mut Ui, doc: &Document, items: Vec<(Id, Stair)>, locale: Loca
             let shapes: Vec<_> =
                 names::STAIR_SHAPES.into_iter().map(|s| (s, names::stair_shape(locale, s))).collect();
             f.choice(ui, &tr(locale, "ui.insp.shape"), &shapes, |s| s.shape, |s, v| s.shape = v);
+            let uses: Vec<_> = StairUse::ALL.into_iter().map(|u| (u, names::stair_use(locale, u))).collect();
+            f.choice(ui, &tr(locale, "ui.insp.stair_use"), &uses, |s| s.usage, |s, v| s.usage = v);
             f.length(ui, &tr(locale, "ui.insp.width"), |s| s.width, |s, v| s.width = v);
             f.length(ui, &tr(locale, "ui.insp.rise"), |s| s.rise, |s, v| s.rise = v);
             f.count(ui, &tr(locale, "ui.insp.risers"), |s| s.risers, |s, v| s.risers = v.max(2));
@@ -510,6 +512,9 @@ pub fn roofs(ui: &mut Ui, doc: &Document, items: Vec<(Id, Roof)>, locale: Locale
                 |r| r.structure.clone(),
                 |r, s| r.structure = s,
             );
+            // Holes are edited with their corner handles in the plan; the count is shown here.
+            let holes = f.shared(|r| r.holes.len()).map(|n| n.to_string());
+            f.read(ui, &tr(locale, "ui.insp.holes"), &holes.unwrap_or_else(|| widgets::MIXED.into()));
             match f.shared(roof_type) {
                 Some(RoofType::Flat) => {
                     let parapet = |r: &Roof| match r.shape {
@@ -616,15 +621,29 @@ pub fn railings(ui: &mut Ui, doc: &Document, items: Vec<(Id, Railing)>, locale: 
             let infills: Vec<_> = names::INFILLS.into_iter().map(|i| (i, names::infill(locale, i))).collect();
             f.choice(ui, &tr(locale, "ui.insp.infill"), &infills, |r| r.infill, |r, v| r.infill = v);
             f.choice(ui, &tr(locale, "ui.insp.material"), &mats, |r| r.material, |r, m| r.material = m);
+            let mut infill_mats: Vec<(Option<Id>, String)> = vec![(None, tr(locale, "ui.insp.infill_same"))];
+            infill_mats.extend(mats.iter().map(|(id, name)| (Some(*id), name.clone())));
+            f.choice(
+                ui,
+                &tr(locale, "ui.insp.infill_material"),
+                &infill_mats,
+                |r| r.infill_material,
+                |r, m| r.infill_material = m,
+            );
+            // A railing that follows a slope shows the range of its base; it is set along a stair by command.
+            if let Some(r) = f.single()
+                && r.is_sloped()
+            {
+                let low = r.elevations.iter().copied().fold(Length::m(f64::INFINITY), Length::min);
+                let high = r.elevations.iter().copied().fold(Length::m(f64::NEG_INFINITY), Length::max);
+                let text = format!("{} – {}", LengthDisplay(low, locale), LengthDisplay(high, locale));
+                widgets::label(ui, &tr(locale, "ui.insp.base_range"))
+                    .on_hover_text(tr(locale, "ui.insp.base_range_hint"));
+                widgets::value(ui, &text);
+                ui.end_row();
+            }
             if let Some(r) = f.single() {
-                let len: Length = r
-                    .path
-                    .windows(2)
-                    .filter_map(|w| match w {
-                        [a, b] => Some(a.distance(*b)),
-                        _ => None,
-                    })
-                    .sum();
+                let len = kanavos_elements::railing_length(r);
                 f.read(ui, &tr(locale, "ui.insp.length"), &LengthDisplay(len, locale).to_string());
             }
         });

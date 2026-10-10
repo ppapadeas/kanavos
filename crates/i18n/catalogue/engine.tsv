@@ -48,6 +48,7 @@ engine.cmd.sheet.move_viewport	Μετακίνηση παραθύρου όψης	
 engine.cmd.sheet.remove_viewport	Αφαίρεση παραθύρου όψης	Remove viewport
 engine.cmd.sheet.permit_set	Σετ σχεδίων άδειας	Permit drawing set
 engine.cmd.batch	Πολλαπλή αλλαγή	Multiple changes
+engine.cmd.railing.along_stair	Κιγκλίδωμα κατά μήκος κλίμακας	Railing along a stair
 #
 # One-line help for every command (command lists, docs/commands.md).
 engine.help.project.set_info	Αντικαθιστά τα στοιχεία του έργου (πινακίδα).	Replaces the project information (title block data).
@@ -185,3 +186,4 @@ engine.io.error.not_available	Δεν υποστηρίζεται ακόμη σε 
 engine.export.not_available	Η εξαγωγή σε {format} δεν είναι ακόμη διαθέσιμη σε αυτή την έκδοση	{format} export is not available in this build yet
 engine.export.unsupported	Η μορφή {format} δεν μπορεί να περιέχει {what}	The {format} format cannot hold {what}
 engine.export.failed	Η εξαγωγή απέτυχε: {reason}	Export failed: {reason}
+engine.help.railing.along_stair	Προσθέτει κιγκλίδωμα στη μία πλευρά κάθε σκέλους μιας κλίμακας, που ακολουθεί την κλίση του.	Adds a railing along one side of each flight of a stair, following its slope.

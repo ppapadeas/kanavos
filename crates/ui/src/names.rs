@@ -8,7 +8,7 @@ use kanavos_drawing::{HatchPattern, LinePattern};
 use kanavos_i18n::{has, t};
 use kanavos_model::{
     BuildUpUsage, Category, MaterialCategory, OpeningKind, PaperSize, Phase, RailingInfill, ReferenceLine,
-    ScheduleKind, SpaceCategory, StairShape, ViewKind,
+    ScheduleKind, SpaceCategory, StairShape, StairUse, ViewKind,
 };
 use kanavos_objects::{ObjectCategory, ObjectDef};
 use kanavos_tools::{RoofKind, ToolId};
@@ -217,6 +217,11 @@ pub fn stair_shape(locale: Locale, s: StairShape) -> String {
     tr(locale, &format!("ui.stair.{key}"))
 }
 
+/// Name of what a stair serves (the regulation's use categories).
+pub fn stair_use(locale: Locale, u: StairUse) -> String {
+    tr(locale, &format!("ui.stair_use.{}", u.key()))
+}
+
 /// Railing infills in display order.
 pub const INFILLS: [RailingInfill; 3] = [RailingInfill::Bars, RailingInfill::Glass, RailingInfill::Solid];
 
@@ -412,6 +417,10 @@ mod tests {
         }
         for s in STAIR_SHAPES {
             assert!(!stair_shape(el, s).starts_with("ui."));
+        }
+        for u in StairUse::ALL {
+            assert!(!stair_use(el, u).starts_with("ui."));
+            assert!(!stair_use(Locale::En, u).starts_with("ui."));
         }
         for k in ROOF_KINDS {
             assert!(!roof_kind(el, k).starts_with("ui."));

@@ -139,11 +139,14 @@ ui.insp.area	Εμβαδόν	Area
 ui.insp.area_total	Συνολικό εμβαδόν	Total area
 ui.insp.base	Στάθμη βάσης	Base level
 ui.insp.base_offset	Μετατόπιση βάσης	Base offset
+ui.insp.base_range	Βάση (κλίση)	Base (sloped)
+ui.insp.base_range_hint	Η βάση του κιγκλιδώματος ακολουθεί κλίση, π.χ. σκέλος κλίμακας· ορίζεται με την εντολή «Κιγκλίδωμα κατά μήκος κλίμακας».	The railing's base follows a slope, e.g. a stair flight; it is set by the command Railing along a stair.
 ui.insp.basic_material	Ένα υλικό με πάχος	Single material
 ui.insp.bold	Έντονα	Bold
 ui.insp.category	Κατηγορία	Category
 ui.insp.change_n	Αλλαγή {n} στοιχείων	Change {n} elements
 ui.insp.change_one	Αλλαγή ιδιοτήτων	Change properties
+ui.insp.checks_ok	Καμία παρατήρηση.	No remarks.
 ui.insp.color	Χρώμα	Colour
 ui.insp.definition	Αντικείμενο	Object
 ui.insp.depth	Βάθος	Depth
@@ -154,6 +157,8 @@ ui.insp.edge_n	Πλευρά {n}	Edge {n}
 ui.insp.elevation	Ύψος από δάπεδο	Height above floor
 ui.insp.end_x	Τέλος X	End X
 ui.insp.end_y	Τέλος Y	End Y
+ui.insp.external_id	Εξωτερικό αναγνωριστικό	External id
+ui.insp.external_id_hint	Το αναγνωριστικό του στοιχείου στο αρχείο από το οποίο εισήχθη (π.χ. το GlobalId του IFC). Διατηρείται στις εξαγωγές· τα αντίγραφα δεν το κληρονομούν.	The element's identifier in the file it was imported from (e.g. the IFC GlobalId). Exports keep it; copies do not inherit it.
 ui.insp.finish	Επένδυση δαπέδου	Floor finish
 ui.insp.flip_hand	Αναστροφή φοράς	Swap hinge side
 ui.insp.flip_hand.tip	Μεταφέρει τους μεντεσέδες στην άλλη παρειά του ανοίγματος.	Moves the hinges to the other jamb of the opening.
@@ -163,6 +168,7 @@ ui.insp.gap	Κενό μεταξύ σκελών	Gap between flights
 ui.insp.going	Πάτημα	Going
 ui.insp.gross_area	Μικτό εμβαδόν	Gross area
 ui.insp.group.annotation	Σχολιασμός	Annotation
+ui.insp.group.checks	Έλεγχοι κανονισμού	Regulation checks
 ui.insp.group.edges	Κλίσεις ανά πλευρά	Slopes per edge
 ui.insp.group.geometry	Γεωμετρία	Geometry
 ui.insp.group.identity	Ταυτότητα	Identity
@@ -180,6 +186,8 @@ ui.insp.height	Ύψος	Height
 ui.insp.holes	Οπές	Holes
 ui.insp.host	Φέρων τοίχος	Host wall
 ui.insp.infill	Πλήρωση	Infill
+ui.insp.infill_material	Υλικό πλήρωσης	Infill material
+ui.insp.infill_same	Όπως ο σκελετός	Same as the frame
 ui.insp.kind	Είδος	Kind
 ui.insp.label	Ετικέτα	Label
 ui.insp.length	Μήκος	Length
@@ -222,6 +230,8 @@ ui.insp.shape	Μορφή	Shape
 ui.insp.sill	Ποδιά	Sill
 ui.insp.sloped	κεκλιμένη	sloped
 ui.insp.source	Αρχείο προέλευσης	Source file
+ui.insp.stair_use	Χρήση κλίμακας	Stair use
+ui.insp.stair_use_hint	Ορίζει ποια όρια του Κτιριοδομικού Κανονισμού (άρθρο 11) ελέγχονται: πλάτος, ρίχτι, πάτημα, πλατύσκαλα.	Decides which limits of the building regulation (article 11) are checked: width, riser, going, landings.
 ui.insp.start_x	Αρχή X	Start X
 ui.insp.start_y	Αρχή Y	Start Y
 ui.insp.storey	Επίπεδο	Storey
@@ -479,6 +489,12 @@ ui.stair.half_right	Με πλατύσκαλο δεξιά (180°)	Half turn right
 ui.stair.quarter_left	Γωνιακή αριστερή (90°)	Quarter turn left
 ui.stair.quarter_right	Γωνιακή δεξιά (90°)	Quarter turn right
 ui.stair.straight	Ευθύγραμμη	Straight
+ui.stair_use.assembly_education	Συνάθροιση κοινού, εκπαίδευση (Γ, Δ)	Assembly, education (Γ, Δ)
+ui.stair_use.auxiliary	Μόνο βοηθητικοί χώροι (§4.5)	Auxiliary rooms only (§4.5)
+ui.stair_use.dwelling_internal	Εσωτερική κλίμακα κατοικίας	Internal stair of a dwelling
+ui.stair_use.health_care	Υγεία και κοινωνική πρόνοια (Ε)	Health and social care (Ε)
+ui.stair_use.other_uses	Λοιπές χρήσεις (Β, Ζ, Η, Θ, Ι, Κ, Λ)	Other uses (Β, Ζ, Η, Θ, Ι, Κ, Λ)
+ui.stair_use.residential	Κοινόχρηστη κλίμακα κατοικιών (Α)	Shared stair of dwellings (Α)
 ui.status.no_cursor	Χ/Υ —	X/Y —
 ui.status.ready	Έτοιμο	Ready
 ui.status.snap	Έλξη (Alt την απενεργοποιεί προσωρινά)	Snapping (hold Alt to turn it off)

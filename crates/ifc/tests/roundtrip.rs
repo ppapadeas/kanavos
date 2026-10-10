@@ -165,7 +165,15 @@ fn global_ids_survive_import_and_export() {
     let h = common::small_house();
     let first = export(&h.doc, &ExportOptions::default()).text;
     let back = import(first.as_bytes(), &ImportOptions::default()).unwrap().document;
-    assert!(back.elements().all(|e| e.properties.contains_key(GLOBAL_ID_PROPERTY)));
+    assert!(
+        back.elements().all(|e| e.external_id.is_some() && !e.properties.contains_key(GLOBAL_ID_PROPERTY))
+    );
+    // Each imported element's external id is the GlobalId it had in the file.
+    let written: BTreeSet<String> = {
+        let f = parse(first.as_bytes()).unwrap();
+        f.data.keys().filter_map(|id| f.get(*id)).filter_map(|e| e.str_at(0).map(str::to_owned)).collect()
+    };
+    assert!(back.elements().all(|e| e.external_id.as_ref().is_some_and(|g| written.contains(g))));
     // Export the imported document under a different project namespace: the elements keep their identifiers.
     let second = export(
         &back,
@@ -190,4 +198,106 @@ fn a_second_round_trip_changes_nothing() {
     let a = export(&once, &ExportOptions::default()).text;
     let b = export(&twice, &ExportOptions::default()).text;
     assert_eq!(parse(a.as_bytes()).unwrap().type_counts(), parse(b.as_bytes()).unwrap().type_counts());
+}
+
+/// The small house with two holes in its flat roof (inside the parapet).
+fn house_with_roof_holes() -> (Document, kanavos_model::Id) {
+    let h = common::small_house();
+    let mut e = h.doc.element(h.roof).unwrap().clone();
+    if let ElementKind::Roof(r) = &mut e.kind {
+        r.holes = vec![
+            kanavos_geom::Polygon2::from_m(&[(1.0, 1.0), (3.0, 1.0), (3.0, 2.5), (1.0, 2.5)]),
+            kanavos_geom::Polygon2::from_m(&[(6.0, 5.0), (8.0, 5.0), (7.0, 7.0)]),
+        ];
+    }
+    (h.doc.with_element(e), h.roof)
+}
+
+#[test]
+fn roof_holes_survive_export_and_import() {
+    let (doc, roof) = house_with_roof_holes();
+    let text = export(&doc, &ExportOptions::default()).text;
+    let f = parse(text.as_bytes()).unwrap();
+    // One opening per hole, voiding the roof.
+    let ifc_roof = f.of_type("IFCROOF")[0];
+    let voids: Vec<u64> = f
+        .of_type("IFCRELVOIDSELEMENT")
+        .iter()
+        .map(|&r| f.get(r).unwrap())
+        .filter(|r| r.ref_at(4) == Some(ifc_roof))
+        .map(|r| r.ref_at(5).unwrap())
+        .collect();
+    assert_eq!(voids.len(), 2);
+    assert!(voids.iter().all(|&o| f.type_of(o) == Some("IFCOPENINGELEMENT")));
+    // The roof slab's profile has the holes as voids.
+    assert!(!f.of_type("IFCARBITRARYPROFILEDEFWITHVOIDS").is_empty());
+
+    let imported = import(text.as_bytes(), &ImportOptions::default()).unwrap();
+    assert_eq!(imported.report.skipped_total(), 0, "{:?}", imported.report.skipped);
+    let back = imported.document;
+    let r = back.elements().find_map(|e| match &e.kind {
+        ElementKind::Roof(r) => Some(r),
+        _ => None,
+    });
+    let r = r.unwrap();
+    let ElementKind::Roof(original) = &doc.element(roof).unwrap().kind else { panic!() };
+    assert_eq!(r.holes.len(), 2, "the openings matched the holes already in the body");
+    let area = |hs: &[kanavos_geom::Polygon2]| hs.iter().map(|h| h.area().as_m2()).sum::<f64>();
+    assert!(close(area(&r.holes), area(&original.holes)));
+    assert!(matches!(r.shape, RoofShape::Flat { parapet: Some(_) }));
+}
+
+#[test]
+fn roof_openings_from_other_tools_become_holes() {
+    // Another tool may write an uncut roof slab with openings voiding it: export a roof without holes, then add
+    // an opening voiding it to the file.
+    let h = common::small_house();
+    let text = export(&h.doc, &ExportOptions::default()).text;
+    let f = parse(text.as_bytes()).unwrap();
+    let ifc_roof = f.of_type("IFCROOF")[0];
+    let roof_placement = f.get(ifc_roof).unwrap().ref_at(5).unwrap();
+    let max = f.data.keys().max().copied().unwrap();
+    let n = |k: u64| max + k;
+    let extra = format!(
+        "#{p0}=IFCCARTESIANPOINT((2.,2.));\n#{p1}=IFCCARTESIANPOINT((4.,2.));\n#{p2}=IFCCARTESIANPOINT((4.,3.));\n\
+         #{p3}=IFCCARTESIANPOINT((2.,3.));\n#{pl}=IFCPOLYLINE((#{p0},#{p1},#{p2},#{p3},#{p0}));\n\
+         #{pr}=IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{pl});\n#{o}=IFCCARTESIANPOINT((0.,0.,-1.));\n\
+         #{ax}=IFCAXIS2PLACEMENT3D(#{o},$,$);\n#{d}=IFCDIRECTION((0.,0.,1.));\n\
+         #{ex}=IFCEXTRUDEDAREASOLID(#{pr},#{ax},#{d},2.);\n\
+         #{rep}=IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{ex}));\n\
+         #{ps}=IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}));\n#{lp}=IFCLOCALPLACEMENT(#{rp},#{ax});\n\
+         #{op}=IFCOPENINGELEMENT('3OtherToolOpening0001',$,'Skylight',$,$,#{lp},#{ps},$,.OPENING.);\n\
+         #{rel}=IFCRELVOIDSELEMENT('3OtherToolVoidsRel0001',$,$,$,#{roof},#{op});\n",
+        p0 = n(1),
+        p1 = n(2),
+        p2 = n(3),
+        p3 = n(4),
+        pl = n(5),
+        pr = n(6),
+        o = n(7),
+        ax = n(8),
+        d = n(9),
+        ex = n(10),
+        rep = n(11),
+        ps = n(12),
+        lp = n(13),
+        op = n(14),
+        rel = n(15),
+        ctx = f.of_type("IFCGEOMETRICREPRESENTATIONSUBCONTEXT")[0],
+        rp = roof_placement,
+        roof = ifc_roof,
+    );
+    let text = text.replacen("ENDSEC;\nEND-ISO", &format!("{extra}ENDSEC;\nEND-ISO"), 1);
+    let imported = import(text.as_bytes(), &ImportOptions::default()).unwrap();
+    assert_eq!(imported.report.skipped_total(), 0, "{:?}", imported.report.issues);
+    let r = imported
+        .document
+        .elements()
+        .find_map(|e| match &e.kind {
+            ElementKind::Roof(r) => Some(r.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(r.holes.len(), 1);
+    assert!(close(r.holes[0].area().as_m2(), 2.0));
 }
