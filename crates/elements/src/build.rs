@@ -1,6 +1,9 @@
 //! Validation, plan parts and 3D solids for every element kind.
 
-use kanavos_geom::{Point2, Polygon2, PolygonWithHoles, Segment2, Vec2};
+use kanavos_geom::{
+    JoinStyle, Point2, Polygon2, PolygonWithHoles, Segment2, Vec2, difference, intersection, offset_polygon,
+    total_area, union_all,
+};
 use kanavos_model::{Beam, Column, Document, Element, ElementKind, Id, Profile, RoofShape};
 use kanavos_solid::{cylinder, extrude, extrude_polygon};
 use kanavos_units::Length;
@@ -157,6 +160,7 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
                 return Err(invalid(id, "outline", "needs at least three points enclosing an area"));
             }
             structure(&r.structure)?;
+            validate_roof_holes(r, &tol).map_err(|reason| invalid(id, "holes", reason))?;
             if let RoofShape::Pitched { slopes } = &r.shape {
                 if slopes.len() != r.outline.len() {
                     return Err(invalid(id, "slopes", "needs one entry per outline edge"));
@@ -211,6 +215,60 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
         | ElementKind::Level(_)
         | ElementKind::Drafting(_)
         | ElementKind::Underlay(_) => {}
+    }
+    Ok(())
+}
+
+/// Area (m²) below which the overlap of a hole with the outside of the roof, or with another hole, counts as
+/// touching: 1 mm².
+const HOLE_SLACK: f64 = 1e-6;
+
+/// Checks a roof's holes: each a simple polygon enclosing an area, inside the outline (and inside a flat roof's
+/// parapet), not overlapping another, and some roof left. Returns the reason for the first failure.
+fn validate_roof_holes(r: &kanavos_model::Roof, tol: &kanavos_geom::Tolerance) -> Result<(), &'static str> {
+    if r.holes.is_empty() {
+        return Ok(());
+    }
+    let outline: PolygonWithHoles = r.outline.to_ccw().into();
+    // A flat roof's parapet stands on the outer band; holes stay clear of it.
+    let inner = match &r.shape {
+        RoofShape::Flat { parapet: Some(p) } if p.thickness.as_m() > 1e-6 && p.height.as_m() > 1e-6 => {
+            offset_polygon(&r.outline.to_ccw(), -p.thickness.as_m(), JoinStyle::Miter { limit: 4.0 })
+                .unwrap_or_default()
+        }
+        _ => vec![outline.clone()],
+    };
+    let mut seen: Vec<PolygonWithHoles> = Vec::with_capacity(r.holes.len());
+    for h in &r.holes {
+        if !h.is_valid(tol) {
+            return Err("need at least three points enclosing an area");
+        }
+        let hole: PolygonWithHoles = h.to_ccw().into();
+        // A ring that crosses itself covers a different area once resolved.
+        let resolved = union_all(std::slice::from_ref(&hole)).map(|r| total_area(&r)).unwrap_or(0.0);
+        if (resolved - h.area().as_m2()).abs() > HOLE_SLACK {
+            return Err("must not cross themselves");
+        }
+        let outside = difference(std::slice::from_ref(&hole), std::slice::from_ref(&outline))
+            .map(|d| total_area(&d))
+            .unwrap_or(f64::INFINITY);
+        if outside > HOLE_SLACK {
+            return Err("must lie inside the roof outline");
+        }
+        let off_inner =
+            difference(std::slice::from_ref(&hole), &inner).map(|d| total_area(&d)).unwrap_or(f64::INFINITY);
+        if off_inner > HOLE_SLACK {
+            return Err("must stay clear of the parapet");
+        }
+        let overlap = intersection(std::slice::from_ref(&hole), &seen).map(|d| total_area(&d)).unwrap_or(0.0);
+        if overlap > HOLE_SLACK {
+            return Err("must not overlap each other");
+        }
+        seen.push(hole);
+    }
+    let left = difference(&[outline], &seen).map(|d| total_area(&d)).unwrap_or(0.0);
+    if left <= HOLE_SLACK {
+        return Err("leave no roof");
     }
     Ok(())
 }

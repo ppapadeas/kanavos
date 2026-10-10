@@ -759,6 +759,7 @@ mod tests {
             outline: Polygon2::from_m(&[(0.0, 0.0), (10.0, 0.0), (10.0, 6.0), (0.0, 6.0)]),
             base: Length::m(3.0),
             structure: Structure::Basic { material: Id(0), thickness: Length::m(0.2) },
+            holes: Vec::new(),
             shape: RoofShape::Pitched {
                 slopes: vec![Some(Angle::deg(30.0)), None, Some(Angle::deg(30.0)), None],
             },
@@ -780,6 +781,7 @@ mod tests {
             outline: Polygon2::from_m(&[(0.0, 0.0), (8.0, 0.0), (8.0, 6.0), (0.0, 6.0)]),
             base: Length::ZERO,
             structure: Structure::Basic { material: Id(0), thickness: Length::m(0.25) },
+            holes: Vec::new(),
             shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(25.0)); 4] },
         };
         let p = pitched_roof(&roof, 0.25).unwrap();
@@ -808,6 +810,7 @@ mod tests {
             ]),
             base: Length::ZERO,
             structure: Structure::Basic { material: Id(0), thickness: Length::m(0.2) },
+            holes: Vec::new(),
             shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(30.0)); 6] },
         };
         assert_eq!(pitched_roof(&roof, 0.2), Err(RoofFallback::Concave));

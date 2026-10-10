@@ -145,6 +145,7 @@ impl OutlineTool {
                 Some(ElementKind::Roof(Roof {
                     base: s.base.unwrap_or_else(|| storey_height(ctx.doc, ctx.storey)),
                     structure: ctx.settings.roof_structure(ctx.doc)?,
+                    holes: Vec::new(),
                     shape,
                     outline,
                 }))

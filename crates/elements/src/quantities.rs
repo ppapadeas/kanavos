@@ -111,7 +111,8 @@ pub fn detailed_quantities(doc: &Document, id: Id) -> Result<DetailedQuantities,
             q.area = Some(Area::m2(true_area));
             q.gross_area = Some(Area::m2(plan));
             q.thickness = Some(Length::m(g.thickness));
-            q.perimeter = Some(r.outline.perimeter());
+            // Eaves and verges plus the edges of the holes (where flashings run).
+            q.perimeter = Some(r.outline.perimeter() + r.holes.iter().map(|h| h.perimeter()).sum());
             d.planes = g
                 .planes
                 .iter()

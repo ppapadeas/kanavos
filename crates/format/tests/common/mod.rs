@@ -151,6 +151,7 @@ pub fn house() -> Document {
             outline: Polygon2::from_m(&[(-0.5, -0.5), (10.5, -0.5), (10.5, 8.5), (-0.5, 8.5)]),
             base: Length::m(3.2),
             structure: Structure::Basic { material: concrete, thickness: Length::cm(20.0) },
+            holes: Vec::new(),
             shape: RoofShape::Pitched {
                 slopes: vec![Some(Angle::deg(30.0)), None, Some(Angle::deg(30.0)), None],
             },

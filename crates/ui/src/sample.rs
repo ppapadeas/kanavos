@@ -296,6 +296,7 @@ fn build(locale: Locale) -> (Document, usize) {
                 outline: rect(-0.6, -0.6, 12.6, 9.6),
                 base: Length::m(h1),
                 structure: roof,
+                holes: Vec::new(),
                 shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(22.0)); 4] },
             }),
         );

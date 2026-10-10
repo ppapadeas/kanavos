@@ -214,7 +214,7 @@ pub fn footprint(doc: &Document, id: Id) -> Result<Option<PolygonWithHoles>, Geo
     Ok(match &e.kind {
         ElementKind::Wall(_) => Some(wall_layout(doc, id)?.outline.into()),
         ElementKind::Slab(s) => Some(s.outline.clone()),
-        ElementKind::Roof(r) => Some(r.outline.clone().into()),
+        ElementKind::Roof(r) => Some(PolygonWithHoles { outer: r.outline.clone(), holes: r.holes.clone() }),
         ElementKind::Space(s) => Some(s.boundary.clone()),
         ElementKind::Column(c) => Some(build::column_profile(c).into()),
         ElementKind::Beam(b) => build::beam_footprint(b).map(Into::into),
@@ -263,7 +263,7 @@ pub fn snap_geometry(doc: &Document, id: Id) -> SnapGeometry {
             }
         }
         ElementKind::Roof(r) => {
-            for edge in r.outline.edges() {
+            for edge in r.outline.edges().chain(r.holes.iter().flat_map(|h| h.edges().collect::<Vec<_>>())) {
                 seg(&mut g, edge);
             }
             if let Ok(lines) = roof_lines(doc, id) {

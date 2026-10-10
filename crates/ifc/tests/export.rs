@@ -537,3 +537,52 @@ fn writes_a_sample_file() {
     assert_eq!(report.instances as usize, f.data.len());
     assert!(!path.with_extension("ifc.tmp").exists());
 }
+
+#[test]
+fn pitched_roofs_with_holes_get_openings_and_net_areas() {
+    let h = common::full_house();
+    let hip = h
+        .doc
+        .elements()
+        .find(|e| matches!(&e.kind, kanavos_model::ElementKind::Roof(r) if matches!(r.shape, kanavos_model::RoofShape::Pitched { .. })))
+        .unwrap()
+        .clone();
+    let mut e = hip.clone();
+    let kanavos_model::ElementKind::Roof(r) = &mut e.kind else { panic!() };
+    let b = r.outline.bbox().unwrap();
+    let c = b.centre();
+    let (cx, cy) = (c.x.as_m(), c.y.as_m());
+    r.holes = vec![kanavos_geom::Polygon2::from_m(&[
+        (cx - 0.5, cy - 0.4),
+        (cx + 0.5, cy - 0.4),
+        (cx + 0.5, cy + 0.4),
+        (cx - 0.5, cy + 0.4),
+    ])];
+    let doc = h.doc.with_element(e);
+    let (_, f) = exported(&doc);
+    let before = exported(&h.doc).1;
+    assert_eq!(count(&f, "IFCOPENINGELEMENT"), count(&before, "IFCOPENINGELEMENT") + 1);
+    assert_eq!(count(&f, "IFCRELVOIDSELEMENT"), count(&before, "IFCRELVOIDSELEMENT") + 1);
+    assert!(f.dangling_references().is_empty());
+    let roof_of = |f: &StepFile| {
+        f.of_type("IFCROOF")
+            .iter()
+            .copied()
+            .find(|&r| f.get(r).unwrap().enum_at(8) == Some("HIP_ROOF"))
+            .unwrap()
+    };
+    let q = quantities(&f, roof_of(&f));
+    let q0 = quantities(&before, roof_of(&before));
+    assert!(close(q["ProjectedArea"], q0["ProjectedArea"] - 0.8));
+    assert!(close(q["GrossArea"], q0["GrossArea"]));
+    assert!(q["NetArea"] < q["GrossArea"] - 0.8, "{q:?}");
+    // The opening reaches through the roof: its depth covers the roof's height range.
+    let opening = f
+        .of_type("IFCOPENINGELEMENT")
+        .iter()
+        .copied()
+        .find(|&o| f.get(o).unwrap().str_at(2).is_some_and(|n| n.contains("opening 1")))
+        .unwrap();
+    let depth = quantities(&f, opening)["Depth"];
+    assert!(depth > 0.5, "{depth}");
+}

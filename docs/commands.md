@@ -436,6 +436,7 @@ Adds a roof over the walls of a storey: the outer faces plus an overhang, flat o
 | --- | --- | --- | --- |
 | `base` | `Length` or null |  | Height of the roof's top surface at the eaves above the storey's floor; default: resting on the tallest wall of the storey. |
 | `build_up` | `Id` or null |  | Build-up; default: the pitched-roof or flat-roof default. |
+| `holes` | array of `Polygon2` |  | Openings through the roof (light wells, skylights, chimneys, a courtyard), each a polygon inside the roof outline that does not overlap the others (none by default). |
 | `kind` | `RoofKind` |  | Shape (default hip). Default: `"hip"`. |
 | `overhang` | `Length` |  | Overhang beyond the outer wall faces (default 0.50 m; 0 for none). Default: `0.5`. |
 | `parapet` | `Parapet` or null |  | Parapet of a flat roof (none by default). |
@@ -960,7 +961,7 @@ Example:
 | `RailingInfill` | Infill of a railing. One of `"bars"`, `"glass"`, `"solid"`. |
 | `ReferenceLine` | Where a wall's reference line sits relative to its thickness. One of `"left"`, `"centre"`, `"right"`. |
 | `Rgba` | An RGBA colour, 8 bits per channel. Fields: `a` (integer), `b` (integer), `g` (integer), `r` (integer). |
-| `Roof` | A roof over an outline (eaves line, including the overhang). Fields: `base` (`Length`), `outline` (`Polygon2`), `shape` (`RoofShape`), `structure` (`Structure`). |
+| `Roof` | A roof over an outline (eaves line, including the overhang). Fields: `base` (`Length`), `holes` (array of `Polygon2`), `outline` (`Polygon2`), `shape` (`RoofShape`), `structure` (`Structure`). |
 | `RoofKind` | Shape of a roof made by `roof.from_walls`. One of `"hip"`, `"gable"`, `"mono"`, `"flat"`. |
 | `RoofShape` | Geometry rule of a roof. Variants (`type`): `flat`, `pitched`. |
 | `ScheduleKind` | Which schedule a schedule view shows. One of `"doors"`, `"windows"`, `"spaces"`, `"walls"`, `"slabs"`, `"materials"`, `"objects"`. |

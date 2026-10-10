@@ -659,6 +659,7 @@ impl Builder {
             build_up: None,
             base: None,
             parapet: None,
+            holes: Vec::new(),
             tag: String::new(),
         })?;
 

@@ -429,6 +429,11 @@ pub enum RoofShape {
 pub struct Roof {
     /// Plan outline at the eaves.
     pub outline: Polygon2,
+    /// Openings through the roof in plan (light wells, skylights, chimneys, a courtyard): each a polygon inside the
+    /// outline, not overlapping the others. They are cut vertically through the roof planes, which keep the slope
+    /// they have over the outline.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub holes: Vec<Polygon2>,
     /// Height of the roof's top surface at the eaves line, relative to the storey's floor elevation.
     pub base: Length,
     /// Material or build-up (layers top to bottom); thickness is measured perpendicular to the roof plane.
@@ -850,6 +855,7 @@ impl ElementKind {
             ElementKind::Roof(r) => {
                 let mut r = r.clone();
                 r.outline = Polygon2::new(r.outline.vertices.iter().map(|&q| p(q)).collect());
+                r.holes = r.holes.iter().map(|h| h.transformed(t)).collect();
                 if mirror {
                     // Reverse the ring and keep each slope attached to the same physical edge.
                     r.outline.vertices.reverse();
@@ -1091,6 +1097,7 @@ mod tests {
     fn roof_mirror_keeps_slopes_on_their_edges() {
         let roof = Roof {
             outline: Polygon2::from_m(&[(0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (0.0, 2.0)]),
+            holes: vec![Polygon2::from_m(&[(1.0, 0.5), (2.0, 0.5), (2.0, 1.0), (1.0, 1.0)])],
             base: Length::m(3.0),
             structure: Structure::Basic { material: Id(1), thickness: Length::cm(20.0) },
             // Only the south edge (0,0)→(4,0) slopes.
@@ -1104,5 +1111,17 @@ mod tests {
         let e = r.outline.edge(i).unwrap();
         let tol = Tolerance::default();
         assert!(tol.equal_m(e.start.y.as_m(), 2.0) && tol.equal_m(e.end.y.as_m(), 2.0));
+        // Holes are mirrored with the outline: (1..2, 0.5..1) becomes (1..2, 1..1.5).
+        let b = r.holes[0].bbox().unwrap();
+        assert!(tol.equal_m(b.min.y.as_m(), 1.0) && tol.equal_m(b.max.y.as_m(), 1.5));
+    }
+
+    #[test]
+    fn roofs_without_holes_read_and_write_without_the_key() {
+        let json = r#"{"outline": [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0]], "base": 3.0,
+            "structure": {"type": "basic", "material": 1, "thickness": 0.2}, "shape": {"type": "flat"}}"#;
+        let r: Roof = serde_json::from_str(json).unwrap();
+        assert!(r.holes.is_empty());
+        assert!(serde_json::to_value(&r).unwrap().get("holes").is_none());
     }
 }

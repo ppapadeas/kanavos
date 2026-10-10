@@ -255,6 +255,32 @@ fn outline_vertices_drag_and_edge_midpoints_insert() {
 }
 
 #[test]
+fn roof_hole_vertices_have_handles_too() {
+    let mut h = Harness::new(ToolId::Select);
+    let r = h.add(ElementKind::Roof(kanavos_model::Roof {
+        outline: kanavos_geom::Polygon2::from_m(&[(0.0, 0.0), (8.0, 0.0), (8.0, 6.0), (0.0, 6.0)]),
+        holes: vec![kanavos_geom::Polygon2::from_m(&[(2.0, 2.0), (3.0, 2.0), (3.0, 3.0), (2.0, 3.0)])],
+        base: Length::m(3.0),
+        structure: kanavos_model::Structure::Layered { build_up: h.doc.defaults().pitched_roof.unwrap() },
+        shape: kanavos_model::RoofShape::Pitched { slopes: vec![Some(kanavos_geom::Angle::deg(30.0)); 4] },
+    }));
+    h.selection = [r].into_iter().collect();
+    let out = h.move_to(6.0, 4.0);
+    assert_eq!(out.handles.iter().filter(|x| x.role == HandleRole::Vertex).count(), 8);
+    assert_eq!(out.handles.iter().filter(|x| x.role == HandleRole::InsertVertex).count(), 8);
+    // Drag a hole corner, then insert a vertex in a hole edge: the outline's slopes stay one per edge.
+    h.drag((3.0, 3.0), (3.5, 3.5), NONE);
+    h.drag((2.5, 2.0), (2.5, 1.5), NONE);
+    let ElementKind::Roof(roof) = &h.doc.element(r).unwrap().kind else { unreachable!() };
+    assert_eq!(roof.outline.len(), 4);
+    assert_eq!(roof.holes[0].len(), 5);
+    assert!(roof.holes[0].vertices.iter().any(|v| close(*v, p(3.5, 3.5))));
+    assert!(roof.holes[0].vertices.iter().any(|v| close(*v, p(2.5, 1.5))));
+    let kanavos_model::RoofShape::Pitched { slopes } = &roof.shape else { unreachable!() };
+    assert_eq!(slopes.len(), 4);
+}
+
+#[test]
 fn objects_are_picked_inside_their_symbol() {
     let mut h = Harness::new(ToolId::Select);
     let obj = kanavos_model::Object {

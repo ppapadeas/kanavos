@@ -498,6 +498,9 @@ pub fn roofs(ui: &mut Ui, doc: &Document, items: Vec<(Id, Roof)>, locale: Locale
                 |r| r.structure.clone(),
                 |r, s| r.structure = s,
             );
+            // Holes are edited with their corner handles in the plan; the count is shown here.
+            let holes = f.shared(|r| r.holes.len()).map(|n| n.to_string());
+            f.read(ui, &tr(locale, "ui.insp.holes"), &holes.unwrap_or_else(|| widgets::MIXED.into()));
             match f.shared(roof_type) {
                 Some(RoofType::Flat) => {
                     let parapet = |r: &Roof| match r.shape {

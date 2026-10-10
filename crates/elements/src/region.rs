@@ -2,8 +2,8 @@
 //! strips, with a fast exact path for convex pieces (straight walls) and Boolean operations otherwise (arcs).
 
 use kanavos_geom::{
-    Bbox2, HalfPlane, Point2, Polygon2, PolygonWithHoles, clip_by_half_plane, clip_convex, difference,
-    intersection,
+    Bbox2, HalfPlane, Point2, Polygon2, PolygonWithHoles, Vec2, clip_by_half_plane, clip_convex, difference,
+    intersection, split_by_half_plane,
 };
 
 /// Pieces smaller than this (m²) are dropped: a 0.1 mm sliver along a 10 cm edge.
@@ -146,6 +146,44 @@ pub(crate) fn apply_cut(region: Region, cut: &CutShape) -> Region {
     }
 }
 
+/// Splits polygons with holes into simple polygons covering the same area, for builders that need simple pieces
+/// (column solids, height clipping).
+///
+/// A polygon with a hole is cut in two by the vertical line through the middle of its first hole's bounding box;
+/// the line crosses that hole, so neither half keeps it as a hole. The halves are split again until no holes are
+/// left. The cuts run on the Boolean grid, so the two sides of a cut share their edge exactly. Pieces below
+/// [`SLIVER`] are dropped. If a cut fails, the polygon's outer ring is kept (its holes are lost) rather than
+/// failing the whole element.
+pub(crate) fn simple_pieces(polys: &[PolygonWithHoles]) -> Vec<Polygon2> {
+    let mut out = Vec::with_capacity(polys.len());
+    let mut todo: Vec<PolygonWithHoles> = polys.to_vec();
+    // Each cut removes at least one hole, so this bounds the work even for unexpected input.
+    let mut budget = 4 * polys.iter().map(|p| p.holes.len() + 1).sum::<usize>() + 16;
+    while let Some(p) = todo.pop() {
+        let cut = p.holes.first().and_then(Polygon2::bbox).and_then(|b| {
+            let x = (b.min.x.as_m() + b.max.x.as_m()) / 2.0;
+            HalfPlane::new(Point2::new(x, 0.0), Vec2::X)
+        });
+        match cut {
+            Some(hp) if budget > 0 => {
+                budget -= 1;
+                match split_by_half_plane(std::slice::from_ref(&p), &hp) {
+                    Ok((left, right)) => {
+                        todo.extend(left.into_iter().chain(right).filter(|q| q.area().as_m2() > SLIVER));
+                    }
+                    Err(_) => out.push(p.outer),
+                }
+            }
+            _ => {
+                if p.outer.area().as_m2() > SLIVER {
+                    out.push(p.outer);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Total area of a region.
 #[cfg(test)]
 pub(crate) fn area(region: &[Polygon2]) -> f64 {
@@ -173,6 +211,24 @@ mod tests {
         let b = HalfPlane::new(Point2::new(15.0, 0.0), -Vec2::X).unwrap();
         let r = apply_cut(vec![strip()], &CutShape::Strip(a, b));
         assert!((area(&r) - 10.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn polygons_with_holes_split_into_simple_pieces() {
+        let outer = Polygon2::from_m(&[(0.0, 0.0), (10.0, 0.0), (10.0, 6.0), (0.0, 6.0)]);
+        let a = Polygon2::from_m(&[(2.0, 2.0), (3.0, 2.0), (3.0, 3.0), (2.0, 3.0)]);
+        let b = Polygon2::from_m(&[(6.0, 1.0), (8.0, 1.0), (8.0, 4.0), (6.0, 4.0)]);
+        let p = PolygonWithHoles { outer, holes: vec![a.to_cw(), b.to_cw()] };
+        let pieces = simple_pieces(std::slice::from_ref(&p));
+        assert!(pieces.len() >= 3);
+        assert!((area(&pieces) - p.area().as_m2()).abs() < 1e-9);
+        // The pieces cover none of the holes.
+        for q in [Point2::new(2.5, 2.5), Point2::new(7.0, 2.0)] {
+            assert!(!pieces.iter().any(|piece| piece.contains(q, &kanavos_geom::Tolerance::default())));
+        }
+        // Simple polygons pass through unchanged.
+        let simple = simple_pieces(&[strip().into()]);
+        assert_eq!(simple, vec![strip()]);
     }
 
     #[test]

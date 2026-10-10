@@ -76,6 +76,7 @@ fn two_storey_house_with_a_gable_roof() {
             outline: Polygon2::from_m(&[(-0.65, -0.65), (10.65, -0.65), (10.65, 7.65), (-0.65, 7.65)]),
             base: Length::m(2.8),
             structure: Structure::Layered { build_up: roof_build_up },
+            holes: Vec::new(),
             shape: RoofShape::Pitched {
                 slopes: vec![Some(Angle::deg(30.0)), None, Some(Angle::deg(30.0)), None],
             },

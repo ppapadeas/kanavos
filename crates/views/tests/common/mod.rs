@@ -471,6 +471,7 @@ pub fn house() -> House {
                     outline: Polygon2::rectangle(Point2::new(-T, -T), Point2::new(12.0 + T, 9.0 + T)),
                     base: Length::m(3.2 + 0.2),
                     structure: Structure::Layered { build_up: flat_roof },
+                    holes: Vec::new(),
                     shape: RoofShape::Flat {
                         parapet: Some(Parapet { height: Length::m(0.8), thickness: Length::m(0.2) }),
                     },

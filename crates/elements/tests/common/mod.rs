@@ -153,6 +153,7 @@ impl Fx {
                 outline: Polygon2::from_m(outline),
                 base: Length::m(base),
                 structure,
+                holes: Vec::new(),
                 shape: RoofShape::Pitched { slopes: slopes.into_iter().map(|s| s.map(Angle::deg)).collect() },
             }),
         )

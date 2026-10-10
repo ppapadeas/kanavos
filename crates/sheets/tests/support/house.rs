@@ -255,6 +255,7 @@ pub fn house() -> Document {
             outline: rect(5.0, 8.0, 17.0, 17.0),
             base: Length::m(3.2),
             structure: Structure::Layered { build_up: roof_bu },
+            holes: Vec::new(),
             shape: RoofShape::Flat {
                 parapet: Some(Parapet { height: Length::m(0.6), thickness: Length::m(0.2) }),
             },

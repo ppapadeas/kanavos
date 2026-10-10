@@ -245,6 +245,7 @@ fn height_is_measured_to_the_structural_top_of_the_roof_slab() {
             outline: Polygon2::from_m(&[(5.0, 6.0), (15.0, 6.0), (15.0, 14.0), (5.0, 14.0)]),
             base: Length::m(3.2),
             structure: Structure::Layered { build_up: bu },
+            holes: Vec::new(),
             shape: RoofShape::Flat { parapet: None },
         }),
     );
@@ -271,6 +272,7 @@ fn pitched_roof_ridge_is_checked_against_the_roof_allowance() {
             base: Length::m(3.0),
             structure: Structure::Basic { material: concrete, thickness: Length::m(0.15) },
             // Slopes on the two 10 m edges, gables on the 8 m edges.
+            holes: Vec::new(),
             shape: RoofShape::Pitched {
                 slopes: vec![Some(Angle::deg(pitch)), None, Some(Angle::deg(pitch)), None],
             },

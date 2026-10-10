@@ -183,6 +183,10 @@ pub struct RoofFromWalls {
     /// Parapet of a flat roof (none by default).
     #[serde(default)]
     pub parapet: Option<Parapet>,
+    /// Openings through the roof (light wells, skylights, chimneys, a courtyard), each a polygon inside the roof
+    /// outline that does not overlap the others (none by default).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub holes: Vec<Polygon2>,
     /// User mark.
     #[serde(default)]
     pub tag: String,
@@ -256,8 +260,11 @@ impl Command for RoofFromWalls {
         } else {
             RoofShape::Flat { parapet: self.parapet }
         };
-        let mut c =
-            CreateElement::on(self.storey, ElementKind::Roof(Roof { outline, base, structure, shape }));
+        let holes = self.holes.clone();
+        let mut c = CreateElement::on(
+            self.storey,
+            ElementKind::Roof(Roof { outline, holes, base, structure, shape }),
+        );
         c.tag = self.tag.clone();
         c.apply(doc)
     }
@@ -619,6 +626,7 @@ mod tests {
                 build_up: None,
                 base: None,
                 parapet: None,
+                holes: Vec::new(),
                 tag: String::new(),
             })
             .unwrap();
@@ -627,6 +635,35 @@ mod tests {
         let RoofShape::Pitched { slopes } = &r.shape else { panic!() };
         assert!(slopes.iter().all(Option::is_some));
         assert!(r.base.as_m() > 3.0 - 0.5 * 0.6 && r.base.as_m() < 3.4);
+    }
+
+    #[test]
+    fn roofs_from_walls_can_have_holes() {
+        let (mut s, st) = house();
+        let skylight = Polygon2::from_m(&[(2.0, 2.0), (3.0, 2.0), (3.0, 3.0), (2.0, 3.0)]);
+        let cmd = RoofFromWalls {
+            storey: st,
+            kind: RoofKind::Hip,
+            pitch: 30.0,
+            overhang: Length::m(0.5),
+            build_up: None,
+            base: None,
+            parapet: None,
+            holes: vec![skylight.clone()],
+            tag: String::new(),
+        };
+        // The JSON form takes the holes as point lists.
+        let json = serde_json::to_value(&cmd).unwrap();
+        assert_eq!(json["holes"][0].as_array().unwrap().len(), 4);
+        let out = s.run(cmd.clone()).unwrap();
+        let ElementKind::Roof(r) = &s.document().element(out.created[0]).unwrap().kind else { panic!() };
+        assert_eq!(r.holes, vec![skylight]);
+        let q = kanavos_elements::quantities(s.document(), out.created[0]).unwrap();
+        assert!((q.gross_area.unwrap().as_m2() - (13.0 * 9.0 - 1.0)).abs() < 1e-6);
+        // A hole outside the roof is refused, naming the field.
+        let outside = Polygon2::from_m(&[(20.0, 2.0), (21.0, 2.0), (21.0, 3.0), (20.0, 3.0)]);
+        let err = s.run(RoofFromWalls { holes: vec![outside], ..cmd }).unwrap_err();
+        assert_eq!(err.field(), Some("holes"), "{err}");
     }
 
     #[test]
@@ -640,6 +677,7 @@ mod tests {
             build_up: None,
             base: None,
             parapet: None,
+            holes: Vec::new(),
             tag: String::new(),
         };
         let out = s.run(cmd.clone()).unwrap();

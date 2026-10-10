@@ -142,6 +142,7 @@ pub fn small_house() -> House {
             outline: Polygon2::from_m(&[(-0.3, -0.3), (10.3, -0.3), (10.3, 8.3), (-0.3, 8.3)]),
             base: Length::ZERO,
             structure: Structure::Layered { build_up: d.defaults().flat_roof.unwrap() },
+            holes: Vec::new(),
             shape: RoofShape::Flat {
                 parapet: Some(Parapet { height: Length::m(0.6), thickness: Length::cm(20.0) }),
             },
@@ -253,6 +254,7 @@ pub fn full_house() -> House {
             outline: Polygon2::from_m(&[(11.5, -1.0), (17.0, -1.0), (17.0, 3.0), (11.5, 3.0)]),
             base: Length::m(3.0),
             structure: Structure::Layered { build_up: d.defaults().pitched_roof.unwrap() },
+            holes: Vec::new(),
             shape: RoofShape::Pitched { slopes: vec![Some(Angle::deg(25.0)); 4] },
         }),
     );

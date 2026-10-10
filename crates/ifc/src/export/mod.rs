@@ -1615,6 +1615,7 @@ impl<'a> Exporter<'a> {
         let style = core.map(StyleKey::Material).unwrap_or(StyleKey::Default);
         let mut flat = matches!(r.shape, RoofShape::Flat { .. });
         let mut projected = r.outline.area().as_m2();
+        // Top area over the whole outline, holes included (they are subtracted for the net area below).
         let mut surface = projected;
         let body = match self.callback_body(e.id, &world) {
             Some(rep) => rep,
@@ -1639,7 +1640,9 @@ impl<'a> Exporter<'a> {
                     Some(rep) => rep,
                     None => {
                         let mut items = Vec::new();
-                        let profile = self.profile(&PolygonWithHoles::from(r.outline.clone()));
+                        // The holes are voids of the slab's profile (and openings voiding the roof, below).
+                        let profile = self
+                            .profile(&PolygonWithHoles { outer: r.outline.clone(), holes: r.holes.clone() });
                         let position = Frame3::translation(Vec3::new(0.0, 0.0, r.base.as_m()));
                         items.push(self.extrusion(profile, &position, Vec3::new(0.0, 0.0, -1.0), thickness));
                         if let RoofShape::Flat { parapet: Some(p) } = &r.shape {
@@ -1682,6 +1685,7 @@ impl<'a> Exporter<'a> {
         };
         let product = self.product("IFCROOF", e, P::Null, placement, Some(shape), vec![P::e(predefined)]);
         self.count("IfcRoof");
+        self.roof_openings(e, r, placement, product, thickness);
         if flat {
             // The roof slab hangs below its top surface at `base`, like a floor slab below its top.
             self.associate_layers(product, &r.structure, "AXIS3", r.base.as_m());
@@ -1696,17 +1700,76 @@ impl<'a> Exporter<'a> {
             "Pset_RoofCommon",
             vec![("IsExternal", Pv::Bool(true)), ("Status", Pv::Enum(status(e.phase)))],
         );
+        // Holes: their plan area, scaled by the roof's mean slope factor for the sloped surface.
+        let holes: f64 = r.holes.iter().map(|h| h.area().as_m2()).sum();
+        let slope_factor = if projected > 1e-12 { surface / projected } else { 1.0 };
         self.qto(
             &key,
             product,
             "Qto_RoofBaseQuantities",
             vec![
                 Q::Area("GrossArea", surface),
-                Q::Area("NetArea", surface),
-                Q::Area("ProjectedArea", projected),
+                Q::Area("NetArea", (surface - holes * slope_factor).max(0.0)),
+                Q::Area("ProjectedArea", (projected - holes).max(0.0)),
             ],
         );
         self.user_properties(e, product);
+    }
+
+    /// One `IfcOpeningElement` voiding the roof per hole: the hole extruded vertically through the whole roof.
+    /// The roof body already has the holes; the openings state them for tools that list or fill openings.
+    fn roof_openings(&mut self, e: &Element, r: &Roof, roof_placement: u64, roof: u64, thickness: f64) {
+        if r.holes.is_empty() {
+            return;
+        }
+        let base = r.base.as_m();
+        let margin = 0.05;
+        // A vertical range that contains the roof over every hole: from below the lowest underside to above the
+        // highest point the steepest plane can reach inside the outline.
+        let steepest = match &r.shape {
+            RoofShape::Flat { .. } => 0.0,
+            RoofShape::Pitched { slopes } => slopes.iter().flatten().map(|a| a.as_rad()).fold(0.0, f64::max),
+        };
+        let reach = r.outline.bbox().map(|b| b.width().as_m().max(b.height().as_m()) / 2.0).unwrap_or(0.0);
+        let z0 = base - thickness / steepest.cos().max(1e-3) - margin;
+        let z1 = base + steepest.tan() * reach + margin;
+        for (i, hole) in r.holes.iter().enumerate() {
+            let n = i + 1;
+            let placement = self.placement(Some(roof_placement), &Frame3::IDENTITY);
+            let profile = self.profile(&PolygonWithHoles::from(hole.clone()));
+            let position = Frame3::translation(Vec3::new(0.0, 0.0, z0));
+            let solid = self.extrusion(profile, &position, Vec3::Z, z1 - z0);
+            let rep = self.shape_rep(self.body_ctx, "Body", "SweptSolid", vec![solid]);
+            let shape = self.product_shape(vec![rep]);
+            let key = format!("roof_opening:{}:{n}", e.id.0);
+            let guid = self.guid(&key);
+            let opening = self.w.add(
+                "IFCOPENINGELEMENT",
+                vec![
+                    P::s(guid),
+                    P::Null,
+                    P::s(format!("{} opening {n}", Self::name_of(e))),
+                    P::Null,
+                    P::Null,
+                    P::Ref(placement),
+                    P::Ref(shape),
+                    P::Null,
+                    P::e("OPENING"),
+                ],
+            );
+            self.count("IfcOpeningElement");
+            let g = self.guid(&format!("rel:voids:roof:{}:{n}", e.id.0));
+            self.w.add(
+                "IFCRELVOIDSELEMENT",
+                vec![P::s(g), P::Null, P::Null, P::Null, P::Ref(roof), P::Ref(opening)],
+            );
+            self.qto(
+                &key,
+                opening,
+                "Qto_OpeningElementBaseQuantities",
+                vec![Q::Area("Area", hole.area().as_m2()), Q::Length("Depth", z1 - z0)],
+            );
+        }
     }
 
     fn railing(&mut self, e: &Element, r: &Railing) {
