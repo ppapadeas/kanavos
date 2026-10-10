@@ -182,8 +182,17 @@ pub fn validate(doc: &Document, e: &Element) -> Result<(), GeometryError> {
         }
         ElementKind::Railing(r) => {
             material(r.material)?;
+            if let Some(m) = r.infill_material {
+                material(m)?;
+            }
             if r.path.len() < 2 {
                 return Err(invalid(id, "path", "needs at least two points"));
+            }
+            if !r.elevations.is_empty() && r.elevations.len() != r.path.len() {
+                return Err(invalid(id, "elevations", "needs one value per path point, or none"));
+            }
+            if r.elevations.iter().any(|z| !z.is_finite()) {
+                return Err(invalid(id, "elevations", "must be finite"));
             }
             positive(r.height, "height")?;
             positive(r.post_spacing, "post_spacing")?;

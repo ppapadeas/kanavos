@@ -1774,11 +1774,13 @@ impl<'a> Exporter<'a> {
 
     fn railing(&mut self, e: &Element, r: &Railing) {
         let height = r.height.as_m();
-        let segments: Vec<(Point2, Point2)> = r
-            .path
+        // Segments with their base relative to the railing's placement (at `base_offset`) at both ends.
+        let based: Vec<(Point2, f64)> =
+            r.path.iter().enumerate().map(|(i, p)| (*p, (r.base_at(i) - r.base_offset).as_m())).collect();
+        let segments: Vec<(Point2, f64, Point2, f64)> = based
             .windows(2)
             .filter_map(|w| match w {
-                [a, b] if a.distance(*b).as_m() > 1e-6 => Some((*a, *b)),
+                [(a, za), (b, zb)] if a.distance(*b).as_m() > 1e-6 => Some((*a, *za, *b, *zb)),
                 _ => None,
             })
             .collect();
@@ -1794,31 +1796,51 @@ impl<'a> Exporter<'a> {
         let body = match self.callback_body(e.id, &world) {
             Some(rep) => rep,
             None => {
-                // Each segment: a 60 × 40 mm top rail and a 20 mm infill panel below it.
-                let mut items = Vec::new();
-                for (a, b) in &segments {
-                    if let Some(rail) = shapes::band(*a, *b, 0.06) {
-                        let profile = self.profile(&PolygonWithHoles::from(rail));
-                        let position = Frame3::translation(Vec3::new(0.0, 0.0, height - 0.04));
-                        items.push(self.extrusion(profile, &position, Vec3::Z, 0.04));
-                    }
-                    if let Some(panel) = shapes::band(*a, *b, 0.02) {
-                        let profile = self.profile(&PolygonWithHoles::from(panel));
-                        let position = Frame3::translation(Vec3::new(0.0, 0.0, 0.05));
-                        items.push(self.extrusion(profile, &position, Vec3::Z, (height - 0.09).max(0.01)));
+                // Each segment: a 60 × 40 mm top rail and a 20 mm infill panel below it; on a sloped segment
+                // both follow the slope (profiles in the segment's vertical plane, extruded across it).
+                let mut rails = Vec::new();
+                let mut panels = Vec::new();
+                for &(a, za, b, zb) in &segments {
+                    if (zb - za).abs() <= 1e-6 {
+                        if let Some(rail) = shapes::band(a, b, 0.06) {
+                            let profile = self.profile(&PolygonWithHoles::from(rail));
+                            let position = Frame3::translation(Vec3::new(0.0, 0.0, za + height - 0.04));
+                            rails.push(self.extrusion(profile, &position, Vec3::Z, 0.04));
+                        }
+                        if let Some(panel) = shapes::band(a, b, 0.02) {
+                            let profile = self.profile(&PolygonWithHoles::from(panel));
+                            let position = Frame3::translation(Vec3::new(0.0, 0.0, za + 0.05));
+                            let depth = (height - 0.09).max(0.01);
+                            panels.push(self.extrusion(profile, &position, Vec3::Z, depth));
+                        }
+                    } else {
+                        let rail = (za + height - 0.04, zb + height - 0.04, za + height, zb + height);
+                        rails.extend(self.sloped_band(a, b, 0.06, rail));
+                        let top = (height - 0.04).max(0.06);
+                        let panel = (za + 0.05, zb + 0.05, za + top, zb + top);
+                        panels.extend(self.sloped_band(a, b, 0.02, panel));
                     }
                 }
-                self.styled(&items, StyleKey::Material(r.material));
-                self.shape_rep(self.body_ctx, "Body", "SweptSolid", items)
+                self.styled(&rails, StyleKey::Material(r.material));
+                self.styled(&panels, StyleKey::Material(r.infill_material_or_frame()));
+                rails.extend(panels);
+                self.shape_rep(self.body_ctx, "Body", "SweptSolid", rails)
             }
         };
         let shape = self.product_shape(vec![body]);
         let product = self.product("IFCRAILING", e, P::Null, placement, Some(shape), vec![P::e("GUARDRAIL")]);
         self.count("IfcRailing");
-        self.associate_material(product, r.material);
+        match r.infill_material.filter(|m| *m != r.material) {
+            Some(infill) => self.associate_constituents(product, r.material, infill),
+            None => self.associate_material(product, r.material),
+        }
         self.contain(&host, product);
         let key = format!("element:{}", e.id.0);
-        let length: f64 = segments.iter().map(|(a, b)| a.distance(*b).as_m()).sum();
+        // Along the rail: a sloped segment is longer than its plan.
+        let length: f64 = segments
+            .iter()
+            .map(|(a, za, b, zb)| (a.distance(*b).as_m().powi(2) + (zb - za).powi(2)).sqrt())
+            .sum();
         self.pset(
             &key,
             product,
@@ -1827,6 +1849,53 @@ impl<'a> Exporter<'a> {
         );
         self.qto(&key, product, "Qto_RailingBaseQuantities", vec![Q::Length("Length", length)]);
         self.user_properties(e, product);
+    }
+
+    /// A band `width` wide centred on the plan segment `a → b`, between a bottom line from `z.0` (at `a`) to `z.1`
+    /// (at `b`) and a top line from `z.2` to `z.3`: a profile in the segment's vertical plane extruded across it.
+    fn sloped_band(&mut self, a: Point2, b: Point2, width: f64, z: (f64, f64, f64, f64)) -> Option<u64> {
+        let d = (b - a).normalized()?;
+        let len = a.distance(b).as_m();
+        let left = d.perp();
+        let edge = a + left * (width / 2.0);
+        // Profile x along the segment, y up; extruded to the right of the segment.
+        let position = Frame3::from_axes(
+            Point3::from_plan(edge, 0.0),
+            Some(Vec3::new(-left.x, -left.y, 0.0)),
+            Some(Vec3::new(d.x, d.y, 0.0)),
+        );
+        let (b0, b1, t0, t1) = z;
+        let outline = Polygon2::new(vec![
+            Point2::new(0.0, b0),
+            Point2::new(len, b1),
+            Point2::new(len, t1),
+            Point2::new(0.0, t0),
+        ]);
+        if outline.signed_area() <= 1e-9 {
+            return None;
+        }
+        let profile = self.profile(&PolygonWithHoles::from(outline));
+        Some(self.extrusion(profile, &position, Vec3::Z, width))
+    }
+
+    /// Associates a frame and an infill material with a product as an `IfcMaterialConstituentSet` (constituents
+    /// `Frame` and `Infill`), shared by products with the same pair.
+    fn associate_constituents(&mut self, product: u64, frame: Id, infill: Id) {
+        let key = format!("constituents:{}:{}", frame.0, infill.0);
+        if let Some((_, products)) = self.material_rels.get_mut(&key) {
+            products.push(product);
+            return;
+        }
+        let f = self.material(frame);
+        let i = self.material(infill);
+        let cf = self
+            .w
+            .add("IFCMATERIALCONSTITUENT", vec![P::s("Frame"), P::Null, P::Ref(f), P::Null, P::s("Frame")]);
+        let ci = self
+            .w
+            .add("IFCMATERIALCONSTITUENT", vec![P::s("Infill"), P::Null, P::Ref(i), P::Null, P::s("Infill")]);
+        let set = self.w.add("IFCMATERIALCONSTITUENTSET", vec![P::s("Railing"), P::Null, P::refs([cf, ci])]);
+        self.material_rels.insert(key, (set, vec![product]));
     }
 
     fn object(&mut self, e: &Element, o: &Object) {

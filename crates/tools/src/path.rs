@@ -5,7 +5,9 @@
 use kanavos_engine::commands::{CreateElement, DeleteElements};
 use kanavos_geom::{Arc2, Point2};
 use kanavos_i18n::tf;
-use kanavos_model::{Beam, DraftShape, Drafting, ElementKind, GridLine, Railing};
+use kanavos_model::{
+    Beam, DraftShape, Drafting, ElementKind, GridLine, MaterialCategory, Railing, RailingInfill,
+};
 use kanavos_units::Length;
 
 use crate::common::{
@@ -87,13 +89,21 @@ impl PathTool {
                 if closed && let Some(f) = pts.first() {
                     path.push(*f);
                 }
+                // Glass panels get the document's glass material, so they look like glass in 3D.
+                let glass = (s.infill == RailingInfill::Glass)
+                    .then(|| {
+                        ctx.doc.materials().find(|m| m.category == MaterialCategory::Glass).map(|m| m.id)
+                    })
+                    .flatten();
                 Some(ElementKind::Railing(Railing {
                     path,
                     height: s.height,
                     base_offset: Length::ZERO,
+                    elevations: Vec::new(),
                     post_spacing: s.post_spacing,
                     infill: s.infill,
                     material: railing_material(ctx.doc)?,
+                    infill_material: glass,
                 }))
             }
             _ => Some(ElementKind::Drafting(Drafting {

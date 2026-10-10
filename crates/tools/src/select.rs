@@ -470,6 +470,17 @@ impl SelectTool {
                         let s = slopes.get(index).copied().flatten();
                         slopes.insert((index + 1).min(slopes.len()), s);
                     }
+                    // A railing that follows a slope gets a base at the new point, interpolated along the edge.
+                    if let ElementKind::Railing(rl) = &mut k
+                        && !rl.elevations.is_empty()
+                        && let (Some(a), Some(b)) =
+                            (rl.path.get(index).copied(), rl.path.get(index + 2).copied())
+                        && let (Some(za), Some(zb)) =
+                            (rl.elevations.get(index).copied(), rl.elevations.get(index + 1).copied())
+                    {
+                        let t = kanavos_geom::Segment2::new(a, b).project_param(to).clamp(0.0, 1.0);
+                        rl.elevations.insert(index + 1, za + (zb - za) * t);
+                    }
                     cmds.push(update(element, k));
                 }
             }

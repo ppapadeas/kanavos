@@ -270,6 +270,118 @@ impl Command for RoofFromWalls {
     }
 }
 
+// ----- railing.along_stair ------------------------------------------------------------------------------------
+
+/// A side of a stair, looking up its flights.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StairSide {
+    /// The left side.
+    #[default]
+    Left,
+    /// The right side.
+    Right,
+}
+
+fn guard_height() -> Length {
+    Length::m(1.0)
+}
+
+fn guard_inset() -> Length {
+    Length::cm(5.0)
+}
+
+fn post_spacing() -> Length {
+    Length::m(1.2)
+}
+
+/// `railing.along_stair` — adds a railing along one side of every flight of a stair. Each railing follows the line
+/// of the flight's tread nosings, from the first nosing up to the level of the landing or floor the flight
+/// arrives at, so its height is measured from the nosings. Landings are not railed; draw them with the railing
+/// tool.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RailingAlongStair {
+    /// The stair.
+    pub stair: Id,
+    /// Which side, looking up the flights (default left).
+    #[serde(default)]
+    pub side: StairSide,
+    /// Height of the top rail above the nosing line (default 1.00 m).
+    #[serde(default = "guard_height")]
+    pub height: Length,
+    /// Distance of the railing's line from the flight's edge, inwards (default 5 cm).
+    #[serde(default = "guard_inset")]
+    pub inset: Length,
+    /// Infill (default bars).
+    #[serde(default)]
+    pub infill: kanavos_model::RailingInfill,
+    /// Material of posts and rails; default: the railing default, else the stair's material.
+    #[serde(default)]
+    pub material: Option<Id>,
+    /// Material of the infill; default: the frame's.
+    #[serde(default)]
+    pub infill_material: Option<Id>,
+    /// Largest distance between posts (default 1.20 m).
+    #[serde(default = "post_spacing")]
+    pub post_spacing: Length,
+    /// User mark.
+    #[serde(default)]
+    pub tag: String,
+}
+
+impl Command for RailingAlongStair {
+    fn name(&self) -> &'static str {
+        "railing.along_stair"
+    }
+    fn apply(&self, doc: &Document) -> Result<(Document, Outcome), CommandError> {
+        let e = doc.element(self.stair).ok_or(CommandError::NotFound(self.stair))?;
+        let ElementKind::Stair(st) = &e.kind else { return Err(invalid("stair", "is not a stair")) };
+        let storey = e.storey.ok_or_else(|| invalid("stair", "is not on a storey"))?;
+        let floor = doc.storey(storey).map(|s| s.elevation.as_m()).unwrap_or(0.0);
+        let half = st.width.as_m() / 2.0;
+        if !(self.inset.as_m() >= 0.0 && self.inset.as_m() < half) {
+            return Err(invalid("inset", "must be at least zero and less than half the stair's width"));
+        }
+        let layout = kanavos_elements::stair_layout(doc, self.stair).map_err(super::geometry)?;
+        let (r, g) = (layout.riser_height.as_m(), st.going.as_m());
+        let material = self.material.or(doc.defaults().railing_material).unwrap_or(st.material);
+        let mut next = doc.clone();
+        let mut out = Outcome::default();
+        for f in layout.flights.iter().filter(|f| !f.treads.is_empty()) {
+            let n = f.treads.len() as f64;
+            let left = f.direction.perp();
+            let across = match self.side {
+                StairSide::Left => left,
+                StairSide::Right => -left,
+            } * (half - self.inset.as_m());
+            let start = f.start + across;
+            let end = f.start + f.direction * (g * n) + across;
+            // The nosing line: from the first nosing (one riser up) to the level the flight arrives at.
+            let z0 = f.start_elevation - floor + r;
+            let z1 = z0 + n * r;
+            let railing = kanavos_model::Railing {
+                path: vec![start, end],
+                height: self.height,
+                base_offset: Length::m(z0),
+                elevations: vec![Length::m(z0), Length::m(z1)],
+                post_spacing: self.post_spacing,
+                infill: self.infill,
+                material,
+                infill_material: self.infill_material,
+            };
+            let mut c = CreateElement::on(storey, ElementKind::Railing(railing));
+            c.tag = self.tag.clone();
+            let (d, o) = c.apply(&next)?;
+            next = d;
+            out.created.extend(o.created);
+        }
+        if out.created.is_empty() {
+            return Err(invalid("stair", "has no flight with treads to follow"));
+        }
+        Ok((next, out))
+    }
+}
+
 // ----- space.detect_all ----------------------------------------------------------------------------------------
 
 /// `space.detect_all` — creates a space in every room closed by walls on a storey.
@@ -665,6 +777,76 @@ mod tests {
         let outside = Polygon2::from_m(&[(20.0, 2.0), (21.0, 2.0), (21.0, 3.0), (20.0, 3.0)]);
         let err = s.run(RoofFromWalls { holes: vec![outside], ..cmd }).unwrap_err();
         assert_eq!(err.field(), Some("holes"), "{err}");
+    }
+
+    #[test]
+    fn railings_follow_the_flights_of_a_stair() {
+        let (mut s, st) = house();
+        let concrete = s.document().defaults().structural_material.unwrap();
+        let stair = |shape| {
+            ElementKind::Stair(kanavos_model::Stair {
+                origin: Point2::new(2.0, 1.0),
+                direction: Angle::deg(90.0),
+                shape,
+                width: Length::m(1.0),
+                rise: Length::m(3.0),
+                risers: 18,
+                going: Length::m(0.28),
+                first_flight_risers: None,
+                gap: Length::m(0.1),
+                thickness: Length::m(0.15),
+                material: concrete,
+                usage: Default::default(),
+                base_offset: Length::ZERO,
+            })
+        };
+        let straight =
+            s.run(CreateElement::on(st, stair(kanavos_model::StairShape::Straight))).unwrap().created[0];
+        let cmd = RailingAlongStair {
+            stair: straight,
+            side: StairSide::Right,
+            height: Length::m(1.0),
+            inset: Length::cm(5.0),
+            infill: kanavos_model::RailingInfill::Bars,
+            material: None,
+            infill_material: None,
+            post_spacing: Length::m(1.2),
+            tag: "Κ1".into(),
+        };
+        let out = s.run(cmd.clone()).unwrap();
+        assert_eq!(out.created.len(), 1);
+        let doc = s.document();
+        let e = doc.element(out.created[0]).unwrap();
+        assert_eq!(e.tag, "Κ1");
+        let ElementKind::Railing(r) = &e.kind else { panic!() };
+        // Walking north (+Y), the right side is east: x = 2.0 + 0.45.
+        let tol = doc.tolerance();
+        assert!(r.path[0].coincides(Point2::new(2.45, 1.0), &tol), "{:?}", r.path);
+        assert!(r.path[1].coincides(Point2::new(2.45, 1.0 + 17.0 * 0.28), &tol));
+        // From the first nosing (one riser up) to the upper floor.
+        assert!(tol.equal(r.elevations[0], Length::m(3.0 / 18.0)));
+        assert!(tol.equal(r.elevations[1], Length::m(3.0)));
+        assert_eq!(r.material, doc.defaults().railing_material.unwrap());
+        assert!(kanavos_elements::railing_checks(doc, out.created[0]).unwrap().is_empty());
+        // A half-turn stair gets one railing per flight.
+        let half =
+            s.run(CreateElement::on(st, stair(kanavos_model::StairShape::HalfTurnLeft))).unwrap().created[0];
+        let out = s.run(RailingAlongStair { stair: half, ..cmd.clone() }).unwrap();
+        assert_eq!(out.created.len(), 2);
+        let ElementKind::Railing(second) = &s.document().element(out.created[1]).unwrap().kind else {
+            panic!()
+        };
+        // The second flight starts at the landing (riser 9 of 18) and ends at the floor above.
+        assert!(tol.equal(second.elevations[0], Length::m(10.0 * 3.0 / 18.0)));
+        assert!(tol.equal(second.elevations[1], Length::m(3.0)));
+        // Errors name their argument.
+        let wall = s.document().walls_on(st).next().unwrap().0;
+        assert_eq!(
+            s.run(RailingAlongStair { stair: wall, ..cmd.clone() }).unwrap_err().field(),
+            Some("stair")
+        );
+        let too_far = RailingAlongStair { inset: Length::m(0.6), ..cmd };
+        assert_eq!(s.run(too_far).unwrap_err().field(), Some("inset"));
     }
 
     #[test]

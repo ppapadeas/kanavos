@@ -7,7 +7,7 @@ mod common;
 
 use std::collections::{BTreeMap, HashSet};
 
-use kanavos_geom::Point3;
+use kanavos_geom::{Length, Point3};
 use kanavos_ifc::step::{Entity, StepFile, Value, parse};
 use kanavos_ifc::{ExportOptions, GLOBAL_ID_PROPERTY, Guid, export};
 use kanavos_model::{Document, Id};
@@ -585,4 +585,58 @@ fn pitched_roofs_with_holes_get_openings_and_net_areas() {
         .unwrap();
     let depth = quantities(&f, opening)["Depth"];
     assert!(depth > 0.5, "{depth}");
+}
+
+#[test]
+fn sloped_railings_follow_their_bases_and_name_their_infill() {
+    let h = common::full_house();
+    let id = h.doc.elements().find(|e| matches!(e.kind, kanavos_model::ElementKind::Railing(_))).unwrap().id;
+    let glass = h.doc.materials().find(|m| m.category == kanavos_model::MaterialCategory::Glass).unwrap().id;
+    let mut e = h.doc.element(id).unwrap().clone();
+    let kanavos_model::ElementKind::Railing(r) = &mut e.kind else { panic!() };
+    // Rising 1.5 m along the first 5 m segment, then flat.
+    r.elevations = vec![Length::ZERO, Length::m(1.5), Length::m(1.5)];
+    r.infill = kanavos_model::RailingInfill::Glass;
+    r.infill_material = Some(glass);
+    let doc = h.doc.with_element(e);
+    let out = export(&doc, &options());
+    assert!(out.report.warnings.is_empty(), "{:?}", out.report.warnings);
+    let f = parse(out.text.as_bytes()).unwrap();
+    assert!(f.dangling_references().is_empty());
+    let railing = f.of_type("IFCRAILING")[0];
+    // Length along the rail: the sloped 5 m segment is 5.22 m long.
+    let q = quantities(&f, railing);
+    assert!(close(q["Length"], (25.0f64 + 2.25).sqrt() + 3.0), "{q:?}");
+    // Frame and infill materials as a constituent set.
+    let set = f.get(f.of_type("IFCMATERIALCONSTITUENTSET")[0]).unwrap();
+    let names: Vec<&str> = set.refs_at(2).iter().map(|c| f.get(*c).unwrap().str_at(0).unwrap()).collect();
+    assert_eq!(names, ["Frame", "Infill"]);
+    let infill = f.get(set.refs_at(2)[1]).unwrap();
+    let mat = f.get(infill.ref_at(2).unwrap()).unwrap();
+    assert_eq!(mat.str_at(0), Some(h.doc.material(glass).unwrap().name.as_str()));
+    let rel = f
+        .of_type("IFCRELASSOCIATESMATERIAL")
+        .iter()
+        .map(|&r| f.get(r).unwrap())
+        .find(|r| r.refs_at(4).contains(&railing))
+        .unwrap();
+    assert_eq!(f.type_of(rel.ref_at(5).unwrap()), Some("IFCMATERIALCONSTITUENTSET"));
+    // The sloped segment's rail and panel are profiles in its vertical plane: their extrusion positions have a
+    // horizontal Z axis. The flat segment keeps vertical extrusions.
+    let shape = f.get(f.get(railing).unwrap().ref_at(6).unwrap()).unwrap();
+    let rep = f.get(shape.refs_at(2)[0]).unwrap();
+    let mut horizontal = 0;
+    for item in rep.refs_at(3) {
+        let solid = f.get(item).unwrap();
+        let pos = f.get(solid.ref_at(1).unwrap()).unwrap();
+        if let Some(z) = pos.ref_at(1) {
+            let dir = f.get(z).unwrap();
+            let c = dir.attr(0).unwrap().as_list().unwrap();
+            if c.get(2).and_then(Value::as_f64).is_some_and(|z| z.abs() < 1e-9) {
+                horizontal += 1;
+            }
+        }
+    }
+    assert_eq!(horizontal, 2, "rail and panel of the sloped segment");
+    assert_eq!(rep.refs_at(3).len(), 4);
 }

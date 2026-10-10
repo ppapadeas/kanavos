@@ -11,7 +11,10 @@ pub mod examples;
 mod sheet;
 mod site;
 
-pub use build::{AutoDimensions, DetectAllSpaces, PlaceOpening, RoofFromWalls, RoofKind, SlabFromWalls};
+pub use build::{
+    AutoDimensions, DetectAllSpaces, PlaceOpening, RailingAlongStair, RoofFromWalls, RoofKind, SlabFromWalls,
+    StairSide,
+};
 pub use dup::{DuplicateBuildUp, DuplicateMaterial, DuplicateStorey, DuplicateView};
 pub use edit::{AlignEdge, AlignElements, JoinWalls};
 pub use sheet::{MoveViewport, PlaceView, RemoveViewport};
@@ -1427,6 +1430,7 @@ any_command! {
     "opening.place" => PlaceOpening,
     "slab.from_walls" => SlabFromWalls,
     "roof.from_walls" => RoofFromWalls,
+    "railing.along_stair" => RailingAlongStair,
     "space.detect" => DetectSpace,
     "space.detect_all" => DetectAllSpaces,
     "dimension.auto" => AutoDimensions,

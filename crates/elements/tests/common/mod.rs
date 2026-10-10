@@ -206,7 +206,9 @@ impl Fx {
                 base_offset: Length::ZERO,
                 post_spacing: Length::m(1.2),
                 infill,
+                elevations: Vec::new(),
                 material,
+                infill_material: None,
             }),
         )
     }

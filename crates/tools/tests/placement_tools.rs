@@ -126,6 +126,20 @@ fn railing_along_a_path() {
     let ElementKind::Railing(r) = &h.of("railing")[0].kind else { unreachable!() };
     assert_eq!(r.path.len(), 3);
     assert!(near_m(r.height.as_m(), 1.0));
+    assert!(r.elevations.is_empty(), "a drawn railing is flat");
+    assert_eq!(r.infill_material, None, "bars use the frame's material");
+}
+
+#[test]
+fn glass_railings_get_the_glass_material() {
+    let mut h = Harness::new(ToolId::Railing);
+    h.settings.railing.infill = kanavos_model::RailingInfill::Glass;
+    h.click(0.0, 0.0);
+    h.click(3.0, 0.0);
+    h.key(Key::Enter);
+    let ElementKind::Railing(r) = &h.of("railing")[0].kind else { unreachable!() };
+    let glass = h.doc.materials().find(|m| m.category == kanavos_model::MaterialCategory::Glass).unwrap();
+    assert_eq!(r.infill_material, Some(glass.id));
 }
 
 fn opening(h: &Harness, i: usize) -> kanavos_model::Opening {

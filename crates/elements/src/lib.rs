@@ -45,6 +45,10 @@ pub use checks::{
 };
 pub use junction::{JUNCTION_TOLERANCE, Junction, JunctionKind, WallJoin};
 pub use quantities::{DetailedQuantities, LayerVolume, PlaneArea, detailed_quantities, quantities};
+pub use railing::{
+    BAR_GAP, BAR_SIZE, BOTTOM_RAIL, GLASS_THICKNESS, PANEL_THICKNESS, POST_SIZE, RAIL_HEIGHT, RAIL_WIDTH,
+    railing_length,
+};
 pub use roof::{RoofLine, RoofLineKind, RoofPlane, roof_lines, roof_planes};
 pub use space::{
     OutlineFace, detect_all_spaces, detect_space, outline_from_walls, outline_with_overhang, storey_footprint,

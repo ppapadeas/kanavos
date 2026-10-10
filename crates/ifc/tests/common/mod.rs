@@ -200,7 +200,9 @@ pub fn full_house() -> House {
             base_offset: Length::ZERO,
             post_spacing: Length::m(1.2),
             infill: RailingInfill::Bars,
+            elevations: Vec::new(),
             material: steel,
+            infill_material: None,
         }),
     );
     let (d, curved) = add(

@@ -524,13 +524,47 @@ pub struct Railing {
     /// Base relative to the storey's floor elevation.
     #[serde(default)]
     pub base_offset: Length,
+    /// Base relative to the storey's floor at each path point, one value per point, for a railing that follows a
+    /// slope (a stair flight, a ramp); the base runs straight between points. Empty: the whole railing stands at
+    /// `base_offset`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub elevations: Vec<Length>,
     /// Maximum distance between posts.
     pub post_spacing: Length,
     /// Infill.
     #[serde(default)]
     pub infill: RailingInfill,
-    /// Material.
+    /// Material of the posts and rails.
     pub material: Id,
+    /// Material of the infill (bars, glass or panels); `None` uses `material`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infill_material: Option<Id>,
+}
+
+impl Railing {
+    /// Base relative to the storey's floor at path point `i`: its elevation when the railing follows a slope,
+    /// else `base_offset`.
+    pub fn base_at(&self, i: usize) -> Length {
+        if self.elevations.is_empty() {
+            self.base_offset
+        } else {
+            self.elevations.get(i).copied().unwrap_or(self.base_offset)
+        }
+    }
+
+    /// Whether the base changes along the path (by more than 0.1 mm).
+    pub fn is_sloped(&self) -> bool {
+        let mut it = self.elevations.iter();
+        match it.next() {
+            Some(first) => it.any(|e| (e.as_m() - first.as_m()).abs() > 1e-4),
+            None => false,
+        }
+    }
+
+    /// The material of the infill: its own, or the frame's.
+    pub fn infill_material_or_frame(&self) -> Id {
+        self.infill_material.unwrap_or(self.material)
+    }
 }
 
 /// Use category of a space, as needed for the Greek building code (ΝΟΚ, ν. 4067/2012) area calculations.

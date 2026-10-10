@@ -94,6 +94,23 @@ checks of a selected stair or railing; the use is chosen in the inspector and in
   above; a solid panel crossed by the cut plane is a cut band instead.
 - Checks (article 13): height ≥ 1.00 m; a solid guard ≤ 1.20 m high. Bar gaps are generated at 0.10 m, below the
   0.15 m limit of §3.
+- Infill material: the infill (bars, glass, panels) may have its own material, for its colour in 3D, its hatch
+  where a solid panel is cut in plan, and its material in exports; without one it uses the railing's material.
+  The railing tool gives glass infill the document's first glass material.
+- Following a slope: a railing may have one base height per path point; the base then runs straight between
+  points (a stair flight, a ramp), and the railing's height is measured from it. Without them the whole railing
+  stands at its base offset. Equal bases are a flat railing.
+  - Posts and bars stay vertical, from the base under them; the rails follow the slope with their section square
+    to the rail; glass and solid panels are cut parallel to the slope at top and bottom (parallelograms in the
+    segment's vertical plane).
+  - Length (quantities, IFC) is measured along the rail: each segment's plan length combined with its rise.
+  - Plan drawing is unchanged, judged by the lowest base (seen below the cut) and the highest top.
+  - The number of bases must equal the number of path points. Inserting a path point with the selection tool
+    gives it a base interpolated along the edge.
+- Railing along a stair (command `railing.along_stair`): one railing per flight, on the chosen side looking up the
+  stair, set in from the flight's edge (default 5 cm), following the line of the tread nosings from the first
+  nosing (one riser up) to the level of the landing or floor the flight arrives at, so its height (default
+  1.00 m) is measured from the nosings. Landings are not railed by the command.
 
 ## Edge cases
 
@@ -121,6 +138,15 @@ checks of a selected stair or railing; the use is chosen in the inspector and in
 9. A straight 18-riser stair under a 27.5 cm floor slab at +3.20: a stairwell over the whole flight gives no
    remark; one starting 2.0 m from the first riser gives a headroom warning of 2.925 − 8 × 3.2 / 18 m, limit
    2.20 m; a stair for auxiliary rooms is not checked for headroom.
+10. A railing beside a straight 18-riser flight rising 3.20 m, from 0.178 m to 3.20 m over 4.76 m, with bars, glass
+    and solid infill and a glass infill material: closed solids of positive volume, the infill in the glass
+    material and the rest in the frame's; the rail tops out at 4.20 m; the posts start at 0.178 m; a solid panel's
+    volume is 4.76 × (1.00 − 0.04) × 0.05 m³; the length is √(4.76² + 3.02²) m; cut at 1.10 m it gives its edge
+    lines (a solid panel a cut band in the glass material). Two bases for three points are refused; equal bases
+    give the same solids as none.
+11. `railing.along_stair` on the right of a straight stair rising 3.00 m with 18 risers walking north from
+    (2.0, 1.0): one railing from (2.45, 1.0) to (2.45, 5.76) with bases 3.0 / 18 and 3.0 m and no remarks; on a
+    half-turn stair, two railings, the second from the landing (10 risers up) to 3.0 m.
 
 ## Open questions
 

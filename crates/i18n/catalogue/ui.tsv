@@ -139,6 +139,8 @@ ui.insp.area	Εμβαδόν	Area
 ui.insp.area_total	Συνολικό εμβαδόν	Total area
 ui.insp.base	Στάθμη βάσης	Base level
 ui.insp.base_offset	Μετατόπιση βάσης	Base offset
+ui.insp.base_range	Βάση (κλίση)	Base (sloped)
+ui.insp.base_range_hint	Η βάση του κιγκλιδώματος ακολουθεί κλίση, π.χ. σκέλος κλίμακας· ορίζεται με την εντολή «Κιγκλίδωμα κατά μήκος κλίμακας».	The railing's base follows a slope, e.g. a stair flight; it is set by the command Railing along a stair.
 ui.insp.basic_material	Ένα υλικό με πάχος	Single material
 ui.insp.bold	Έντονα	Bold
 ui.insp.category	Κατηγορία	Category
@@ -184,6 +186,8 @@ ui.insp.height	Ύψος	Height
 ui.insp.holes	Οπές	Holes
 ui.insp.host	Φέρων τοίχος	Host wall
 ui.insp.infill	Πλήρωση	Infill
+ui.insp.infill_material	Υλικό πλήρωσης	Infill material
+ui.insp.infill_same	Όπως ο σκελετός	Same as the frame
 ui.insp.kind	Είδος	Kind
 ui.insp.label	Ετικέτα	Label
 ui.insp.length	Μήκος	Length

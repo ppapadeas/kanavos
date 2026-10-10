@@ -357,7 +357,7 @@ impl Document {
                 ElementKind::Column(c) => c.material == id,
                 ElementKind::Beam(b) => b.material == id,
                 ElementKind::Stair(s) => s.material == id,
-                ElementKind::Railing(r) => r.material == id,
+                ElementKind::Railing(r) => r.material == id || r.infill_material == Some(id),
                 _ => false,
             })
     }

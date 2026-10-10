@@ -482,7 +482,9 @@ pub fn house() -> House {
                     base_offset: Length::ZERO,
                     post_spacing: Length::m(1.2),
                     infill: RailingInfill::Bars,
+                    elevations: Vec::new(),
                     material: steel,
+                    infill_material: None,
                 }),
             );
             // Flat roof with a parapet.

@@ -243,6 +243,84 @@ fn railing_solids_and_checks() {
     assert_eq!(railing_checks(&f.doc, low).unwrap()[0].code, "railing.low");
 }
 
+/// Makes railing `r` follow a slope (one base per path point) with an infill material.
+fn slope(
+    f: &mut common::Fx,
+    r: kanavos_model::Id,
+    bases: &[f64],
+    infill_material: Option<kanavos_model::Id>,
+) {
+    let mut e = f.doc.element(r).unwrap().clone();
+    if let ElementKind::Railing(x) = &mut e.kind {
+        x.elevations = bases.iter().map(|b| Length::m(*b)).collect();
+        x.infill_material = infill_material;
+    }
+    f.doc = f.doc.with_element(e);
+}
+
+#[test]
+fn railings_follow_a_stair_flight() {
+    let mut f = fx();
+    // Beside a straight flight: from the first nosing (0.178 m) to the upper floor (3.20 m) over 4.76 m.
+    let (z0, z1, run) = (3.2 / 18.0, 3.2, 17.0 * 0.28);
+    let glass = f.doc.materials().find(|m| m.category == kanavos_model::MaterialCategory::Glass).unwrap().id;
+    for infill in [RailingInfill::Bars, RailingInfill::Glass, RailingInfill::Solid] {
+        let r = f.railing(&[(0.0, 0.55), (run, 0.55)], 1.0, infill);
+        slope(&mut f, r, &[z0, z1], Some(glass));
+        kanavos_elements::validate(&f.doc, f.doc.element(r).unwrap()).unwrap();
+        let s = solids(&f.doc, r).unwrap();
+        for x in &s {
+            assert!(x.mesh.volume() > 0.0, "{infill:?} {:?}", x.part);
+            assert!(x.mesh.is_closed(1e-6), "{infill:?} {:?}", x.part);
+        }
+        // Posts and rails in the frame's material, the infill in its own.
+        let infill_part = s.iter().find(|x| x.part == kanavos_elements::SolidPart::Infill).unwrap();
+        assert_eq!(infill_part.material, Some(glass));
+        assert!(
+            s.iter()
+                .filter(|x| x.part != kanavos_elements::SolidPart::Infill)
+                .all(|x| x.material == Some(f.brick))
+        );
+        // The rail runs from 1.0 m above the first nosing to 1.0 m above the upper floor.
+        let rail =
+            s.iter().find(|x| x.part == kanavos_elements::SolidPart::Rail).unwrap().mesh.bbox().unwrap();
+        assert!(close(rail.max.z, z1 + 1.0, 0.03), "{}", rail.max.z);
+        let posts =
+            s.iter().find(|x| x.part == kanavos_elements::SolidPart::Post).unwrap().mesh.bbox().unwrap();
+        assert!(close(posts.min.z, z0, 1e-9) && posts.max.z > z1);
+        if infill == RailingInfill::Solid {
+            // A parallelogram panel: plan length × vertical height × thickness.
+            let v = infill_part.mesh.volume();
+            let expected = run * (1.0 - kanavos_elements::RAIL_HEIGHT) * kanavos_elements::PANEL_THICKNESS;
+            assert!(close(v, expected, 1e-9), "{v} vs {expected}");
+        }
+        // The true length along the slope.
+        let q = quantities(&f.doc, r).unwrap();
+        assert!(close(q.length.unwrap().as_m(), (run * run + (z1 - z0) * (z1 - z0)).sqrt(), 1e-9));
+        // In plan it is drawn as before, judged by its lowest point.
+        let p = plan_parts(&f.doc, r, Length::m(1.1)).unwrap();
+        if infill == RailingInfill::Solid {
+            assert_eq!(p.cut.len(), 1);
+            assert_eq!(p.cut[0].material, Some(glass));
+        } else {
+            assert_eq!(p.below.len(), 2 + 2);
+        }
+    }
+    // One base per path point, or none.
+    let r = f.railing(&[(0.0, 0.0), (2.0, 0.0), (2.0, 2.0)], 1.0, RailingInfill::Bars);
+    slope(&mut f, r, &[0.0, 1.0], None);
+    let err = kanavos_elements::validate(&f.doc, f.doc.element(r).unwrap()).unwrap_err();
+    assert!(matches!(err, kanavos_elements::GeometryError::Invalid { field: "elevations", .. }), "{err:?}");
+    // A missing infill material is a missing reference.
+    slope(&mut f, r, &[], Some(kanavos_model::Id(999_999)));
+    assert!(kanavos_elements::validate(&f.doc, f.doc.element(r).unwrap()).is_err());
+    // Equal bases are a flat railing: the same solids as without them.
+    let flat = f.railing(&[(0.0, 0.0), (2.0, 0.0), (2.0, 2.0)], 1.0, RailingInfill::Glass);
+    let before = solids(&f.doc, flat).unwrap();
+    slope(&mut f, flat, &[0.0, 0.0, 0.0], None);
+    assert_eq!(solids(&f.doc, flat).unwrap(), before);
+}
+
 /// A 10 × 8 m house with an interior wall at x = 4 and a column in the right room.
 fn small_plan() -> common::Fx {
     let mut f = fx();

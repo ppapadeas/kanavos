@@ -191,7 +191,7 @@ Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-
 
 Optional fields added without a new schema version, all read as their defaults from files that lack them (of any
 schema): `project_id` (top level), `external_id` (elements, replacing the `ifc:GlobalId` user property, which is
-moved into it on load).
+moved into it on load), roof `holes`, stair `usage`, railing `elevations` and `infill_material`.
 
 ## 5. Saving safely
 

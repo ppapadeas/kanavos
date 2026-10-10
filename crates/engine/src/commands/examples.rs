@@ -66,6 +66,10 @@ pub const EXAMPLES: &[(&str, &str)] = &[
     ),
     ("roof.from_walls", r#"{"storey":30,"kind":"hip","pitch":22,"overhang":0.6}"#),
     (
+        "railing.along_stair",
+        r#"{"stair":160,"side":"right","height":1.0,"infill":"glass","infill_material":14}"#,
+    ),
+    (
         "space.detect",
         r#"{"storey":28,"point":[3.0,3.0],"name":"Καθιστικό","number":"0.01","category":"main_use"}"#,
     ),

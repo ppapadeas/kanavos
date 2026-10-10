@@ -290,7 +290,9 @@ impl Builder {
                 base_offset: Length::m(base),
                 post_spacing: Length::m(1.2),
                 infill: RailingInfill::Bars,
+                elevations: Vec::new(),
                 material: self.steel,
+                infill_material: None,
             }),
         )
     }

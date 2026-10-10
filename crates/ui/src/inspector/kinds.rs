@@ -621,15 +621,29 @@ pub fn railings(ui: &mut Ui, doc: &Document, items: Vec<(Id, Railing)>, locale: 
             let infills: Vec<_> = names::INFILLS.into_iter().map(|i| (i, names::infill(locale, i))).collect();
             f.choice(ui, &tr(locale, "ui.insp.infill"), &infills, |r| r.infill, |r, v| r.infill = v);
             f.choice(ui, &tr(locale, "ui.insp.material"), &mats, |r| r.material, |r, m| r.material = m);
+            let mut infill_mats: Vec<(Option<Id>, String)> = vec![(None, tr(locale, "ui.insp.infill_same"))];
+            infill_mats.extend(mats.iter().map(|(id, name)| (Some(*id), name.clone())));
+            f.choice(
+                ui,
+                &tr(locale, "ui.insp.infill_material"),
+                &infill_mats,
+                |r| r.infill_material,
+                |r, m| r.infill_material = m,
+            );
+            // A railing that follows a slope shows the range of its base; it is set along a stair by command.
+            if let Some(r) = f.single()
+                && r.is_sloped()
+            {
+                let low = r.elevations.iter().copied().fold(Length::m(f64::INFINITY), Length::min);
+                let high = r.elevations.iter().copied().fold(Length::m(f64::NEG_INFINITY), Length::max);
+                let text = format!("{} – {}", LengthDisplay(low, locale), LengthDisplay(high, locale));
+                widgets::label(ui, &tr(locale, "ui.insp.base_range"))
+                    .on_hover_text(tr(locale, "ui.insp.base_range_hint"));
+                widgets::value(ui, &text);
+                ui.end_row();
+            }
             if let Some(r) = f.single() {
-                let len: Length = r
-                    .path
-                    .windows(2)
-                    .filter_map(|w| match w {
-                        [a, b] => Some(a.distance(*b)),
-                        _ => None,
-                    })
-                    .sum();
+                let len = kanavos_elements::railing_length(r);
                 f.read(ui, &tr(locale, "ui.insp.length"), &LengthDisplay(len, locale).to_string());
             }
         });

@@ -281,6 +281,30 @@ fn roof_hole_vertices_have_handles_too() {
 }
 
 #[test]
+fn inserting_a_point_in_a_sloped_railing_interpolates_its_base() {
+    let mut h = Harness::new(ToolId::Select);
+    let steel = h.doc.defaults().railing_material.unwrap();
+    let r = h.add(ElementKind::Railing(kanavos_model::Railing {
+        path: vec![p(0.0, 0.0), p(4.0, 0.0)],
+        height: Length::m(1.0),
+        base_offset: Length::ZERO,
+        elevations: vec![Length::ZERO, Length::m(2.0)],
+        post_spacing: Length::m(1.2),
+        infill: kanavos_model::RailingInfill::Bars,
+        material: steel,
+        infill_material: None,
+    }));
+    h.selection = [r].into_iter().collect();
+    h.move_to(1.0, 0.0);
+    h.drag((2.0, 0.0), (1.0, 1.0), NONE);
+    let ElementKind::Railing(rl) = &h.doc.element(r).unwrap().kind else { unreachable!() };
+    assert_eq!(rl.path.len(), 3);
+    assert_eq!(rl.elevations.len(), 3, "one base per point");
+    // (1, 1) projects a quarter of the way along the edge.
+    assert!((rl.elevations[1].as_m() - 0.5).abs() < 1e-9, "{:?}", rl.elevations);
+}
+
+#[test]
 fn objects_are_picked_inside_their_symbol() {
     let mut h = Harness::new(ToolId::Select);
     let obj = kanavos_model::Object {
