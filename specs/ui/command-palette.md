@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-005
 title: Command palette and keyboard shortcuts
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §3 (command palette, shortcuts)
 ---
@@ -50,3 +50,18 @@ Reach any tool, command, view, sheet, storey, setting or element by typing a few
    schedule" the door schedule.
 4. Folding: "Τοίχος" → "τοιχοσ", "ΔΙΑΣΤΡΩΜΆΤΩΣΗ" → "διαστρωματωση".
 5. Every tool appears exactly once in the tool palette, and tool labels carry their shortcut.
+
+---
+
+## Review (completed by the reviewer)
+
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
+
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

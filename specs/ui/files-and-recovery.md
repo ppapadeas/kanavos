@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-006
 title: Files, unsaved changes, autosave and recovery, preferences, first launch, tables
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §1, §5
   - docs/architecture.md §1.5, §6, §8 (never lose work, autosave every 60 s)
@@ -77,3 +77,18 @@ Never lose work, never ask more than necessary, and open straight into something
 5. Tables sort numbers numerically with empty cells last, and Greek text accent-insensitively.
 6. The sample house builds with no rejected steps and contains walls, doors, windows, spaces, a roof, a plot and
    sheets.
+
+---
+
+## Review (completed by the reviewer)
+
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
+
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

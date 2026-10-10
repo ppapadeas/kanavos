@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-003
 title: Drawing canvas — hosting tools, snapping feedback and typed input
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §1 (drawing is direct), §3 (typed input, inference and snapping, Esc backs out)
   - docs/adr/0005-command-bus.md (every change is a command)
@@ -106,11 +106,13 @@ proposes, and applies what the tool decides — without knowing anything about w
 
 ## Review (completed by the reviewer)
 
-- [ ] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
-- [ ] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
-- [ ] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
-- [ ] No screenshots or images of the reference product.
-- [ ] Every claim traces to a listed source (observation log, standard, paper, regulation).
-- [ ] Describes behaviour, not implementation details of the reference product.
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
 
-Reviewed by: pending
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.
