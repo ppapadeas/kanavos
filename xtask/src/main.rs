@@ -2,6 +2,7 @@
 
 mod dist;
 mod layers;
+mod sign;
 
 use std::collections::HashMap;
 use std::fs;
@@ -17,6 +18,9 @@ COMMANDS:
     provenance [RANGE]    check Signed-off-by and Clean-Room trailers (default: commits not on origin/main)
     bench                 run performance budgets (not yet implemented)
     dist                  build release binaries and package them under dist/ (folder and archive)
+    keygen <SECRET-FILE>  create the Ed25519 key pair that signs update packages
+    sign <ARCHIVE>...     sign release archives (key in KANAVOS_UPDATE_SIGNING_KEY): writes .sig and .sha256
+    verify <ARCHIVE> <PK> check an archive's .sha256 and .sig against a public key
 ";
 
 fn main() -> ExitCode {
@@ -26,6 +30,9 @@ fn main() -> ExitCode {
         Some("layering") => layering(),
         Some("provenance") => provenance(args.get(1).map(String::as_str)),
         Some("dist") => dist::dist(),
+        Some("keygen") => sign::keygen(args.get(1).map(String::as_str)),
+        Some("sign") => sign::sign(args.get(1..).unwrap_or(&[])),
+        Some("verify") => sign::verify(args.get(1).map(String::as_str), args.get(2).map(String::as_str)),
         Some("bench") => {
             println!("No benchmarks yet; budgets are defined in docs/architecture.md §7.");
             Ok(())

@@ -7,3 +7,10 @@ license.workspace = true
 authors.workspace = true
 description = "Repository automation: CI gate, layering and provenance checks."
 publish = false
+
+[dependencies]
+# Release signing for over-the-air updates (docs/updates.md): Ed25519 (BSD-3-Clause), SHA-256 and OS randomness
+# (MIT OR Apache-2.0).
+ed25519-dalek = "3"
+sha2 = "0.11"
+getrandom = "0.4"
