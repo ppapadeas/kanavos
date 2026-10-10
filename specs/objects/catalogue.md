@@ -9,6 +9,7 @@ sources:
   - ISO 128-20 line widths 0.13 / 0.18 / 0.25 / 0.35 / 0.50 / 0.70 mm
   - ISO 7519:1991 (construction drawings, general arrangement presentation)
   - ISO 16739-1:2024 (IFC 4.3) entity and predefined-type names
+  - SPEC-objects-006 (orientation of doors and windows in their walls)
   - General architectural drafting practice in Greece and Europe
 ---
 
@@ -48,9 +49,10 @@ drawing anything twice.
 - Openings: `x` runs along the host wall, the opening spanning `−width/2 … +width/2`; `y` runs across the wall,
   positive towards the wall's left face; `z` is up from the sill. The opening's width and height are the hole in
   the wall; frames sit inside the hole.
-- Default orientation: door leaves and window sashes open towards the wall's **left** face, which is the inside
-  of a wall drawn anticlockwise around a building. A window's outer face (external sill, shutters, roller box)
-  is the **right** face. Single hinges sit on the jamb at `x = −width/2`.
+- Default orientation (SPEC-objects-006): a window's outer face (frame position, external sill, shutters,
+  roller box) is the wall's **left** face, the outside of an exterior wall drawn clockwise around a building, as
+  for its build-up; door leaves and window sashes open towards the **right** face. Single hinges sit on the jamb
+  at `x = −width/2`.
 - "Swap side" exchanges the two faces; "swap hand" exchanges the two jambs. Both are exact mirror images of the
   default: the four combinations give four reflections of one drawing.
 - Free objects: origin at the insertion point, `x` right, `y` back in plan, `z` up from the object's base.

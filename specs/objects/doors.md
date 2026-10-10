@@ -6,6 +6,7 @@ author: Pierros Papadeas
 reviewer: pending
 sources:
   - SPEC-objects-001 (coordinates, layers, line weights)
+  - SPEC-objects-006 (which wall face is outside; where leaves open)
   - ISO 128-2:2020 (line types), ISO 7519:1991 (construction drawings)
   - General architectural drafting practice in Greece and Europe
   - Common product dimensions of interior, entrance, balcony and garage doors
@@ -46,6 +47,8 @@ SPEC-objects-003).
 
 ### Plan
 
+- Doors open towards the inner face: the wall's right face, the inside of an exterior wall drawn clockwise; with
+  swap side, the left face (SPEC-objects-006).
 - Hinged doors: the frame sits flush with the face the door opens to, `frame_depth` deep (at most the wall). Its
   two jambs are drawn as cut profiles (0.25 mm). Each leaf is drawn open by the swing angle, hinged at the inner
   edge of its jamb, as a rectangle of leaf thickness at 1:50 or a line at smaller scales (0.35 mm). A thin arc
@@ -80,7 +83,7 @@ rails and tracks in metal.
 ## Acceptance tests
 
 1. Given a single swing door in a 30 cm wall, when drawn by default, then its leaf reaches about one leaf width
-   beyond the left face and lies at the −x jamb; nothing lies beyond the right face.
+   beyond the right face and lies at the −x jamb; nothing lies beyond the left face (SPEC-objects-006).
 2. Given each door style in the four swap states, then the four plans are mirror images (SPEC-objects-001 test 3).
 3. Given each door style, then its parts are closed and lie between floor and head (plus rails and tracks).
 4. Given a door with swing 45°, then its leaf and arc stop at 45°.
