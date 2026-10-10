@@ -5,7 +5,7 @@ status: approved
 author: Pierros Papadeas
 reviewer: Pierros Papadeas
 sources:
-  - Κτιριοδομικός Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11 (Κλίμακες) §2, §4 (πίνακας τύπων Ι–ΙΙΙ), §4.1, §4.6
+  - Κτιριοδομικός Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11 (Κλίμακες) §2, §4 (πίνακας τύπων Ι–ΙΙΙ), §4.1–§4.6
   - Κτιριοδομικός Κανονισμός (ως άνω), άρθρο 13 (Στηθαία) §1–§3
   - Step comfort rule 2 risers + 1 going ≈ one stride (F. Blondel, Cours d'architecture, 1675), as adopted by the regulation's table
 ---
@@ -38,25 +38,52 @@ railings protect stairs, balconies and terraces.
 - Plan: treads and landings below the cut plane are drawn, those above dashed; the flight's section at the cut
   plane is filled with the stair material.
 
+### Stair use
+
+Every stair says what it serves; the default is the internal stair of a single dwelling. The uses follow the
+building uses of article 11 §4.1–§4.5 and the widths of §2:
+
+| Use | Stair types allowed | Clear width (§2) |
+| --- | --- | --- |
+| Internal stair of a single dwelling (default) | I, II or III (§4.1) | ≥ 0.60 m |
+| Shared stair of a residential building (category Α) | I, II or III (§4.1) | ≥ 0.90 m with up to three storeys above ground (pilotis counted, basements not), else ≥ 1.20 m |
+| Other uses: temporary accommodation, correctional, commerce, offices, industry, storage, parking (Β, Ζ, Η, Θ, Ι, Κ, Λ) | I or II (§4.2) | ≥ 0.90 m (type II); a note below 1.20 m, since every building needs one stair of 1.20 m |
+| Assembly and education (Γ, Δ) | I (§4.4) | ≥ 1.20 m |
+| Health and social care (Ε) | I (§4.3) | ≥ 1.20 m |
+| Only auxiliary rooms of an industrial building, or storage rooms of a commerce or storage building | relaxed limits of §4.5 | ≥ 0.60 m |
+
+The exceptions of §4.3 and §4.4 (type II or III stairs that patients, young children or more than 20 people never
+use) depend on how the building is run, which the model does not know; such a stair is given the use "other
+uses".
+
 ### Stair checks (warnings and notes, never errors)
 
-The regulation's table (article 11 §4) allows any of types I–III for dwellings (§4.1). Checks use type II limits
-and note where type I would not be met:
+The table of article 11 §4: riser 0.13–0.18 m (type I), 0.13–0.20 m (type II), 0.13–0.18 m (type III, curved
+flights); going ≥ 0.28 m (I) or ≥ 0.25 m (II, III); 2 risers + going 0.60–0.66 m; clear headroom ≥ 2.20 m; rise
+between landings ≤ 3.60 m; landing length along the flight ≥ 1.20 m (I, III) or ≥ 0.90 m (II). Straight and
+two-flight stairs are checked against type II where the use allows type I or II, with notes where type I would not
+be met, and against type I where only type I is allowed:
 
-| Check | Limit | Level |
-| --- | --- | --- |
-| Riser height | ≤ 0.20 m (type II), ≥ 0.13 m | warning |
-| Riser height above type I | > 0.18 m | note |
-| Going | ≥ 0.25 m (type II) | warning |
-| Going below type I | < 0.28 m | note |
-| 2 risers + going | 0.60–0.66 m | warning |
-| Clear width | ≥ 0.60 m (internal stair of one dwelling, §2) | warning |
-| Clear width below 0.90 m | enough only inside one dwelling (§2) | note |
-| Rise between landings | ≤ 3.60 m | warning |
-| Landing length along the flight | ≥ 0.90 m (type II) | warning |
-| Total rise against the storey above | within 1 cm of the floor-to-floor height | note |
+| Check | Uses allowing type II | Type I only | Auxiliary (§4.5) | Level |
+| --- | --- | --- | --- | --- |
+| Riser height | ≤ 0.20 m, ≥ 0.13 m | ≤ 0.18 m, ≥ 0.13 m | ≤ 0.23 m | warning |
+| Riser height above type I | > 0.18 m | — | — | note |
+| Going | ≥ 0.25 m | ≥ 0.28 m | ≥ 0.23 m | warning |
+| Going below type I | < 0.28 m | — | — | note |
+| 2 risers + going | 0.60–0.66 m | 0.60–0.66 m | — | warning |
+| Clear width | per use, table above | ≥ 1.20 m | ≥ 0.60 m | warning |
+| Clear width below 1.20 m (other uses) | note | — | — | note |
+| Rise between landings | ≤ 3.60 m | ≤ 3.60 m | — | warning |
+| Landing length along the flight | ≥ 0.90 m | ≥ 1.20 m | — | warning |
+| Clear headroom over treads and landings | ≥ 2.20 m | ≥ 2.20 m | — | warning |
+| Total rise against the storey above | within 1 cm of the floor-to-floor height | same | same | note |
 
-Each check carries its value, limit and source; messages exist in Greek and English.
+Headroom is the smallest vertical distance from a tread or landing up to the underside of a slab (any storey)
+whose outline, holes excluded, covers more than 1 cm² of it; a slab the step runs into gives zero. Roofs and beams
+are not considered.
+
+Each check carries its value, limit and source; messages exist in Greek and English. The inspector lists the
+checks of a selected stair or railing; the use is chosen in the inspector and in the stair tool's settings.
 
 ### Railings
 
@@ -71,7 +98,7 @@ Each check carries its value, limit and source; messages exist in Greek and Engl
 ## Edge cases
 
 - A first flight with no treads (first = 1) gives a landing at the first riser.
-- Headroom (2.20 m) is not checked yet: it needs the slabs above.
+- A slab only touching a tread (overlap up to 1 cm²) does not limit its headroom.
 
 ## Acceptance tests
 
@@ -81,10 +108,19 @@ Each check carries its value, limit and source; messages exist in Greek and Engl
 4. Flight and landing solids are closed; a flight's volume lies between its steps alone and steps plus waist.
 5. Cut at 1.10 m on a straight 18-riser stair: six treads below, eleven above, a cut section.
 6. 18 risers up to the first floor at +3.20 m, going 0.28, width 1.00 m: no remarks; the same stair rising only
-   3.06 m gets the rise note. 0.204 / 0.22 / 0.80 m: riser and going warnings and a width note; messages
-   show "0,20" in Greek and "0.20" in English. 22 risers over 3.80 m straight: rise-between-landings warning.
+   3.06 m gets the rise note. 0.204 / 0.22 / 0.80 m: riser and going warnings and no width remark for the
+   internal stair of a dwelling; messages show "0,20" in Greek and "0.20" in English. 22 risers over 3.80 m
+   straight: rise-between-landings warning.
 7. Railings with bars, glass and solid infill have solids and no remarks at 1.00 m; at 0.90 m a height warning.
    Cut at 0.50 m, bars and glass give their edge lines, a solid panel a cut band.
+8. The good 1.00 m stair of test 6: no remarks as a shared residential stair of a two-storey building; a width
+   note (1.20 m) for other uses; a width warning (1.20 m) for assembly, education and health care; with four
+   storeys above ground, a width warning (1.20 m) as a shared residential stair. 0.19 m risers and 0.27 m goings:
+   type I notes for a dwelling, riser and going warnings (0.18, 0.28) for health care. 0.204 m risers, 0.24 m
+   goings, 0.70 m wide, for auxiliary rooms: no remarks other than the rise note.
+9. A straight 18-riser stair under a 27.5 cm floor slab at +3.20: a stairwell over the whole flight gives no
+   remark; one starting 2.0 m from the first riser gives a headroom warning of 2.925 − 8 × 3.2 / 18 m, limit
+   2.20 m; a stair for auxiliary rooms is not checked for headroom.
 
 ## Open questions
 

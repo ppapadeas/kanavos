@@ -11,7 +11,7 @@ use kanavos_elements::{
 };
 use kanavos_geom::{Length, Point2};
 use kanavos_i18n::Locale;
-use kanavos_model::{RailingInfill, StairShape};
+use kanavos_model::{ElementKind, RailingInfill, StairShape, StairUse};
 
 #[test]
 fn straight_stair_layout_counts_risers() {
@@ -103,7 +103,8 @@ fn stair_checks_follow_the_regulation() {
     let codes: Vec<&str> = c.iter().map(|x| x.code).collect();
     assert!(codes.contains(&"stair.riser_high"));
     assert!(codes.contains(&"stair.going_short"));
-    assert!(codes.contains(&"stair.width_dwelling_only"));
+    // 0.80 m is wide enough for the internal stair of a dwelling (the default use).
+    assert!(!codes.iter().any(|c| c.starts_with("stair.width")), "{codes:?}");
     assert!(c.iter().any(|x| x.level == CheckLevel::Warning));
     // Messages exist in both languages and carry the numbers.
     let riser = c.iter().find(|x| x.code == "stair.riser_high").unwrap();
@@ -112,6 +113,111 @@ fn stair_checks_follow_the_regulation() {
     // A straight flight rising more than 3.60 m.
     let tall = f.stair(StairShape::Straight, 22, 3.80, 0.28, 1.0);
     assert!(stair_checks(&f.doc, tall).unwrap().iter().any(|x| x.code == "stair.flight_rise"));
+}
+
+/// Sets a stair's use.
+fn with_use(f: &mut common::Fx, s: kanavos_model::Id, usage: StairUse) {
+    let mut e = f.doc.element(s).unwrap().clone();
+    if let ElementKind::Stair(st) = &mut e.kind {
+        st.usage = usage;
+    }
+    f.doc = f.doc.with_element(e);
+}
+
+/// (code, limit) of every remark.
+fn remarks(f: &common::Fx, s: kanavos_model::Id) -> Vec<(&'static str, f64)> {
+    stair_checks(&f.doc, s).unwrap().into_iter().map(|c| (c.code, c.limit)).collect()
+}
+
+#[test]
+fn the_use_of_a_stair_decides_its_limits() {
+    let mut f = fx();
+    // 0.178 m risers, 0.28 m going, 1.00 m wide: a good dwelling stair.
+    let s = f.stair(StairShape::Straight, 18, 3.2, 0.28, 1.0);
+    assert!(remarks(&f, s).is_empty());
+    // Shared stair of a two-storey residential building: 0.90 m is enough.
+    with_use(&mut f, s, StairUse::Residential);
+    assert!(remarks(&f, s).is_empty());
+    // Other uses may have type II stairs, but the building also needs one 1.20 m wide.
+    with_use(&mut f, s, StairUse::OtherUses);
+    assert_eq!(remarks(&f, s), vec![("stair.width_one_main", 1.20)]);
+    // Assembly, education and health care need type I: 1.20 m wide.
+    for u in [StairUse::AssemblyEducation, StairUse::HealthCare] {
+        with_use(&mut f, s, u);
+        assert_eq!(remarks(&f, s), vec![("stair.width_narrow", 1.20)], "{u:?}");
+    }
+    // 0.19 m risers: a note for a dwelling (type II only), a warning where type I is required.
+    let steep = f.stair(StairShape::Straight, 17, 3.23, 0.27, 1.2);
+    assert!(remarks(&f, steep).contains(&("stair.riser_type_ii", 0.18)));
+    assert!(remarks(&f, steep).contains(&("stair.going_type_ii", 0.28)));
+    with_use(&mut f, steep, StairUse::HealthCare);
+    let r = remarks(&f, steep);
+    assert!(r.contains(&("stair.riser_high", 0.18)) && r.contains(&("stair.going_short", 0.28)), "{r:?}");
+    // Stairs to auxiliary rooms: 0.204 m risers and 0.24 m goings are within §4.5, and no step rule applies.
+    let aux = f.stair(StairShape::Straight, 15, 3.06, 0.24, 0.7);
+    assert!(remarks(&f, aux).iter().any(|(c, _)| *c == "stair.riser_high"));
+    with_use(&mut f, aux, StairUse::Auxiliary);
+    let r = remarks(&f, aux);
+    assert!(r.iter().all(|(c, _)| *c == "stair.rise_mismatch"), "{r:?}");
+    // Shared stairs of residential buildings over three storeys need 1.20 m (§2).
+    let (d, id) = f.doc.with_new_id();
+    f.doc = d.with_storey(kanavos_model::Storey::new(id, "2", Length::m(6.4), Length::m(3.2)));
+    let (d, id) = f.doc.with_new_id();
+    f.doc = d.with_storey(kanavos_model::Storey::new(id, "3", Length::m(9.6), Length::m(3.2)));
+    with_use(&mut f, s, StairUse::Residential);
+    assert_eq!(remarks(&f, s), vec![("stair.width_narrow", 1.20)]);
+    // The limits as a table.
+    let l = kanavos_elements::stair_limits(StairUse::Auxiliary, 2);
+    assert!(l.step_rule.is_none() && l.headroom_min.is_none());
+    assert!((l.riser_max - 0.23).abs() < 1e-12 && (l.going_min - 0.23).abs() < 1e-12);
+}
+
+#[test]
+fn headroom_under_a_slab_above_the_stair() {
+    let mut f = fx();
+    // A straight stair along +X from the origin: treads 0.28 m deep, 1.0 m wide, risers 3.2 / 18.
+    let s = f.stair(StairShape::Straight, 18, 3.2, 0.28, 1.0);
+    let floor = f.doc.defaults().floor_slab.unwrap();
+    let slab = |hole_start: f64| {
+        ElementKind::Slab(kanavos_model::Slab {
+            outline: kanavos_geom::PolygonWithHoles {
+                outer: kanavos_geom::Polygon2::from_m(&[
+                    (-2.0, -3.0),
+                    (10.0, -3.0),
+                    (10.0, 3.0),
+                    (-2.0, 3.0),
+                ]),
+                holes: vec![kanavos_geom::Polygon2::from_m(&[
+                    (hole_start, -0.6),
+                    (4.8, -0.6),
+                    (4.8, 0.6),
+                    (hole_start, 0.6),
+                ])],
+            },
+            structure: kanavos_model::Structure::Layered { build_up: floor },
+            top_offset: Length::ZERO,
+        })
+    };
+    let first = f.first;
+    let id = f.add(first, slab(-0.2));
+    // The stairwell spans the whole flight: no remark.
+    assert!(remarks(&f, s).is_empty(), "{:?}", remarks(&f, s));
+    // A stairwell that starts at x = 2.0: the slab's edge is over the tread from 1.96 m (after 8 risers).
+    let set = |f: &mut common::Fx, start: f64| {
+        let mut e = f.doc.element(id).unwrap().clone();
+        e.kind = slab(start);
+        f.doc = f.doc.with_element(e);
+    };
+    set(&mut f, 2.0);
+    let c = stair_checks(&f.doc, s).unwrap();
+    let h = c.iter().find(|x| x.code == "stair.headroom").unwrap();
+    let underside = 3.2 - (0.01 + 0.05 + 0.20 + 0.015);
+    assert!(close(h.value, underside - 8.0 * 3.2 / 18.0, 1e-9), "{}", h.value);
+    assert!(close(h.limit, 2.20, 1e-12));
+    assert!(h.message(Locale::El).contains("2,20"));
+    // Auxiliary stairs are not checked for headroom (§4.5).
+    with_use(&mut f, s, StairUse::Auxiliary);
+    assert!(stair_checks(&f.doc, s).unwrap().iter().all(|x| x.code != "stair.headroom"));
 }
 
 #[test]

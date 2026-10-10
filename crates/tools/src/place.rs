@@ -262,6 +262,7 @@ impl StairTool {
             gap: s.gap,
             thickness: s.thickness,
             material: structural_material(ctx.doc)?,
+            usage: s.usage,
             base_offset: Length::ZERO,
         })
     }

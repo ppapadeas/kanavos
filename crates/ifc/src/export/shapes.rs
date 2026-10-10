@@ -722,6 +722,7 @@ mod tests {
             gap: Length::m(0.1),
             thickness: Length::m(0.15),
             material: Id(0),
+            usage: Default::default(),
             base_offset: Length::ZERO,
         }
     }

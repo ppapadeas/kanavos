@@ -383,6 +383,16 @@ impl ContextBar {
                 {
                     s.stair.shape = v;
                 }
+                let uses: Vec<_> = kanavos_model::StairUse::ALL
+                    .into_iter()
+                    .map(|u| (u, names::stair_use(locale, u)))
+                    .collect();
+                let muted = Tokens::of(ui).text_muted;
+                ui.label(RichText::new(tr(locale, "ui.insp.stair_use")).small().color(muted))
+                    .on_hover_text(tr(locale, "ui.insp.stair_use_hint"));
+                if let Some(v) = widgets::choice(ui, "ctx-stair-use", Some(&s.stair.usage), &uses, 220.0) {
+                    s.stair.usage = v;
+                }
                 length_param(ui, "ctx-stair-w", &tr(locale, "ui.insp.width"), &mut s.stair.width, locale);
                 length_param(ui, "ctx-stair-g", &tr(locale, "ui.insp.going"), &mut s.stair.going, locale);
                 length_param(

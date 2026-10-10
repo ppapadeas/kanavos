@@ -192,6 +192,7 @@ pub fn house() -> Document {
             gap: Length::ZERO,
             thickness: Length::m(0.15),
             material: concrete,
+            usage: Default::default(),
             base_offset: Length::ZERO,
         }),
     );

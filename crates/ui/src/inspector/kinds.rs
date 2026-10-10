@@ -7,7 +7,7 @@ use kanavos_geom::Point2;
 use kanavos_model::{
     Beam, BuildUpUsage, Column, Dimension, Document, DraftShape, Drafting, ElementKind, GridLine, Id,
     LevelMark, Object, Opening, OpeningKind, Parapet, Profile, Railing, ReferenceLine, Roof, RoofShape, Slab,
-    Space, Stair, Structure, TextAlign, TextNote, Underlay, Wall,
+    Space, Stair, StairUse, Structure, TextAlign, TextNote, Underlay, Wall,
 };
 use kanavos_objects::{ObjectCategory, ParamKind};
 use kanavos_units::{Angle, AreaDisplay, Length, LengthDisplay, Locale};
@@ -453,6 +453,8 @@ pub fn stairs(ui: &mut Ui, doc: &Document, items: Vec<(Id, Stair)>, locale: Loca
             let shapes: Vec<_> =
                 names::STAIR_SHAPES.into_iter().map(|s| (s, names::stair_shape(locale, s))).collect();
             f.choice(ui, &tr(locale, "ui.insp.shape"), &shapes, |s| s.shape, |s, v| s.shape = v);
+            let uses: Vec<_> = StairUse::ALL.into_iter().map(|u| (u, names::stair_use(locale, u))).collect();
+            f.choice(ui, &tr(locale, "ui.insp.stair_use"), &uses, |s| s.usage, |s, v| s.usage = v);
             f.length(ui, &tr(locale, "ui.insp.width"), |s| s.width, |s, v| s.width = v);
             f.length(ui, &tr(locale, "ui.insp.rise"), |s| s.rise, |s, v| s.rise = v);
             f.count(ui, &tr(locale, "ui.insp.risers"), |s| s.risers, |s, v| s.risers = v.max(2));

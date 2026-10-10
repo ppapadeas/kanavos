@@ -6,7 +6,7 @@
 use kanavos_geom::Angle;
 use kanavos_model::{
     Document, DraftStyle, Id, Parapet, Profile, RailingInfill, ReferenceLine, SpaceCategory, StairShape,
-    Structure, TextAlign,
+    StairUse, Structure, TextAlign,
 };
 use kanavos_units::Length;
 
@@ -132,6 +132,8 @@ pub struct StairSettings {
     pub thickness: Length,
     /// Gap between the two flights of a half-turn stair.
     pub gap: Length,
+    /// What the stair serves (decides the regulation's checks).
+    pub usage: StairUse,
 }
 
 /// Roof shape choice in the roof tool.
@@ -322,6 +324,7 @@ impl Default for ToolSettings {
                 max_riser: Length::cm(18.0),
                 thickness: Length::cm(15.0),
                 gap: Length::cm(10.0),
+                usage: StairUse::DwellingInternal,
             },
             roof: RoofSettings {
                 kind: RoofKind::Hip,

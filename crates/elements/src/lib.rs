@@ -12,7 +12,7 @@
 //! - Walls: [`wall_layout`] (junction-clean outline and layer bands), [`StoreyGeometry`] (all walls of a storey
 //!   in one pass), [`Junction`] kinds L, T, X, continuation and node.
 //! - Roofs: [`roof_planes`], [`roof_lines`].
-//! - Stairs: [`stair_layout`], [`stair_checks`]; railings: [`railing_checks`].
+//! - Stairs: [`stair_layout`], [`stair_checks`] (limits per use: [`stair_limits`]); railings: [`railing_checks`].
 //! - Spaces and outlines: [`detect_space`], [`detect_all_spaces`], [`storey_footprint`], [`outline_from_walls`].
 //! - Every element: [`plan_parts`], [`solids`], [`quantities`], [`detailed_quantities`], [`footprint`],
 //!   [`snap_geometry`], [`validate`].
@@ -37,9 +37,11 @@ use kanavos_units::{Area, Length, Volume};
 pub use build::plan_parts;
 pub use build::{base_elevation, solids, validate};
 pub use checks::{
-    Check, CheckLevel, GOING_MIN, GOING_MIN_TYPE_I, GUARD_GAP_MAX, GUARD_MIN, LANDING_MIN_TYPE_II,
-    MAX_FLIGHT_RISE, RISER_MAX, RISER_MAX_TYPE_I, RISER_MIN, SOLID_GUARD_MAX, STEP_RULE, WIDTH_MIN_DWELLING,
-    WIDTH_MIN_TYPE_II, railing_checks, stair_checks,
+    AUXILIARY_GOING_MIN, AUXILIARY_RISER_MAX, Check, CheckLevel, GOING_MIN, GOING_MIN_TYPE_I, GUARD_GAP_MAX,
+    GUARD_MIN, HEADROOM_MIN, LANDING_MIN_TYPE_I, LANDING_MIN_TYPE_II, MAX_FLIGHT_RISE,
+    RESIDENTIAL_NARROW_STOREYS, RISER_MAX, RISER_MAX_TYPE_I, RISER_MIN, SOLID_GUARD_MAX, STEP_RULE,
+    StairLimits, WIDTH_MIN_DWELLING, WIDTH_MIN_TYPE_I, WIDTH_MIN_TYPE_II, railing_checks, stair_checks,
+    stair_limits,
 };
 pub use junction::{JUNCTION_TOLERANCE, Junction, JunctionKind, WallJoin};
 pub use quantities::{DetailedQuantities, LayerVolume, PlaneArea, detailed_quantities, quantities};

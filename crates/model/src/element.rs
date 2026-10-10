@@ -354,6 +354,61 @@ pub enum StairShape {
     HalfTurnRight,
 }
 
+/// What a stair serves. It decides which limits of the Greek building regulation apply to it (Κτιριοδομικός
+/// Κανονισμός, Υ.Α. ΥΠΕΝ/ΔΑΟΚΑ/66006/2360, ΦΕΚ Β΄ 3985/22.06.2023, άρθρο 11): the clear width of §2 and the stair
+/// types I–III of the table in §4 that §4.1–§4.5 allow for each use of the building. The limits themselves are
+/// in `kanavos-elements` (`stair_limits`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StairUse {
+    /// The internal stair of a single dwelling (εσωτερική κλίμακα κατοικίας): clear width from 0.60 m (§2); any
+    /// of types I–III (§4.1).
+    #[default]
+    DwellingInternal,
+    /// A stair shared by the dwellings of a residential building (category Α): clear width 1.20 m, or 0.90 m in
+    /// buildings of up to three storeys (§2); any of types I–III (§4.1).
+    Residential,
+    /// Temporary accommodation, correctional, commerce, offices, industry, storage and parking buildings
+    /// (categories Β, Ζ, Η, Θ, Ι, Κ, Λ): types I or II (§4.2).
+    OtherUses,
+    /// Assembly and education buildings (categories Γ, Δ): type I (§4.4).
+    AssemblyEducation,
+    /// Health and social care buildings (category Ε): type I (§4.3).
+    HealthCare,
+    /// A stair serving only auxiliary rooms of an industrial building, or only storage rooms of a commerce or
+    /// storage building, with the relaxed limits of §4.5.
+    Auxiliary,
+}
+
+impl StairUse {
+    /// Every use, in display order.
+    pub const ALL: [StairUse; 6] = [
+        StairUse::DwellingInternal,
+        StairUse::Residential,
+        StairUse::OtherUses,
+        StairUse::AssemblyEducation,
+        StairUse::HealthCare,
+        StairUse::Auxiliary,
+    ];
+
+    /// Stable snake_case key, as in the native format.
+    pub fn key(self) -> &'static str {
+        match self {
+            StairUse::DwellingInternal => "dwelling_internal",
+            StairUse::Residential => "residential",
+            StairUse::OtherUses => "other_uses",
+            StairUse::AssemblyEducation => "assembly_education",
+            StairUse::HealthCare => "health_care",
+            StairUse::Auxiliary => "auxiliary",
+        }
+    }
+
+    /// Whether this is the default use (left out of saved files).
+    pub fn is_default(&self) -> bool {
+        *self == StairUse::default()
+    }
+}
+
 /// A stair.
 ///
 /// `origin` is the midpoint of the front edge of the first step; `direction` is the walking direction up the
@@ -385,6 +440,9 @@ pub struct Stair {
     pub thickness: Length,
     /// Material.
     pub material: Id,
+    /// What the stair serves, for the regulation's checks; default the internal stair of a dwelling.
+    #[serde(default, skip_serializing_if = "StairUse::is_default")]
+    pub usage: StairUse,
     /// Base relative to the storey's floor elevation.
     #[serde(default)]
     pub base_offset: Length,

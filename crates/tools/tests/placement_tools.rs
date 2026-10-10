@@ -7,7 +7,7 @@ mod common;
 
 use common::*;
 use kanavos_engine::AnyCommand;
-use kanavos_model::{ElementKind, OpeningKind, StairShape};
+use kanavos_model::{ElementKind, OpeningKind, StairShape, StairUse};
 use kanavos_tools::{Key, ToolId};
 
 #[test]
@@ -99,18 +99,21 @@ fn stair_from_origin_and_direction() {
     assert_eq!(s.risers, 18, "3.20 m at most 18 cm per riser");
     assert!(s.riser_height().as_m() <= 0.18 + 1e-9);
     assert_eq!(s.shape, StairShape::Straight);
+    assert_eq!(s.usage, StairUse::DwellingInternal, "the default use");
 }
 
 #[test]
 fn half_turn_stair_with_typed_direction() {
     let mut h = Harness::new(ToolId::Stair);
     h.settings.stair.shape = StairShape::HalfTurnLeft;
+    h.settings.stair.usage = StairUse::Residential;
     h.click(0.0, 0.0);
     h.text("0");
     h.key(Key::Enter);
     let ElementKind::Stair(s) = &h.of("stair")[0].kind else { unreachable!() };
     assert!(near_m(s.direction.as_deg(), 0.0));
     assert_eq!(s.shape, StairShape::HalfTurnLeft);
+    assert_eq!(s.usage, StairUse::Residential, "the use comes from the tool settings");
 }
 
 #[test]

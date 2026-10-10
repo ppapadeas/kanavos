@@ -27,8 +27,8 @@ pub use attributes::{BuildUp, BuildUpLayer, BuildUpUsage, Material, MaterialCate
 pub use element::{
     Beam, Category, Column, Dimension, DraftShape, DraftStyle, Drafting, Element, ElementKind, GridLine,
     LevelMark, Object, Opening, OpeningKind, Parapet, Phase, Profile, Railing, RailingInfill, ReferenceLine,
-    Roof, RoofShape, Slab, Space, SpaceCategory, Stair, StairShape, Structure, TextAlign, TextNote, Underlay,
-    Wall,
+    Roof, RoofShape, Slab, Space, SpaceCategory, Stair, StairShape, StairUse, Structure, TextAlign, TextNote,
+    Underlay, Wall,
 };
 pub use project_id::{InvalidProjectId, ProjectId};
 pub use site::{BuildingTerms, Georef, ProjectInfo, Site};

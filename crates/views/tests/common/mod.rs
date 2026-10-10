@@ -345,6 +345,7 @@ pub fn house() -> House {
                     gap: Length::m(0.1),
                     thickness: Length::m(0.15),
                     material: concrete,
+                    usage: Default::default(),
                     base_offset: Length::ZERO,
                 }),
             );
