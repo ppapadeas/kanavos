@@ -13,9 +13,9 @@ pub const MANIFEST_ENTRY: &str = "manifest.json";
 pub const MODEL_ENTRY: &str = "model.json";
 /// Name of the optional thumbnail entry.
 pub const THUMBNAIL_ENTRY: &str = "thumbnail.png";
-/// Prefix reserved for embedded assets (images, imported drawings). Not written by schema 1.
+/// Prefix reserved for embedded assets (images, imported drawings). Not written yet.
 pub const ASSETS_PREFIX: &str = "assets/";
-/// Prefix reserved for rebuildable caches (tessellations, view results). Not written by schema 1.
+/// Prefix reserved for rebuildable caches (tessellations, view results). Not written yet.
 pub const CACHE_PREFIX: &str = "cache/";
 
 /// Largest entry this build reads, uncompressed (2 GiB). Guards against archive bombs.

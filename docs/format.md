@@ -15,8 +15,8 @@ written in this order:
 | `manifest.json` | yes | DEFLATE | What the file is and which schema it uses (§2) |
 | `model.json` | yes | DEFLATE | The project document (§3) |
 | `thumbnail.png` | no | stored | A preview image, PNG |
-| `assets/…` | — | — | Reserved for embedded assets (images, imported drawings). Not written by schema 1. |
-| `cache/…` | — | — | Reserved for caches that can always be rebuilt from the model. Not written by schema 1. |
+| `assets/…` | — | — | Reserved for embedded assets (images, imported drawings). Not written yet. |
+| `cache/…` | — | — | Reserved for caches that can always be rebuilt from the model. Not written yet. |
 
 Writers make archives **deterministic**: every entry has the timestamp 1980-01-01 00:00:00 (the ZIP epoch), Unix
 host type with permissions `0644`, DEFLATE level 6, no comments and no extra fields. Saving the same document with
@@ -33,7 +33,7 @@ and are not kept when the project is saved again.
 ```json
 {
   "format": "kanavos",
-  "schema_version": 1,
+  "schema_version": 2,
   "app_version": "0.0.1",
   "created": "2026-10-01T08:00:00Z",
   "modified": "2026-10-09T12:30:00+03:00",
@@ -149,8 +149,8 @@ problem as a warning).
 
 ## 4. Versions and migration
 
-`schema_version` counts incompatible changes to `model.json`. This build writes **schema 1** and reads schemas 0
-and 1.
+`schema_version` counts incompatible changes to `model.json`. This build writes **schema 2** and reads schemas 0,
+1 and 2.
 
 - A file with a **newer** schema is refused with "saved by a newer version of Kanavos", before the model is read.
   It is never read partially.
@@ -166,7 +166,8 @@ Each step lives in `crates/format/src/migrate.rs` with a test that loads a hand-
 | Version | Change |
 | --- | --- |
 | 0 | Draft layout used while the format was designed. Never written by a released build; kept as the worked example of a migration. The id counter is called `last_id`, and `storeys`, `materials`, `build_ups`, `elements`, `views` and `sheets` are arrays of objects with an `id` instead of maps keyed by id. |
-| 1 | Current layout (§3). |
+| 1 | The layout of §3, with the earlier meaning of an opening's `flip_side`: unflipped, a door opened towards its wall's left face and a window's outer face was the right face. |
+| 2 | Current layout (§3). An opening's `flip_side` follows the wall build-ups (SPEC-objects-006): unflipped, a window's outer face is its wall's left face and a door opens towards the right face. Upgrading from schema 1 inverts every opening's `flip_side`, so doors and windows stay where they were. |
 
 ## 5. Saving safely
 

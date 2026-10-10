@@ -9,7 +9,7 @@
 //! | `manifest.json` | [`Manifest`]: format name, schema version, application version, timestamps, counts |
 //! | `model.json` | The [`Document`], as pretty-printed JSON with deterministic key order |
 //! | `thumbnail.png` | Optional preview image, stored uncompressed |
-//! | `assets/…`, `cache/…` | Reserved for embedded assets and rebuildable caches; not written by schema 1 |
+//! | `assets/…`, `cache/…` | Reserved for embedded assets and rebuildable caches; not written yet |
 //!
 //! Archives are deterministic: entries are written in a fixed order with fixed timestamps, permissions and
 //! compression level, so saving the same document with the same [`SaveOptions`] gives the same bytes, and

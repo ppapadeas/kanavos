@@ -321,6 +321,31 @@ fn schema_0_files_are_upgraded() {
     assert_eq!(&resaved.document, doc);
 }
 
+/// Schema 1 stored `flip_side` with the opposite orientation (`specs/objects/orientation.md`): opening such a file
+/// inverts every opening's flag so its doors and windows stay where they were.
+#[test]
+fn schema_1_openings_keep_their_orientation() {
+    let doc = common::house();
+    let bytes = to_bytes(&doc, &options()).unwrap();
+    let mut manifest: Value = serde_json::from_slice(&entry(&bytes, MANIFEST_ENTRY)).unwrap();
+    manifest["schema_version"] = json!(1);
+    let file = archive(&[
+        (MANIFEST_ENTRY, &serde_json::to_vec(&manifest).unwrap()),
+        (MODEL_ENTRY, &entry(&bytes, MODEL_ENTRY)),
+    ]);
+    let loaded = from_bytes(&file).unwrap();
+    assert_eq!(loaded.warnings, vec![LoadWarning::Migrated { from: 1, to: CURRENT_SCHEMA_VERSION }]);
+    let mut openings = 0;
+    for e in doc.elements() {
+        let ElementKind::Opening(before) = &e.kind else { continue };
+        let after = loaded.document.element(e.id).and_then(Element::as_opening).unwrap();
+        assert_eq!(after.flip_side, !before.flip_side, "opening {}", e.id);
+        assert_eq!(after.flip_hand, before.flip_hand, "opening {}", e.id);
+        openings += 1;
+    }
+    assert!(openings >= 2);
+}
+
 #[test]
 fn autosave_and_recovery() {
     let dir = scratch("recovery").join("session");

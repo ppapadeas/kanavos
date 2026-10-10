@@ -90,8 +90,10 @@ and stays readable by later versions of Kanavos and by other programs.
    path starting at that wall's element entry.
 7. Given a storey whose height is NaN, saving fails and names `storeys.<id>.height`.
 8. Given a hand-written schema 0 file (tables as arrays, `last_id`), opening upgrades it, warns, and the next save
-   writes schema 1 that opens without warnings.
+   writes the current schema, which opens without warnings.
 9. Given an opening whose host wall does not exist, strict opening fails and lenient opening succeeds with a warning.
+10. Given a schema 1 file with doors and windows, opening it warns of the upgrade and inverts every opening's swap
+    side flag, so each door and window keeps its physical orientation (SPEC-objects-006).
 
 ## Open questions
 
