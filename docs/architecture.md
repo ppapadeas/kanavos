@@ -26,6 +26,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
  L10 apps/kanavos (desktop)        apps/kanavos-cli (headless, batch, control server)
  L9  kanavos-ui (egui front end)   kanavos-mcp (MCP adapter)
  L8  kanavos-tools (interactive tools, snapping)   kanavos-render (wgpu)   kanavos-control (JSON-RPC)
+     kanavos-update (signed over-the-air updates)
  L7  kanavos-engine (session, command bus, undo, scheduling, selection)
  L6  kanavos-sheets   kanavos-format (.kanavos)   kanavos-ifc   kanavos-dxf   kanavos-pdf   kanavos-gltf
  L5  kanavos-views (plan/section/elevation/3D derivation, hidden-line removal)   kanavos-schedules   kanavos-rules-gr
@@ -65,6 +66,7 @@ Crates may depend only on crates in **lower** layers. `cargo xtask layering` enf
 | `kanavos-tools` | Interactive tools that turn input into commands; snapping and inference; typed numeric input. |
 | `kanavos-render` | GPU rendering of 2D views and 3D viewports (wgpu): offscreen viewport image, orbit camera, picking, section box, edges, shadows and ambient occlusion; headless rendering for tests and batch export (ADR‑0007). |
 | `kanavos-control` | JSON-RPC 2.0 control protocol over stdio and local WebSocket (see [`control-protocol.md`](control-protocol.md)). |
+| `kanavos-update` | Over-the-air updates: finds a newer release on GitHub, downloads its package, checks the SHA-256 and the Ed25519 signature, installs it over the running installation with a journal and rollback, and restarts (see [`updates.md`](updates.md)). |
 | `kanavos-ui` | The desktop interface (egui). Contains no model logic. |
 | `kanavos-mcp` | Exposes the control protocol as an MCP server for automation clients. |
 
@@ -174,3 +176,8 @@ Enforced by `cargo deny` with [`deny.toml`](../deny.toml). Candidate dependencie
 | Font parsing | ttf-parser | MIT OR Apache‑2.0 |
 | Rasterising | tiny-skia (+ png) | BSD‑3‑Clause (png: MIT OR Apache‑2.0) |
 | Compression (PDF streams) | miniz_oxide | MIT OR Zlib OR Apache‑2.0 |
+| HTTPS client (adopted in `kanavos-update`) | ureq 3 (rustls, no bundled roots) | MIT OR Apache‑2.0 |
+| TLS (adopted) | rustls with the *ring* provider; roots from the OS through rustls-native-certs | rustls: Apache‑2.0 OR ISC OR MIT; ring: Apache‑2.0 AND ISC; rustls-native-certs: Apache‑2.0 OR ISC OR MIT |
+| SHA-256 and Ed25519 (adopted) | ring | Apache‑2.0 AND ISC |
+| Release packages (adopted) | zip (already used by `kanavos-format`), tar, flate2 | MIT; MIT OR Apache‑2.0; MIT OR Apache‑2.0 |
+| Versions and base64 (adopted) | semver, base64 | MIT OR Apache‑2.0 |

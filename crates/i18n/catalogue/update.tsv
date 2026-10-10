@@ -1,0 +1,27 @@
+# key	el	en
+# Over-the-air updates (kanavos-update): errors. Keep both languages in every change.
+update.err.disabled	Οι έλεγχοι ενημερώσεων είναι απενεργοποιημένοι (έχει οριστεί η μεταβλητή KANAVOS_NO_UPDATE_CHECK).	Update checks are turned off (the KANAVOS_NO_UPDATE_CHECK variable is set).
+update.err.not_configured	Οι ενημερώσεις δεν έχουν ρυθμιστεί σε αυτή την έκδοση.	Updates are not configured in this build.
+update.err.network	Δεν ήταν δυνατή η σύνδεση με τον διακομιστή ενημερώσεων. Ελέγξτε τη σύνδεση στο διαδίκτυο και δοκιμάστε ξανά. ({why})	Could not reach the update server. Check the internet connection and try again. ({why})
+update.err.rate_limited_minutes	Το GitHub περιορίζει προσωρινά τα αιτήματα από αυτό το δίκτυο. Δοκιμάστε ξανά σε {n} λεπτά.	GitHub is temporarily limiting requests from this network. Try again in {n} minutes.
+update.err.rate_limited	Το GitHub περιορίζει προσωρινά τα αιτήματα από αυτό το δίκτυο. Δοκιμάστε ξανά αργότερα.	GitHub is temporarily limiting requests from this network. Try again later.
+update.err.http	Ο διακομιστής απάντησε με HTTP {status} για το {url}.	The server answered HTTP {status} for {url}.
+update.err.bad_response	Η λίστα εκδόσεων δεν ήταν δυνατό να διαβαστεί: {why}	The list of releases could not be read: {why}
+update.err.cancelled	Η λήψη ακυρώθηκε.	The download was cancelled.
+update.err.too_large	Το {name} είναι μεγαλύτερο από το αναμενόμενο (το πολύ {limit} byte) και δεν έγινε δεκτό.	{name} is larger than expected (at most {limit} bytes) and was not accepted.
+update.err.checksum_missing	Η έκδοση δεν έχει αρχείο ελέγχου (.sha256), οπότε το πακέτο δεν μπορεί να ελεγχθεί.	The release has no checksum file (.sha256), so the package cannot be checked.
+update.err.bad_checksum_file	Το αρχείο ελέγχου (.sha256) δεν είναι έγκυρο.	The checksum file (.sha256) is not valid.
+update.err.checksum_mismatch	Το πακέτο δεν ταιριάζει με το αρχείο ελέγχου του: αλλοιώθηκε ή τροποποιήθηκε. Διαγράφηκε και δεν εγκαταστάθηκε τίποτα.	The package does not match its checksum: it was damaged or altered. It was deleted and nothing was installed.
+update.err.signature_missing	Η έκδοση δεν έχει αρχείο υπογραφής (.sig), οπότε το πακέτο δεν μπορεί να θεωρηθεί αξιόπιστο.	The release has no signature file (.sig), so the package cannot be trusted.
+update.err.bad_signature_file	Το αρχείο υπογραφής (.sig) δεν είναι έγκυρο.	The signature file (.sig) is not valid.
+update.err.bad_signature	Η υπογραφή του πακέτου δεν επαληθεύεται με το κλειδί εκδόσεων του Kanavos. Το πακέτο διαγράφηκε και δεν εγκαταστάθηκε τίποτα.	The package signature does not verify with the Kanavos release key. The package was deleted and nothing was installed.
+update.err.unsafe_entry	Το πακέτο περιέχει μη ασφαλή εγγραφή ({entry}) και απορρίφθηκε.	The package contains an unsafe entry ({entry}) and was rejected.
+update.err.bad_package	Το πακέτο είναι κατεστραμμένο ή δεν έχει την αναμενόμενη δομή: {why}	The package is damaged or does not have the expected layout: {why}
+update.err.not_packaged	Αυτό το αντίγραφο του Kanavos ({dir}) δεν εγκαταστάθηκε από πακέτο έκδοσης, οπότε δεν μπορεί να ενημερωθεί μόνο του. Κατεβάστε τη νέα έκδοση από τη σελίδα εκδόσεων.	This copy of Kanavos ({dir}) was not installed from a release package, so it cannot update itself. Download the new version from the releases page.
+update.err.not_writable	Ο λογαριασμός σας δεν μπορεί να γράψει στον φάκελο του Kanavos ({dir}), για παράδειγμα επειδή βρίσκεται στο Program Files. Μετακινήστε τον φάκελο σε θέση όπου έχετε δικαίωμα εγγραφής, όπως ο φάκελος του χρήστη σας, ή κατεβάστε τη νέα έκδοση χειροκίνητα.	Your account cannot write to the Kanavos folder ({dir}), for example because it is under Program Files. Move the folder somewhere you can write, such as your user folder, or download the new version by hand.
+update.err.busy	Μια άλλη ενημέρωση εγκαθίσταται ήδη σε αυτόν τον φάκελο. Δοκιμάστε ξανά σε λίγα λεπτά.	Another update is being installed in this folder. Try again in a few minutes.
+update.err.io	{path}: {why}	{path}: {why}
+update.err.install_failed_restored	Η ενημέρωση δεν εγκαταστάθηκε ({why}). Η προηγούμενη έκδοση επαναφέρθηκε.	The update was not installed ({why}). The previous version was restored.
+update.err.install_failed	Η ενημέρωση δεν ολοκληρώθηκε ({why}). Το Kanavos θα την ολοκληρώσει στην επόμενη εκκίνηση· αν δεν ξεκινά, αποσυμπιέστε το πακέτο χειροκίνητα.	The update did not complete ({why}). Kanavos will complete it the next time it starts; if it does not start, unpack the package by hand.
+update.err.restart	Η ενημέρωση εγκαταστάθηκε, αλλά η νέα έκδοση δεν ξεκίνησε ({why}). Ξεκινήστε ξανά το Kanavos.	The update was installed, but the new version did not start ({why}). Start Kanavos again.
+update.err.stopped	Η εργασία της ενημέρωσης σταμάτησε απρόσμενα. Δοκιμάστε ξανά.	The update task stopped unexpectedly. Try again.

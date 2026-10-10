@@ -31,6 +31,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("ui", include_str!("../catalogue/ui.tsv")),
     ("canvas", include_str!("../catalogue/canvas.tsv")),
     ("cli", include_str!("../catalogue/cli.tsv")),
+    ("update", include_str!("../catalogue/update.tsv")),
 ];
 
 /// One catalogue entry.

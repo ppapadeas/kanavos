@@ -26,6 +26,7 @@ pub const LAYERS: &[(&str, u32)] = &[
     ("kanavos-tools", 8),
     ("kanavos-render", 8),
     ("kanavos-control", 8),
+    ("kanavos-update", 8),
     ("kanavos-ui", 9),
     ("kanavos-mcp", 9),
     ("kanavos-testkit", 99),
