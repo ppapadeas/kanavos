@@ -3,7 +3,7 @@
 //! Layout of `dist/kanavos-<version>-<os>-<arch>/`:
 //! - `kanavos[.exe]` (desktop app) and `kanavos-cli[.exe]` (headless tools)
 //! - `sample-house.kanavos`, written by the CLI from the built-in sample
-//! - `QUICKSTART.txt`, `README.md`, the guides under `docs/`, `LICENSE-*`, `NOTICE`, `ASSETS.md`
+//! - `QUICKSTART.txt`, `README.md`, `CHANGELOG.md`, the guides under `docs/`, `LICENSE-*`, `NOTICE`, `ASSETS.md`
 //!
 //! The folder is also archived next to it: `.zip` on Windows (with the system `tar`, which writes zip archives
 //! when the name ends in `.zip`), `.tar.gz` elsewhere.
@@ -78,13 +78,13 @@ pub fn dist() -> Result<(), String> {
     for bin in ["kanavos", "kanavos-cli"] {
         copy(&release.join(exe(bin)), &dir.join(exe(bin)))?;
     }
-    for f in ["README.md", "LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "ASSETS.md"] {
+    for f in ["README.md", "CHANGELOG.md", "LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "ASSETS.md"] {
         copy(&root.join(f), &dir.join(f))?;
     }
-    for f in ["getting-started.md", "odigos.el.md"] {
+    for f in ["getting-started.md", "odigos.el.md", "install.md", "egkatastasi.el.md"] {
         copy(&root.join("docs").join("guide").join(f), &dir.join("docs").join("guide").join(f))?;
     }
-    for f in ["control-protocol.md", "commands.md", "format.md"] {
+    for f in ["control-protocol.md", "commands.md", "format.md", "updates.md"] {
         copy(&root.join("docs").join(f), &dir.join("docs").join(f))?;
     }
     fs::write(
