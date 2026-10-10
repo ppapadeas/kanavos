@@ -45,8 +45,8 @@ use serde::{Deserialize, Serialize};
 /// The release public key: standard base64 of the 32-byte Ed25519 public key whose private half signs the
 /// release packages. Builds with the placeholder value refuse to check for or install updates.
 ///
-/// The release engineer sets this value; see `docs/updates.md`.
-pub const UPDATE_PUBLIC_KEY: &str = "REPLACE-WITH-RELEASE-PUBLIC-KEY";
+/// Created with `cargo xtask keygen`; changing it is described in `docs/releasing.md`.
+pub const UPDATE_PUBLIC_KEY: &str = "4dyfPC0DrHFPxgVW7w4jSlebT07z72cUGZt1JFGxdVY=";
 
 /// The placeholder value of [`UPDATE_PUBLIC_KEY`] in builds without a release key.
 pub const PLACEHOLDER_PUBLIC_KEY: &str = "REPLACE-WITH-RELEASE-PUBLIC-KEY";

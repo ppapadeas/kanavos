@@ -114,8 +114,14 @@ Every release carries, for each package:
 | `<package>.sig` | One line: standard base64 of the 64-byte Ed25519 signature (RFC 8032) over the raw package bytes |
 
 The Ed25519 public key is built into Kanavos as `UPDATE_PUBLIC_KEY` in `crates/update/src/lib.rs` (standard
-base64 of the 32-byte key). The private key never enters the repository. A build whose key is still the
-placeholder refuses to check for or install updates and reports "Updates are not configured in this build".
+base64 of the 32-byte key):
+
+```text
+4dyfPC0DrHFPxgVW7w4jSlebT07z72cUGZt1JFGxdVY=
+```
+
+The private key never enters the repository. A build whose key is the placeholder refuses to check for or install
+updates and reports "Updates are not configured in this build".
 
 The checksum guards against damaged downloads; the signature guards against altered ones, because only the holder
 of the private key can produce it. Both must pass. TLS (rustls with the operating system's root certificates)
@@ -135,8 +141,8 @@ Windows (PowerShell): compare the output with the first field of the `.sha256` f
 (Get-FileHash .\kanavos-0.2.0-windows-x86_64.zip -Algorithm SHA256).Hash.ToLower()
 ```
 
-The signature, with OpenSSL 3 (it ships with Git for Windows). `KEY` is the value of `UPDATE_PUBLIC_KEY`; the
-fixed bytes in the second line turn the raw key into the standard public-key format OpenSSL reads:
+The signature, with OpenSSL 3 (it ships with Git for Windows). `KEY` is the public key above; the fixed bytes in
+the second line turn the raw key into the standard public-key format OpenSSL reads:
 
 ```sh
 echo "KEY" | base64 -d > key.raw
@@ -151,15 +157,9 @@ Failure` otherwise.
 
 ### Producing the key and the signatures
 
-For whoever prepares releases (the release pipeline does the same):
-
-```sh
-openssl genpkey -algorithm ed25519 -out release-key.pem                         # once; keep it secret
-openssl pkey -in release-key.pem -pubout -outform DER | tail -c 32 | base64     # the value of UPDATE_PUBLIC_KEY
-sha256sum kanavos-0.2.0-linux-x86_64.tar.gz > kanavos-0.2.0-linux-x86_64.tar.gz.sha256
-openssl pkeyutl -sign -inkey release-key.pem -rawin -in kanavos-0.2.0-linux-x86_64.tar.gz \
-  | base64 -w0 > kanavos-0.2.0-linux-x86_64.tar.gz.sig
-```
+`cargo xtask keygen` creates the key pair and `cargo xtask sign` writes the `.sha256` and `.sig` files; the release
+workflow signs every package this way. [releasing.md](releasing.md) covers the key, the repository secret and
+tagging. `cargo xtask verify <package> <public key>` repeats the checks above.
 
 Changing the key later means installed copies can no longer verify new packages: release one version signed with
 the old key that carries the new key, and only then sign with the new one.
