@@ -34,6 +34,7 @@ under a documented clean-room process and is not affiliated with any BIM vendor 
 | [docs/plan/full-parity.el.md](docs/plan/full-parity.el.md) | Full-functionality plan: feature map, subsystems, phases, team (Greek) |
 | [docs/adr/](docs/adr) | Architecture decisions |
 | [docs/control-protocol.md](docs/control-protocol.md) | Automation API ([commands](docs/commands.md)) |
+| [docs/updates.md](docs/updates.md) | Updates: what the check sends, how to turn it off, the signing scheme |
 | [docs/format.md](docs/format.md), [docs/formats/](docs/formats) | The `.kanavos` format; IFC, DXF, PDF, glTF notes |
 | [docs/legal/clean-room.md](docs/legal/clean-room.md) | **Binding** clean-room rules for every contributor |
 | [docs/legal/legal-brief.md](docs/legal/legal-brief.md) | EU/Greek legal basis and open questions |

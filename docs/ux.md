@@ -151,4 +151,7 @@ Kanavos uses plain, standard terms, aligned with IFC where possible. Specs and U
   findings filed as issues labelled `ux`.
 - Telemetry is **off by default** and opt-in only, anonymous, documented, and limited to performance and crash
   data. No content from projects ever leaves the machine.
+- The update check is not telemetry: it asks GitHub for the release list, sending only the Kanavos version, the
+  operating system and the architecture. It is described in the About window and in [`updates.md`](updates.md),
+  and can be turned off there, in the Help menu, or with `KANAVOS_NO_UPDATE_CHECK=1`.
 - Every release notes the benchmark-task times and the top three fixed friction points.
