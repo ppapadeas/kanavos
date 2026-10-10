@@ -4,6 +4,10 @@
 //! shaded isometric view of its 3D parts, plus a door and a window in a wall in all four flip states, into PNG
 //! sheets under `target/tmp/objects-preview/`. The sheets are for people to look at when changing objects; the
 //! test itself checks only that every cell received ink.
+//!
+//! Each wall runs from left to right, so its left face is at the top of the plan: unflipped (`side=0`), windows
+//! show their outer face (sill, shutters, roller box) at the top and doors open downwards
+//! (`specs/objects/orientation.md`). The 3D views look from the bottom of the plan, at the right face.
 
 #![allow(
     clippy::unwrap_used,

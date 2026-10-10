@@ -156,7 +156,9 @@ ui.insp.end_x	Τέλος X	End X
 ui.insp.end_y	Τέλος Y	End Y
 ui.insp.finish	Επένδυση δαπέδου	Floor finish
 ui.insp.flip_hand	Αναστροφή φοράς	Swap hinge side
+ui.insp.flip_hand.tip	Μεταφέρει τους μεντεσέδες στην άλλη παρειά του ανοίγματος.	Moves the hinges to the other jamb of the opening.
 ui.insp.flip_side	Αναστροφή πλευράς	Swap opening side
+ui.insp.flip_side.tip	Χωρίς αναστροφή, κοιτώντας από την αρχή προς το τέλος του τοίχου, η εξωτερική όψη του παραθύρου (ποδιά, παντζούρια, ρολό) βρίσκεται στην αριστερή όψη του τοίχου και η πόρτα ανοίγει προς τη δεξιά, όπως ταιριάζει σε εξωτερικό τοίχο σχεδιασμένο δεξιόστροφα. Η αναστροφή τα αλλάζει πλευρά.	Unswapped, looking from the wall's start to its end, a window's outer face (sill, shutters, roller shutter) is on the wall's left face and a door opens towards its right face, as suits an exterior wall drawn clockwise. Swapping moves them to the other side.
 ui.insp.gap	Κενό μεταξύ σκελών	Gap between flights
 ui.insp.going	Πάτημα	Going
 ui.insp.gross_area	Μικτό εμβαδόν	Gross area

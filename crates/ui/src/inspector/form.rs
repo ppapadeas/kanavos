@@ -136,9 +136,35 @@ impl<E: Clone> Form<E> {
 
     /// A check box row.
     pub fn check(&mut self, ui: &mut Ui, label: &str, get: impl Fn(&E) -> bool, set: impl Fn(&mut E, bool)) {
-        widgets::label(ui, label);
+        self.check_row(ui, label, None, get, set);
+    }
+
+    /// A check box row whose label and box show `hint` on hover.
+    pub fn check_hint(
+        &mut self,
+        ui: &mut Ui,
+        label: &str,
+        hint: &str,
+        get: impl Fn(&E) -> bool,
+        set: impl Fn(&mut E, bool),
+    ) {
+        self.check_row(ui, label, Some(hint), get, set);
+    }
+
+    fn check_row(
+        &mut self,
+        ui: &mut Ui,
+        label: &str,
+        hint: Option<&str>,
+        get: impl Fn(&E) -> bool,
+        set: impl Fn(&mut E, bool),
+    ) {
+        let response = widgets::label(ui, label);
+        if let Some(hint) = hint {
+            response.on_hover_text(hint);
+        }
         let v = self.shared(&get);
-        if let Some(n) = widgets::tri_check(ui, v, "") {
+        if let Some(n) = widgets::tri_check_hint(ui, v, "", hint) {
             self.apply(|e| set(e, n));
         }
         ui.end_row();

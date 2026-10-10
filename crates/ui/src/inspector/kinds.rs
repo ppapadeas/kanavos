@@ -222,8 +222,20 @@ pub fn openings(ui: &mut Ui, doc: &Document, items: Vec<(Id, Opening)>, locale: 
     widgets::section(ui, "insp-opening-placement", &tr(locale, "ui.insp.group.placement"), true, |ui| {
         widgets::grid(ui, "opening-placement", |ui| {
             f.length(ui, &tr(locale, "ui.insp.position"), |o| o.offset, |o, v| o.offset = v);
-            f.check(ui, &tr(locale, "ui.insp.flip_side"), |o| o.flip_side, |o, v| o.flip_side = v);
-            f.check(ui, &tr(locale, "ui.insp.flip_hand"), |o| o.flip_hand, |o, v| o.flip_hand = v);
+            f.check_hint(
+                ui,
+                &tr(locale, "ui.insp.flip_side"),
+                &tr(locale, "ui.insp.flip_side.tip"),
+                |o| o.flip_side,
+                |o, v| o.flip_side = v,
+            );
+            f.check_hint(
+                ui,
+                &tr(locale, "ui.insp.flip_hand"),
+                &tr(locale, "ui.insp.flip_hand.tip"),
+                |o| o.flip_hand,
+                |o, v| o.flip_hand = v,
+            );
             if let Some(o) = f.single() {
                 f.read(
                     ui,
@@ -929,4 +941,24 @@ pub fn underlays(ui: &mut Ui, doc: &Document, items: Vec<(Id, Underlay)>, locale
         });
     });
     f.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_opening_side_tip_states_the_orientation_convention() {
+        // Unswapped, a window's outer face is the wall's left face and a door opens towards its right face
+        // (specs/objects/orientation.md).
+        for (locale, left, right, clockwise) in [
+            (Locale::En, "left face", "right face", "clockwise"),
+            (Locale::El, "αριστερή", "δεξιά", "δεξιόστροφα"),
+        ] {
+            let tip = tr(locale, "ui.insp.flip_side.tip");
+            assert!(tip.contains(left) && tip.contains(right) && tip.contains(clockwise), "{tip}");
+            assert!(tip.find(left) < tip.find(right), "the outer face comes first: {tip}");
+        }
+        assert!(kanavos_i18n::has("ui.insp.flip_hand.tip"));
+    }
 }
