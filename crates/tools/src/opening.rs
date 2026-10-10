@@ -2,9 +2,14 @@
 //!
 //! Hover a wall: the opening previews in it, centred on the pointer. Its position snaps, in this order, to a
 //! typed distance, the wall's centre, flush with the nearest wall end, and otherwise to steps (5 cm by default)
-//! of the distance from the nearest wall end to the opening's near jamb. The side of the wall the pointer is on
-//! sets the side a door swings to (for windows: the side of the outer face, which is the wall's right face unless
-//! `flip_side` is set); the flip key swaps the hinge jamb.
+//! of the distance from the nearest wall end to the opening's near jamb.
+//!
+//! The side of the wall the pointer is on is where the opening "faces": for a door, the side its leaves open
+//! towards (click inside the room the door opens into); for a window, its outer face (click outside the building).
+//! In the model a door opens towards the wall's right face and a window's outer face is the wall's left face unless
+//! `flip_side` is set (`specs/objects/orientation.md`), so a door is flipped when the pointer is on the wall's left
+//! side and a window when it is on the right side. For an exterior wall drawn clockwise the usual clicks (inside
+//! for a door, outside for a window) therefore give unflipped openings. The flip key swaps the hinge jamb.
 //! Typing a number sets the distance from the nearest wall end to the near jamb; Tab moves to the width.
 
 use kanavos_engine::commands::CreateElement;
@@ -87,9 +92,7 @@ impl OpeningTool {
             width,
             height,
             sill,
-            // Door leaves open towards the left face unless flipped, and a window's outer face is the right face
-            // unless flipped: the pointer's side picks the swing side for doors and the outer face for windows.
-            flip_side: if self.kind == OpeningKind::Window { spot.left } else { !spot.left },
+            flip_side: flip_side_for(self.kind, spot.left),
             flip_hand: self.flip_hand,
             params: Default::default(),
         }
@@ -205,6 +208,20 @@ impl OpeningTool {
             a < d - tol && c < b - tol
         });
         overlaps.then(|| tr(ctx, "tools.opening.overlap"))
+    }
+}
+
+/// The `flip_side` that makes an opening face the side of the wall the pointer is on (`pointer_left`: the
+/// pointer is on the wall's left side, looking from start to end).
+///
+/// Unflipped, a window's outer face is the wall's left face and a door opens towards its right face. The pointer
+/// marks a window's outer face and the side a door opens to, so a window is flipped when the pointer is on the
+/// right and a door when it is on the left. Voids look the same from both sides and are never flipped.
+fn flip_side_for(kind: OpeningKind, pointer_left: bool) -> bool {
+    match kind {
+        OpeningKind::Window => !pointer_left,
+        OpeningKind::Door => pointer_left,
+        OpeningKind::Void => false,
     }
 }
 

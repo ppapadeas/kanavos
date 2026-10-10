@@ -228,7 +228,7 @@ pub fn house() -> House {
                 1.0,
                 2.2,
                 0.0,
-                true,
+                false,
             );
             b.opening(
                 storey,
@@ -239,7 +239,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                true,
+                false,
             );
             b.opening(
                 storey,
@@ -250,13 +250,23 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                true,
+                false,
             );
             // West window.
-            b.opening(storey, w_west, OpeningKind::Window, "window.casement_2", T + 4.5, 1.2, 1.4, 0.9, true);
+            b.opening(
+                storey,
+                w_west,
+                OpeningKind::Window,
+                "window.casement_2",
+                T + 4.5,
+                1.2,
+                1.4,
+                0.9,
+                false,
+            );
             // North: sliding door to the garden and a high kitchen window above the cut plane.
-            b.opening(storey, w_north, OpeningKind::Door, "door.sliding", T + 3.5, 1.6, 2.2, 0.0, true);
-            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 1.0, 1.0, 1.2, true);
+            b.opening(storey, w_north, OpeningKind::Door, "door.sliding", T + 3.5, 1.6, 2.2, 0.0, false);
+            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 1.0, 1.0, 1.2, false);
             // East: kitchen window and a small high stair window.
             b.opening(
                 storey,
@@ -267,7 +277,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                true,
+                false,
             );
             b.opening(
                 storey,
@@ -278,11 +288,11 @@ pub fn house() -> House {
                 0.6,
                 0.6,
                 1.8,
-                true,
+                false,
             );
             // Interior doors.
-            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 2.2 - T, 0.9, 2.1, 0.0, false);
-            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 6.5 - T, 0.9, 2.1, 0.0, true);
+            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 2.2 - T, 0.9, 2.1, 0.0, true);
+            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 6.5 - T, 0.9, 2.1, 0.0, false);
             b.opening(
                 storey,
                 i_east,
@@ -292,7 +302,7 @@ pub fn house() -> House {
                 0.9,
                 2.1,
                 0.0,
-                false,
+                true,
             );
             // Spaces.
             b.space(
@@ -377,7 +387,7 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                true,
+                false,
             );
             b.opening(
                 storey,
@@ -388,7 +398,7 @@ pub fn house() -> House {
                 1.6,
                 2.2,
                 0.0,
-                true,
+                false,
             );
             b.opening(
                 storey,
@@ -399,12 +409,22 @@ pub fn house() -> House {
                 1.2,
                 1.4,
                 0.9,
-                true,
+                false,
             );
-            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 0.6, 0.6, 1.5, true);
-            b.opening(storey, w_west, OpeningKind::Window, "window.casement_2", T + 6.8, 1.2, 1.4, 0.9, true);
-            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 3.6 - T, 0.9, 2.1, 0.0, false);
-            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 6.2 - T, 0.9, 2.1, 0.0, true);
+            b.opening(storey, w_north, OpeningKind::Window, "window.fixed", T + 9.5, 0.6, 0.6, 1.5, false);
+            b.opening(
+                storey,
+                w_west,
+                OpeningKind::Window,
+                "window.casement_2",
+                T + 6.8,
+                1.2,
+                1.4,
+                0.9,
+                false,
+            );
+            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 3.6 - T, 0.9, 2.1, 0.0, true);
+            b.opening(storey, i_mid, OpeningKind::Door, "door.single_swing", 6.2 - T, 0.9, 2.1, 0.0, false);
             b.opening(
                 storey,
                 i_east,
@@ -414,7 +434,7 @@ pub fn house() -> House {
                 0.8,
                 2.1,
                 0.0,
-                false,
+                true,
             );
             let _ = i_west;
             b.space(storey, "Υπνοδωμάτιο 1", "1.01", SpaceCategory::MainUse, T, 4.565, 6.935, 9.0 - T);

@@ -129,6 +129,29 @@ fn opening(h: &Harness, i: usize) -> kanavos_model::Opening {
     h.of("opening")[i].as_opening().cloned().unwrap()
 }
 
+/// Whether a placed opening faces its wall's left side (looking from start to end), judged from its drawn symbol:
+/// for a door, the side its leaf opens to; for a window, the side of its frame, which stands near the outer face.
+fn faces_left(h: &Harness, i: usize) -> bool {
+    let e = &h.of("opening")[i];
+    let o = e.as_opening().unwrap();
+    let pl = kanavos_elements::opening_placement(&h.doc, e.id).unwrap();
+    let ctx =
+        kanavos_objects::OpeningContext { opening: o, left_face: pl.left_face, right_face: pl.right_face };
+    let layer = if o.kind == OpeningKind::Door { "door.symbol" } else { "window.symbol" };
+    let ys: Vec<f64> = kanavos_objects::opening_symbol(&ctx)
+        .iter()
+        .filter(|i| i.layer == layer)
+        .flat_map(|i| i.shape.extent_points())
+        .map(|q| q.y)
+        .collect();
+    let lo = ys.iter().copied().fold(f64::INFINITY, f64::min);
+    let hi = ys.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    assert!(lo.is_finite() && hi.is_finite(), "opening {i} draws nothing on {layer}");
+    let mid = (lo + hi) / 2.0;
+    assert!(mid.abs() > 0.01, "opening {i} is centred in its wall");
+    mid > 0.0
+}
+
 #[test]
 fn door_snaps_to_steps_centre_and_ends() {
     let mut h = Harness::new(ToolId::Door).with_snapping();
@@ -142,12 +165,15 @@ fn door_snaps_to_steps_centre_and_ends() {
     assert_eq!(o.host, w);
     assert_eq!(o.kind, OpeningKind::Door);
     assert!(near_m(o.offset.as_m(), 0.60 + 0.45), "{}", o.offset.as_m());
-    assert!(!o.flip_side, "pointer on the left side");
+    // The pointer is on the wall's left side: the door opens to that side, which needs the side flipped.
+    assert!(o.flip_side, "pointer on the left side");
+    assert!(faces_left(&h, 0), "opens to the left side");
     // Centre of the wall.
     h.click(3.04, -0.05);
     let o = opening(&h, 1);
     assert!(near_m(o.offset.as_m(), 3.0));
-    assert!(o.flip_side, "pointer on the right side");
+    assert!(!o.flip_side, "pointer on the right side: the default");
+    assert!(!faces_left(&h, 1), "opens to the right side");
     // Flush with the end.
     h.click(5.52, 0.1);
     let o = opening(&h, 2);
@@ -168,9 +194,10 @@ fn typed_distance_from_the_nearest_end_and_width() {
     assert!(near_m(o.width.as_m(), 1.6));
     assert!(near_m(o.offset.as_m(), 6.0 - 0.5 - 0.8), "{}", o.offset.as_m());
     assert!(near_m(o.sill.as_m(), 0.9));
-    // The pointer was on the wall's left side: that side becomes the outer face, which for windows is the right
-    // face unless flipped.
-    assert!(o.flip_side);
+    // The pointer was on the wall's left side: that side becomes the outer face, which for windows is the left face
+    // unless flipped.
+    assert!(!o.flip_side);
+    assert!(faces_left(&h, 0));
 }
 
 #[test]
@@ -178,9 +205,43 @@ fn the_pointer_side_sets_a_windows_outer_face() {
     let mut h = Harness::new(ToolId::Window).with_snapping();
     h.add_wall((0.0, 0.0), (6.0, 0.0));
     h.click(2.0, -0.1);
-    assert!(!opening(&h, 0).flip_side, "outer face on the right face: the default");
+    assert!(opening(&h, 0).flip_side, "outer face on the right face: flipped");
+    assert!(!faces_left(&h, 0));
     h.click(4.5, 0.1);
-    assert!(opening(&h, 1).flip_side);
+    assert!(!opening(&h, 1).flip_side, "outer face on the left face: the default");
+    assert!(faces_left(&h, 1));
+}
+
+#[test]
+fn usual_clicks_on_a_clockwise_ring_give_unflipped_doors_and_windows() {
+    // Exterior walls drawn clockwise have their left face, and the build-up's first layer, outside. Clicking
+    // outside for a window and inside for a door places both unflipped: windows face out, doors open in.
+    let mut h = Harness::new(ToolId::Window).with_snapping();
+    let south = h.add_wall((6.0, 0.0), (0.0, 0.0));
+    let east = h.add_wall((6.0, 5.0), (6.0, 0.0));
+    h.click(3.0, -0.2);
+    h.click(6.2, 2.5);
+    h.tool = kanavos_tools::make_tool(ToolId::Door);
+    h.click(1.5, 0.2);
+    h.click(5.8, 4.2);
+    let all = h.of("opening");
+    assert_eq!(all.len(), 4);
+    for (i, e) in all.iter().enumerate() {
+        let o = e.as_opening().unwrap();
+        assert!(!o.flip_side, "{:?} {i}", o.kind);
+        assert!(o.host == south || o.host == east);
+        // The left side of these walls is outside.
+        assert_eq!(faces_left(&h, i), o.kind == OpeningKind::Window, "{:?} {i}", o.kind);
+    }
+}
+
+#[test]
+fn voids_are_never_flipped() {
+    let mut h = Harness::new(ToolId::Void).with_snapping();
+    h.add_wall((0.0, 0.0), (6.0, 0.0));
+    h.click(1.5, 0.1);
+    h.click(4.5, -0.1);
+    assert!(!opening(&h, 0).flip_side && !opening(&h, 1).flip_side);
 }
 
 #[test]

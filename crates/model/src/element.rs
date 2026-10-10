@@ -318,7 +318,8 @@ pub struct Opening {
     pub height: Length,
     /// Bottom of the opening above the storey's floor elevation (0 for doors).
     pub sill: Length,
-    /// Swap the side the door opens to, or the side of the window's outer face.
+    /// Mirror the opening across its wall. Unset, a window's outer face is the wall's left face and a door opens
+    /// towards the right face, as suits an exterior wall drawn clockwise (`specs/objects/orientation.md`).
     #[serde(default)]
     pub flip_side: bool,
     /// Swap the hinge jamb.

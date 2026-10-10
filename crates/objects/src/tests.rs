@@ -211,20 +211,126 @@ fn flipping_mirrors_the_symbol() {
 }
 
 #[test]
-fn doors_open_towards_the_left_face_by_default() {
+fn doors_open_towards_the_right_face_by_default() {
     let def = find("door.single_swing").unwrap();
     let b = bounds(&opening_symbol(&ctx(&opening(def, false, false))));
-    // The leaf, open at 90°, reaches about its width beyond the left face.
-    assert!(b.max.y > 0.15 + 0.7, "{b:?}");
-    assert!(b.min.y >= -0.15 - 1e-9, "{b:?}");
+    // The leaf, open at 90°, reaches about its width beyond the right face; nothing crosses the left face.
+    assert!(b.min.y < -0.15 - 0.7, "{b:?}");
+    assert!(b.max.y <= 0.15 + 1e-9, "{b:?}");
     // The hinge is at −x: the open leaf lies near x = −w/2.
     let leaf = opening_symbol(&ctx(&opening(def, false, false)))
         .into_iter()
         .filter(|i| i.layer == "door.symbol" && matches!(i.shape, Shape::Polyline { .. }))
         .map(|i| bounds(&[i]))
-        .find(|r| r.max.y > 0.5)
+        .find(|r| r.min.y < -0.5)
         .unwrap();
     assert!(leaf.max.x < 0.0, "{leaf:?}");
+}
+
+/// Items of a symbol on one layer.
+fn on_layer(items: &[Item], layer: &str) -> Vec<Item> {
+    items.iter().filter(|i| i.layer == layer).cloned().collect()
+}
+
+/// Centre of the first arc on a layer: the hinge of a swing.
+fn arc_centre(items: &[Item], layer: &str) -> (f64, f64) {
+    items
+        .iter()
+        .find_map(|i| match i.shape {
+            Shape::Arc { centre, .. } if i.layer == layer => Some((centre.x, centre.y)),
+            _ => None,
+        })
+        .unwrap()
+}
+
+const FLIP_STATES: [(bool, bool); 4] = [(false, false), (false, true), (true, false), (true, true)];
+
+#[test]
+fn door_leaves_open_towards_the_inner_face_in_every_flip_state() {
+    // In the 30 cm test wall the left face is at y = +0.15 and the right face at y = −0.15.
+    let def = find("door.single_swing").unwrap();
+    for (side, hand) in FLIP_STATES {
+        let o = opening(def, side, hand);
+        let items = opening_symbol(&ctx(&o));
+        let b = bounds(&items);
+        // The inner face, which the leaf opens towards, is the right face unless the side is swapped.
+        let inner = if side { 0.15 } else { -0.15 };
+        assert!((ctx(&o).inner_face() - inner).abs() < 1e-12);
+        assert!((ctx(&o).outer_face() + inner).abs() < 1e-12);
+        if side {
+            assert!(b.max.y > 0.15 + 0.7 && b.min.y >= -0.15 - 1e-9, "side {side} hand {hand}: {b:?}");
+        } else {
+            assert!(b.min.y < -0.15 - 0.7 && b.max.y <= 0.15 + 1e-9, "side {side} hand {hand}: {b:?}");
+        }
+        // The hinge sits on the inner face, at the jamb at −x unless the hand is swapped.
+        let (hx, hy) = arc_centre(&items, "door.symbol.swing");
+        assert!((hy - inner).abs() < 1e-9, "side {side} hand {hand}: hinge y {hy}");
+        assert!(if hand { hx > 0.3 } else { hx < -0.3 }, "side {side} hand {hand}: hinge x {hx}");
+        // In 3D the closed leaf stands at the inner face too.
+        let leaf = opening_parts(&ctx(&o))
+            .into_iter()
+            .filter(|p| p.color == crate::parts::color::LEAF)
+            .filter_map(|p| p.mesh.bbox())
+            .reduce(|a, b| a.union(&b))
+            .unwrap();
+        let mid = (leaf.min.y + leaf.max.y) / 2.0;
+        assert!(if side { mid > 0.0 } else { mid < 0.0 }, "side {side} hand {hand}: leaf at y {mid}");
+    }
+}
+
+#[test]
+fn window_outer_face_and_sashes_lie_on_opposite_faces_in_every_flip_state() {
+    let def = find("window.casement_1").unwrap();
+    for (side, hand) in FLIP_STATES {
+        let mut o = opening(def, side, hand);
+        o.params.insert("shutters".into(), 1.0);
+        let items = opening_symbol(&ctx(&o));
+        let tag = format!("side {side} hand {hand}");
+        // The outer face is the left face (+0.15) unless the side is swapped: shutters lie beyond it.
+        let shutters = bounds(&on_layer(&items, "window.symbol.shutter"));
+        if side {
+            assert!(shutters.max.y < -0.15, "{tag}: {shutters:?}");
+        } else {
+            assert!(shutters.min.y > 0.15, "{tag}: {shutters:?}");
+        }
+        // The frame is set back from the outer face, in the outer half of the wall.
+        let frame = bounds(&on_layer(&items, "window.symbol"));
+        assert!(if side { frame.max.y < 0.0 } else { frame.min.y > 0.0 }, "{tag}: {frame:?}");
+        // The external sill projects 3 cm beyond the outer face, the internal one 2 cm beyond the inner face.
+        let sills = bounds(&on_layer(&items, "window.symbol.sill"));
+        let (left, right) = (sills.max.y - 0.15, -0.15 - sills.min.y);
+        let (outer, inner) = if side { (right, left) } else { (left, right) };
+        assert!((outer - 0.03).abs() < 1e-9 && (inner - 0.02).abs() < 1e-9, "{tag}: {sills:?}");
+        // The sash swings towards the inner face, hinged at −x unless the hand is swapped.
+        let swing = bounds(&on_layer(&items, "window.symbol.swing"));
+        assert!(if side { swing.max.y > 0.15 } else { swing.min.y < -0.15 }, "{tag}: {swing:?}");
+        let (hx, _) = arc_centre(&items, "window.symbol.swing");
+        assert!(if hand { hx > 0.2 } else { hx < -0.2 }, "{tag}: hinge x {hx}");
+        // In 3D the shutters stand in front of the outer face too.
+        let shutters3d = opening_parts(&ctx(&o))
+            .into_iter()
+            .filter(|p| p.color == crate::parts::color::SHUTTER)
+            .filter_map(|p| p.mesh.bbox())
+            .reduce(|a, b| a.union(&b))
+            .unwrap();
+        if side {
+            assert!(shutters3d.max.y < -0.15, "{tag}: {shutters3d:?}");
+        } else {
+            assert!(shutters3d.min.y > 0.15, "{tag}: {shutters3d:?}");
+        }
+    }
+}
+
+#[test]
+fn a_wall_without_thickness_still_follows_the_left_face_rule() {
+    let def = find("window.casement_2").unwrap();
+    for side in [false, true] {
+        let mut o = opening(def, side, false);
+        o.params.insert("shutters".into(), 1.0);
+        let thin = OpeningContext { opening: &o, left_face: 0.0, right_face: 0.0 };
+        let shutters = bounds(&on_layer(&opening_symbol(&thin), "window.symbol.shutter"));
+        assert!(if side { shutters.max.y < 0.0 } else { shutters.min.y > 0.0 }, "side {side}: {shutters:?}");
+    }
 }
 
 #[test]
@@ -256,21 +362,24 @@ fn windows_carry_sills_shutters_and_roller_boxes_on_the_outer_face() {
     o.params.insert("shutters".into(), 1.0);
     o.params.insert("roller".into(), 1.0);
     let items = opening_symbol(&ctx(&o));
-    let layer = |l: &str| items.iter().filter(|i| i.layer == l).cloned().collect::<Vec<_>>();
+    let layer = |l: &str| on_layer(&items, l);
+    // The outer face is the left face (y = +0.15) by default.
     let shutters = bounds(&layer("window.symbol.shutter"));
-    assert!(shutters.max.y < -0.15, "shutters on the outside: {shutters:?}");
+    assert!(shutters.min.y > 0.15, "shutters on the outside: {shutters:?}");
     assert!(shutters.min.x < -0.6 - 0.5 && shutters.max.x > 0.6 + 0.5);
     let above = layer("window.symbol.above");
     assert!(!above.is_empty());
     assert!(above.iter().all(|i| i.stroke.as_ref().is_some_and(|s| s.pattern == LinePattern::Dashed)));
+    // The roller box runs from the outer face to just past the frame, in the outer half of the wall.
+    let roller = bounds(&above);
+    assert!(roller.max.y < 0.15 && roller.min.y > -1e-9, "{roller:?}");
     let sills = bounds(&layer("window.symbol.sill"));
     assert!(sills.min.y < -0.15 && sills.max.y > 0.15);
-    // Flipping the side puts the outer face on the left.
+    // Flipping the side puts the outer face on the right.
     o.flip_side = true;
     let items = opening_symbol(&ctx(&o));
-    let shutters =
-        bounds(&items.into_iter().filter(|i| i.layer == "window.symbol.shutter").collect::<Vec<_>>());
-    assert!(shutters.min.y > 0.15);
+    let shutters = bounds(&on_layer(&items, "window.symbol.shutter"));
+    assert!(shutters.max.y < -0.15, "{shutters:?}");
 }
 
 #[test]
@@ -429,15 +538,17 @@ fn the_swing_angle_turns_leaf_and_arc() {
             _ => None,
         })
         .unwrap();
-    assert!(arc.0.abs() < 1e-9 && (arc.1 - 45_f64.to_radians()).abs() < 1e-9, "{arc:?}");
+    // The arc runs from the closed position along the wall (0°) to the open leaf, 45° towards the right face.
+    let (a, b) = (arc.0, arc.0 + arc.1);
+    assert!((a.min(b) + 45_f64.to_radians()).abs() < 1e-9 && a.max(b).abs() < 1e-9, "{arc:?}");
     // The open leaf leans at 45°: it reaches as far along the wall as across it.
     let leaf = items
         .iter()
         .filter(|i| i.layer == "door.symbol" && matches!(i.shape, Shape::Polyline { .. }))
         .map(|i| bounds(std::slice::from_ref(i)))
-        .find(|r| r.max.y > 0.3)
+        .find(|r| r.min.y < -0.3)
         .unwrap();
-    assert!(((leaf.max.y - 0.15) - (leaf.max.x - leaf.min.x)).abs() < 0.05, "{leaf:?}");
+    assert!(((-0.15 - leaf.min.y) - (leaf.max.x - leaf.min.x)).abs() < 0.05, "{leaf:?}");
 }
 
 #[test]

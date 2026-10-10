@@ -70,6 +70,8 @@ pub fn house_commands(
     let mid = run(&mut scratch, wall(p(6.0, 0.0), p(6.0, d), &interior).into())?;
     let cross = run(&mut scratch, wall(p(6.0, 4.5), p(w, 4.5), &interior).into())?;
 
+    // The exterior walls run clockwise, so their left face is outside: unflipped, their windows face out and their
+    // doors open in (`specs/objects/orientation.md`). The interior doors open to their walls' left sides.
     let opening = |host: Option<Id>,
                    kind: OpeningKind,
                    style: &str,
@@ -77,7 +79,7 @@ pub fn house_commands(
                    width: f64,
                    h: f64,
                    sill: f64,
-                   inward: bool| {
+                   flip_side: bool| {
         host.map(|host| {
             CreateElement::on(
                 storey,
@@ -89,7 +91,7 @@ pub fn house_commands(
                     width: Length::m(width),
                     height: Length::m(h),
                     sill: Length::m(sill),
-                    flip_side: inward,
+                    flip_side,
                     flip_hand: false,
                     params: BTreeMap::new(),
                 }),
@@ -97,13 +99,13 @@ pub fn house_commands(
         })
     };
     let openings = [
-        opening(south, OpeningKind::Door, "door.single_swing", 7.0, 1.0, 2.2, 0.0, true),
+        opening(south, OpeningKind::Door, "door.single_swing", 7.0, 1.0, 2.2, 0.0, false),
         opening(south, OpeningKind::Window, "window.casement_2", 2.0, 1.4, 1.4, 0.9, false),
         opening(north, OpeningKind::Window, "window.sliding", 3.5, 2.0, 1.4, 0.9, false),
         opening(west, OpeningKind::Window, "window.casement_2", 4.0, 1.2, 1.4, 0.9, false),
         opening(east, OpeningKind::Window, "window.casement_1", 1.8, 0.8, 1.0, 1.3, false),
-        opening(mid, OpeningKind::Door, "door.single_swing", 2.2, 0.9, 2.1, 0.0, false),
-        opening(cross, OpeningKind::Door, "door.single_swing", 1.0, 0.8, 2.1, 0.0, false),
+        opening(mid, OpeningKind::Door, "door.single_swing", 2.2, 0.9, 2.1, 0.0, true),
+        opening(cross, OpeningKind::Door, "door.single_swing", 1.0, 0.8, 2.1, 0.0, true),
     ];
     for o in openings.into_iter().flatten() {
         run(&mut scratch, o.into())?;

@@ -67,6 +67,7 @@ impl Builder {
         offset: f64,
         size: (f64, f64),
         sill: f64,
+        flip_side: bool,
         tag: &str,
     ) {
         let Some(host) = host else { return };
@@ -80,7 +81,7 @@ impl Builder {
                 width: Length::m(size.0),
                 height: Length::m(size.1),
                 sill: Length::m(sill),
-                flip_side: false,
+                flip_side,
                 flip_hand: false,
                 params: BTreeMap::new(),
             }),
@@ -185,24 +186,26 @@ fn build(locale: Locale) -> (Document, usize) {
 
     // Ground floor.
     let h0 = 3.2;
-    let south = b.wall(ground, (0.0, 0.0), (12.0, 0.0), &ext, h0);
-    let east = b.wall(ground, (12.0, 0.0), (12.0, 9.0), &ext, h0);
-    let north = b.wall(ground, (12.0, 9.0), (0.0, 9.0), &ext, h0);
-    let west = b.wall(ground, (0.0, 9.0), (0.0, 0.0), &ext, h0);
+    // Exterior walls clockwise, so the build-up's first layers and the doors' and windows' outer faces are outside
+    // without flipping (`specs/objects/orientation.md`); interior doors are flipped to open to their walls' left.
+    let west = b.wall(ground, (0.0, 0.0), (0.0, 9.0), &ext, h0);
+    let north = b.wall(ground, (0.0, 9.0), (12.0, 9.0), &ext, h0);
+    let east = b.wall(ground, (12.0, 9.0), (12.0, 0.0), &ext, h0);
+    let south = b.wall(ground, (12.0, 0.0), (0.0, 0.0), &ext, h0);
     let spine = b.wall(ground, (5.0, 0.0), (5.0, 9.0), &int, h0);
     let wc_wall = b.wall(ground, (0.0, 3.0), (5.0, 3.0), &int, h0);
     let study_wall = b.wall(ground, (0.0, 6.0), (5.0, 6.0), &int, h0);
     use OpeningKind::{Door, Window};
-    b.opening(ground, west, Door, "door.single_swing", 4.5, (1.0, 2.2), 0.0, "Π1");
-    b.opening(ground, spine, Door, "door.double_swing", 4.5, (1.4, 2.1), 0.0, "Π2");
-    b.opening(ground, wc_wall, Door, "door.single_swing", 3.6, (0.8, 2.1), 0.0, "Π3");
-    b.opening(ground, study_wall, Door, "door.single_swing", 3.6, (0.9, 2.1), 0.0, "Π4");
-    b.opening(ground, south, Window, "window.sliding", 7.0, (1.8, 1.4), 0.9, "Α1");
-    b.opening(ground, south, Window, "window.sliding", 10.2, (1.8, 1.4), 0.9, "Α2");
-    b.opening(ground, south, Window, "window.casement_1", 2.5, (0.8, 0.8), 1.4, "Α3");
-    b.opening(ground, east, Window, "window.casement_2", 4.5, (1.2, 1.4), 0.9, "Α4");
-    b.opening(ground, north, Window, "window.casement_2", 3.0, (1.2, 1.4), 0.9, "Α5");
-    b.opening(ground, north, Window, "window.casement_2", 9.5, (1.2, 1.4), 0.9, "Α6");
+    b.opening(ground, west, Door, "door.single_swing", 4.5, (1.0, 2.2), 0.0, false, "Π1");
+    b.opening(ground, spine, Door, "door.double_swing", 4.5, (1.4, 2.1), 0.0, true, "Π2");
+    b.opening(ground, wc_wall, Door, "door.single_swing", 3.6, (0.8, 2.1), 0.0, true, "Π3");
+    b.opening(ground, study_wall, Door, "door.single_swing", 3.6, (0.9, 2.1), 0.0, true, "Π4");
+    b.opening(ground, south, Window, "window.sliding", 5.0, (1.8, 1.4), 0.9, false, "Α1");
+    b.opening(ground, south, Window, "window.sliding", 1.8, (1.8, 1.4), 0.9, false, "Α2");
+    b.opening(ground, south, Window, "window.casement_1", 9.5, (0.8, 0.8), 1.4, false, "Α3");
+    b.opening(ground, east, Window, "window.casement_2", 4.5, (1.2, 1.4), 0.9, false, "Α4");
+    b.opening(ground, north, Window, "window.casement_2", 9.0, (1.2, 1.4), 0.9, false, "Α5");
+    b.opening(ground, north, Window, "window.casement_2", 2.5, (1.2, 1.4), 0.9, false, "Α6");
     let slab0 = PolygonWithHoles::from(rect(-0.155, -0.155, 12.155, 9.155));
     if let Some(ground_slab) = layered(defaults.ground_slab) {
         b.element(
@@ -254,25 +257,25 @@ fn build(locale: Locale) -> (Document, usize) {
 
     // First floor.
     let h1 = 3.0;
-    let south1 = b.wall(first, (0.0, 0.0), (12.0, 0.0), &ext, h1);
-    let east1 = b.wall(first, (12.0, 0.0), (12.0, 9.0), &ext, h1);
-    let north1 = b.wall(first, (12.0, 9.0), (0.0, 9.0), &ext, h1);
-    let west1 = b.wall(first, (0.0, 9.0), (0.0, 0.0), &ext, h1);
+    let west1 = b.wall(first, (0.0, 0.0), (0.0, 9.0), &ext, h1);
+    let north1 = b.wall(first, (0.0, 9.0), (12.0, 9.0), &ext, h1);
+    let east1 = b.wall(first, (12.0, 9.0), (12.0, 0.0), &ext, h1);
+    let south1 = b.wall(first, (12.0, 0.0), (0.0, 0.0), &ext, h1);
     let spine1 = b.wall(first, (5.0, 0.0), (5.0, 9.0), &int, h1);
     let bath1 = b.wall(first, (0.0, 3.0), (5.0, 3.0), &int, h1);
     let bed3 = b.wall(first, (0.0, 6.0), (5.0, 6.0), &int, h1);
     b.wall(first, (5.0, 4.5), (12.0, 4.5), &int, h1);
-    b.opening(first, spine1, Door, "door.single_swing", 3.8, (0.9, 2.1), 0.0, "Π5");
-    b.opening(first, spine1, Door, "door.single_swing", 5.25, (0.9, 2.1), 0.0, "Π6");
-    b.opening(first, bath1, Door, "door.single_swing", 3.6, (0.8, 2.1), 0.0, "Π7");
-    b.opening(first, bed3, Door, "door.single_swing", 3.6, (0.9, 2.1), 0.0, "Π8");
-    b.opening(first, south1, Window, "window.casement_2", 8.5, (1.4, 1.4), 0.9, "Α7");
-    b.opening(first, south1, Window, "window.casement_1", 2.5, (0.8, 0.8), 1.4, "Α8");
-    b.opening(first, east1, Window, "window.casement_2", 2.25, (1.2, 1.4), 0.9, "Α9");
-    b.opening(first, east1, Window, "window.casement_2", 6.75, (1.2, 1.4), 0.9, "Α10");
-    b.opening(first, north1, Window, "window.casement_2", 3.0, (1.4, 1.4), 0.9, "Α11");
-    b.opening(first, north1, Window, "window.casement_2", 9.5, (1.2, 1.4), 0.9, "Α12");
-    b.opening(first, west1, Window, "window.casement_1", 4.5, (0.8, 1.2), 1.0, "Α13");
+    b.opening(first, spine1, Door, "door.single_swing", 3.8, (0.9, 2.1), 0.0, true, "Π5");
+    b.opening(first, spine1, Door, "door.single_swing", 5.25, (0.9, 2.1), 0.0, true, "Π6");
+    b.opening(first, bath1, Door, "door.single_swing", 3.6, (0.8, 2.1), 0.0, true, "Π7");
+    b.opening(first, bed3, Door, "door.single_swing", 3.6, (0.9, 2.1), 0.0, true, "Π8");
+    b.opening(first, south1, Window, "window.casement_2", 3.5, (1.4, 1.4), 0.9, false, "Α7");
+    b.opening(first, south1, Window, "window.casement_1", 9.5, (0.8, 0.8), 1.4, false, "Α8");
+    b.opening(first, east1, Window, "window.casement_2", 6.75, (1.2, 1.4), 0.9, false, "Α9");
+    b.opening(first, east1, Window, "window.casement_2", 2.25, (1.2, 1.4), 0.9, false, "Α10");
+    b.opening(first, north1, Window, "window.casement_2", 9.0, (1.4, 1.4), 0.9, false, "Α11");
+    b.opening(first, north1, Window, "window.casement_2", 2.5, (1.2, 1.4), 0.9, false, "Α12");
+    b.opening(first, west1, Window, "window.casement_1", 4.5, (0.8, 1.2), 1.0, false, "Α13");
     if let Some(floor) = layered(defaults.floor_slab) {
         let mut outline = PolygonWithHoles::from(rect(-0.155, -0.155, 12.155, 9.155));
         outline.holes.push(rect(0.95, 3.55, 3.35, 5.75));

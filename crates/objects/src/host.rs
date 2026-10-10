@@ -3,6 +3,11 @@
 //! Generators draw every door and window in one canonical state: leaves and sashes open towards the inner face
 //! `yi` (the larger `y`), the outer face is `ye`, and single hinges sit on the jamb at `x = −w/2`. The opening's
 //! `flip_side` and `flip_hand` are applied afterwards as reflections, so every state is an exact mirror image.
+//!
+//! [`OpeningContext::outer_face`] decides which wall face becomes the outer face, and so where leaves open
+//! (`specs/objects/orientation.md`); this module only maps that choice onto the canonical drawing.
+
+use std::cmp::Ordering;
 
 use kanavos_drawing::{Affine, Item};
 use kanavos_geom::Point3;
@@ -39,18 +44,24 @@ impl Host {
         if !(w.is_finite() && h.is_finite() && w >= 0.05 && h >= 0.05) {
             return None;
         }
-        let (l, r) = (ctx.left_face, ctx.right_face);
-        if !(l.is_finite() && r.is_finite()) {
+        let (outer, inner) = (ctx.outer_face(), ctx.inner_face());
+        if !(outer.is_finite() && inner.is_finite()) {
             return None;
         }
-        // Canonically the inner face is the larger y. The opening's "left face" side is the default inner side.
-        let (mut yi, mut ye) = if l >= r { (l, r) } else { (r, l) };
+        // Canonically the outer face is the smaller y, so the drawing is reflected across the wall when the outer
+        // face is the larger one. When both faces coincide (a wall of no thickness), the left face counts as the
+        // +y side.
+        let reflect_y = match outer.partial_cmp(&inner) {
+            Some(Ordering::Greater) => true,
+            Some(Ordering::Less) => false,
+            _ => !o.flip_side,
+        };
+        let (mut yi, mut ye) = (outer.max(inner), outer.min(inner));
         if yi - ye < MIN_THICKNESS {
             let mid = (yi + ye) / 2.0;
             yi = mid + MIN_THICKNESS / 2.0;
             ye = mid - MIN_THICKNESS / 2.0;
         }
-        let reflect_y = o.flip_side ^ (l < r);
         let sill = o.sill.as_m();
         Some(Host {
             w,
