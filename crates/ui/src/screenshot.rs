@@ -8,9 +8,10 @@
 //!   `open=materials|buildups|storeys|project|site|defaults|about|shortcuts`, `tab=doors|windows|spaces|walls|
 //!   areas|3d|section|sheet`, `split=on|off`, `palette=<query>`, `history`, `tool=<tool key>`, `scale=<factor>`,
 //!   `panels=off`, `doc=new` (start from the empty starter project), `edit` (make a few named steps for the
-//!   history page).
+//!   history page), `update` (the update window with a sample offer).
 //!
-//! The hook never saves preferences or recovery files, and closes without the unsaved-changes prompt.
+//! The hook never saves preferences or recovery files, never checks for updates or contacts the network, and
+//! closes without the unsaved-changes prompt.
 
 use std::path::{Path, PathBuf};
 

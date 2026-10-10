@@ -1,12 +1,24 @@
-//! Keyboard shortcuts and About windows.
+//! Keyboard shortcuts and About windows. The About window also holds the update settings: whether to check at
+//! start, the channel, and what the check sends.
 
 use egui::{RichText, Ui};
 use kanavos_tools::ToolId;
 use kanavos_units::Locale;
+use kanavos_update::Channel;
 
-use crate::names::{self, tr, trf};
+use crate::actions::Action;
+use crate::names::{self, tr};
 use crate::theme::Tokens;
 use crate::widgets;
+
+/// The update preferences, as the About window shows them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UpdateSettings {
+    /// Check for updates at start.
+    pub check_at_start: bool,
+    /// Which releases are offered.
+    pub channel: Channel,
+}
 
 /// Global shortcuts of the shell: (keys, catalogue key of the description).
 pub const GLOBAL_SHORTCUTS: [(&str, &str); 16] = [
@@ -56,8 +68,9 @@ pub fn shortcuts_ui(ui: &mut Ui, locale: Locale) {
     });
 }
 
-/// The About window: version, licence and the clean-room statement.
-pub fn about_ui(ui: &mut Ui, locale: Locale) {
+/// The About window: version, licence, the clean-room statement, and the update settings with what the check
+/// sends.
+pub fn about_ui(ui: &mut Ui, locale: Locale, updates: UpdateSettings, actions: &mut Vec<Action>) {
     let t = Tokens::of(ui);
     ui.horizontal(|ui| {
         crate::icons::inline(ui, crate::icons::Icon::Tool(ToolId::Wall), t.accent);
@@ -83,6 +96,24 @@ pub fn about_ui(ui: &mut Ui, locale: Locale) {
         ui.label(RichText::new(tr(locale, "ui.about.clean_room_title")).family(crate::fonts::strong()));
         ui.label(RichText::new(tr(locale, "ui.about.clean_room")).color(t.text_muted));
     });
+    ui.add_space(8.0);
+    ui.label(RichText::new(tr(locale, "ui.about.updates")).family(crate::fonts::strong()));
+    let mut at_start = updates.check_at_start;
+    if ui.checkbox(&mut at_start, tr(locale, "ui.menu.update_at_start")).changed() {
+        actions.push(Action::SetUpdateCheck(at_start));
+    }
+    ui.horizontal(|ui| {
+        widgets::label(ui, &tr(locale, "ui.update.channel_label"));
+        for c in Channel::ALL {
+            if ui.radio(updates.channel == c, tr(locale, crate::menu::channel_key(c))).clicked() {
+                actions.push(Action::SetUpdateChannel(c));
+            }
+        }
+    });
+    widgets::hint(ui, &tr(locale, "ui.update.privacy"));
+    if ui.button(tr(locale, "ui.menu.check_updates")).clicked() {
+        actions.push(Action::CheckForUpdates);
+    }
     ui.add_space(6.0);
-    widgets::hint(ui, &trf(locale, "ui.about.telemetry", &[]));
+    widgets::hint(ui, &tr(locale, "ui.about.telemetry"));
 }

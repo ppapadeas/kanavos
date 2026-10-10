@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use egui::{Button, RichText, Ui};
 use kanavos_units::Locale;
+use kanavos_update::Channel;
 
 use crate::actions::{Action, Panel, Window};
 use crate::exports::ExportKind;
@@ -31,6 +32,12 @@ pub struct MenuContext<'a> {
     pub split: bool,
     /// The focused tab shows a table (CSV export applies).
     pub table_focused: bool,
+    /// Check for updates at start.
+    pub update_check: bool,
+    /// Which releases are offered.
+    pub update_channel: Channel,
+    /// The version on offer, when a check found one.
+    pub update_available: Option<String>,
 }
 
 fn item(ui: &mut Ui, label: String, shortcut: &str, enabled: bool) -> bool {
@@ -65,7 +72,7 @@ pub fn bar(ui: &mut Ui, state: &AppState, mc: &MenuContext<'_>, actions: &mut Ve
         edit_menu(ui, state, actions);
         view_menu(ui, locale, mc, actions);
         model_menu(ui, locale, actions);
-        help_menu(ui, locale, actions);
+        help_menu(ui, locale, mc, actions);
         // Project name and unsaved marker on the right.
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let t = Tokens::of(ui);
@@ -270,7 +277,7 @@ fn model_menu(ui: &mut Ui, locale: Locale, actions: &mut Vec<Action>) {
     });
 }
 
-fn help_menu(ui: &mut Ui, locale: Locale, actions: &mut Vec<Action>) {
+fn help_menu(ui: &mut Ui, locale: Locale, mc: &MenuContext<'_>, actions: &mut Vec<Action>) {
     ui.menu_button(tr(locale, "ui.menu.help"), |ui| {
         if item(ui, tr(locale, "ui.menu.shortcuts"), "F1", true) {
             actions.push(Action::OpenWindow(Window::Shortcuts));
@@ -282,8 +289,39 @@ fn help_menu(ui: &mut Ui, locale: Locale, actions: &mut Vec<Action>) {
             actions.push(Action::OpenSample);
         }
         ui.separator();
+        if let Some(version) = &mc.update_available
+            && item(ui, trf(locale, "ui.menu.install_update", &[("version", version)]), "", true)
+        {
+            actions.push(Action::ShowUpdate);
+        }
+        if item(ui, tr(locale, "ui.menu.check_updates"), "", true) {
+            actions.push(Action::CheckForUpdates);
+        }
+        let at_start = ui
+            .add(Button::new(tr(locale, "ui.menu.update_at_start")).selected(mc.update_check))
+            .on_hover_text(tr(locale, "ui.update.privacy"));
+        if at_start.clicked() {
+            actions.push(Action::SetUpdateCheck(!mc.update_check));
+            ui.close();
+        }
+        ui.menu_button(tr(locale, "ui.menu.update_channel"), |ui| {
+            for c in Channel::ALL {
+                if check(ui, tr(locale, channel_key(c)), mc.update_channel == c, "") {
+                    actions.push(Action::SetUpdateChannel(c));
+                }
+            }
+        });
+        ui.separator();
         if item(ui, tr(locale, "ui.menu.about"), "", true) {
             actions.push(Action::OpenWindow(Window::About));
         }
     });
+}
+
+/// Catalogue key of the name of an update channel.
+pub fn channel_key(c: Channel) -> &'static str {
+    match c {
+        Channel::Stable => "ui.update.channel.stable",
+        Channel::Test => "ui.update.channel.test",
+    }
 }

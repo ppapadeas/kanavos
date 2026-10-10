@@ -6,6 +6,7 @@ use kanavos_geom::Point2;
 use kanavos_model::Georef;
 use kanavos_units::{Length, Locale, format_decimal, format_level};
 
+use crate::actions::Action;
 use crate::icons::{self, Icon};
 use crate::names::tr;
 use crate::state::AppState;
@@ -53,6 +54,8 @@ pub struct StatusInfo {
     pub busy: bool,
     /// The notice is fresh enough to show (errors stay longer than information).
     pub show_notice: bool,
+    /// A new version on offer or an update under way; clicking it opens the update window.
+    pub update: Option<String>,
 }
 
 fn separator(ui: &mut Ui) {
@@ -65,7 +68,7 @@ fn separator(ui: &mut Ui) {
 }
 
 /// Shows the status bar.
-pub fn bar(ui: &mut Ui, state: &mut AppState, info: &StatusInfo) {
+pub fn bar(ui: &mut Ui, state: &mut AppState, info: &StatusInfo, actions: &mut Vec<Action>) {
     let locale = state.locale;
     let t = Tokens::of(ui);
     let small = |s: String| RichText::new(s).size(crate::theme::size::SMALL);
@@ -92,6 +95,15 @@ pub fn bar(ui: &mut Ui, state: &mut AppState, info: &StatusInfo) {
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
+            // A new version: small, at the far end, never in the way.
+            if let Some(text) = &info.update {
+                let link = egui::Button::new(small(text.clone()).color(t.accent)).frame(false);
+                if ui.add(link).on_hover_text(tr(locale, "ui.update.title")).clicked() {
+                    actions.push(Action::ShowUpdate);
+                }
+                icons::inline(ui, Icon::Info, t.accent);
+                separator(ui);
+            }
             if info.busy {
                 ui.label(small(tr(locale, "ui.status.updating")).color(t.text_muted));
                 ui.add(egui::Spinner::new().size(12.0));

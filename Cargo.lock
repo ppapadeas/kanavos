@@ -1910,6 +1910,7 @@ dependencies = [
  "kanavos-solid",
  "kanavos-tools",
  "kanavos-units",
+ "kanavos-update",
  "kanavos-views",
  "png",
  "rfd",

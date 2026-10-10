@@ -7,7 +7,8 @@ ui.about.fonts_value	του συστήματος (δεν ενσωματώνον�
 ui.about.formats	Ανοικτά πρότυπα	Open standards
 ui.about.licence	Άδεια	Licence
 ui.about.tagline	Σχεδιασμός κτιρίων με BIM, από το μοντέλο ως τα σχέδια άδειας.	BIM design of buildings, from the model to the permit drawings.
-ui.about.telemetry	Δεν αποστέλλονται δεδομένα: η τηλεμετρία είναι απενεργοποιημένη.	No data leaves this computer: telemetry is off.
+ui.about.telemetry	Η τηλεμετρία είναι απενεργοποιημένη και τα δεδομένα των έργων δεν φεύγουν ποτέ από αυτόν τον υπολογιστή.	Telemetry is off, and project data never leaves this computer.
+ui.about.updates	Ενημερώσεις	Updates
 ui.align.centre	Κέντρο	Centre
 ui.align.left	Αριστερά	Left
 ui.align.right	Δεξιά	Right
@@ -263,6 +264,7 @@ ui.mat_cat.stone	Φυσικός λίθος	Stone
 ui.mat_cat.tile	Πλακίδια	Tiles
 ui.mat_cat.wood	Ξύλο	Wood
 ui.menu.about	Σχετικά με το Kanavos	About Kanavos
+ui.menu.check_updates	Έλεγχος για ενημερώσεις…	Check for updates…
 ui.menu.copy_to_storey	Αντιγραφή σε επίπεδο	Copy to storey
 ui.menu.delete	Διαγραφή	Delete
 ui.menu.detect_spaces	Αυτόματοι χώροι στο επίπεδο	Detect spaces on storey
@@ -274,6 +276,7 @@ ui.menu.help	Βοήθεια	Help
 ui.menu.history	Ιστορικό αλλαγών	Change history
 ui.menu.import	Εισαγωγή	Import
 ui.menu.inspector	Ιδιότητες	Inspector
+ui.menu.install_update	Εγκατάσταση του Kanavos {version}…	Install Kanavos {version}…
 ui.menu.language	Γλώσσα	Language
 ui.menu.model	Μοντέλο	Model
 ui.menu.new	Νέο έργο	New project
@@ -302,6 +305,8 @@ ui.menu.tree	Δέντρο έργου	Project tree
 ui.menu.ui_scale	Μέγεθος διεπαφής	Interface size
 ui.menu.undo	Αναίρεση	Undo
 ui.menu.undo_named	Αναίρεση: {step}	Undo: {step}
+ui.menu.update_at_start	Έλεγχος για ενημερώσεις στην εκκίνηση	Check for updates at start
+ui.menu.update_channel	Κανάλι ενημερώσεων	Update channel
 ui.menu.view	Προβολή	View
 ui.menu.zoom_extents	Προσαρμογή στο παράθυρο	Zoom to fit
 ui.mgr.add_layer	Προσθήκη στρώσης	Add layer
@@ -602,6 +607,40 @@ ui.tree.title	ΕΡΓΟ	PROJECT
 ui.tree.untitled	Έργο χωρίς τίτλο	Untitled project
 ui.tree.view_add	Νέα τομή ή όψη	New section or elevation
 ui.tree.views	Όψεις σχεδίου	Views
+ui.update.available	Διατίθεται το Kanavos {version}	Kanavos {version} is available
+ui.update.channel.stable	Σταθερές εκδόσεις	Stable releases
+ui.update.channel.test	Δοκιμαστικές εκδόσεις	Test builds
+ui.update.channel_label	Κανάλι	Channel
+ui.update.checking	Αναζήτηση νέας έκδοσης…	Looking for a new version…
+ui.update.downloading	Λήψη του Kanavos {version}…	Downloading Kanavos {version}…
+ui.update.failed	Η ενημέρωση δεν ολοκληρώθηκε	The update did not go through
+ui.update.how	Πριν από την εγκατάσταση, το πακέτο ελέγχεται με την ψηφιακή του υπογραφή. Μετά το Kanavos επανεκκινείται και ανοίγει ξανά το έργο σας.	Before it is installed, the package is checked against its digital signature. Kanavos then restarts and opens your project again.
+ui.update.install	Εγκατάσταση και επανεκκίνηση	Install and restart
+ui.update.installed_version	Εγκατεστημένη έκδοση	Installed version
+ui.update.installing	Εγκατάσταση…	Installing…
+ui.update.later	Αργότερα	Later
+ui.update.latest	Έχετε την τελευταία έκδοση ({version}).	You have the latest version ({version}).
+ui.update.manual_download	Μπορείτε να κατεβάσετε τη νέα έκδοση από:	You can download the new version from:
+ui.update.no_notes	Η έκδοση δεν έχει σημειώσεις.	The release has no notes.
+ui.update.notes	Τι αλλάζει	What changes
+ui.update.privacy	Ο έλεγχος στέλνει στο GitHub μόνο την έκδοση του Kanavos και το λειτουργικό σύστημα, ποτέ δεδομένα έργων.	The check sends GitHub only the Kanavos version and the operating system, never project data.
+ui.update.progress	{done} από {total} MB	{done} of {total} MB
+ui.update.progress_unknown	{done} MB	{done} MB
+ui.update.published	Δημοσίευση	Published
+ui.update.ready	Το Kanavos {version} κατέβηκε και η υπογραφή του επαληθεύτηκε.	Kanavos {version} is downloaded and its signature verified.
+ui.update.recovery_failed	Δεν ήταν δυνατή η εγγραφή αντιγράφου ανάκτησης ({why}). Η ενημέρωση δεν εγκαταστάθηκε, για να μη χαθεί εργασία· αποθηκεύστε το έργο και δοκιμάστε ξανά.	A recovery copy could not be written ({why}). The update was not installed so that no work is lost; save the project and try again.
+ui.update.release	Έκδοση	Release
+ui.update.restart_note	Το Kanavos θα επανεκκινηθεί για να εγκαταστήσει την ενημέρωση και θα ανοίξει ξανά το έργο σας.	Kanavos restarts to install the update and opens your project again.
+ui.update.restart_recovery_failed	Η ενημέρωση εγκαταστάθηκε, αλλά δεν ήταν δυνατή η εγγραφή αντιγράφου ανάκτησης ({why}), οπότε το Kanavos δεν επανεκκινήθηκε. Αποθηκεύστε το έργο και ανοίξτε ξανά το Kanavos για να χρησιμοποιήσετε τη νέα έκδοση.	The update is installed, but a recovery copy could not be written ({why}), so Kanavos did not restart. Save the project, then open Kanavos again to use the new version.
+ui.update.retry	Δοκιμή ξανά	Try again
+ui.update.skip	Παράλειψη αυτής της έκδοσης	Skip this version
+ui.update.status_available	Νέα έκδοση {version}	New version {version}
+ui.update.status_downloading	Λήψη ενημέρωσης {percent} %	Downloading update {percent} %
+ui.update.status_installing	Εγκατάσταση ενημέρωσης…	Installing update…
+ui.update.test_build	δοκιμαστική έκδοση	test build
+ui.update.title	Ενημέρωση του Kanavos	Kanavos update
+ui.update.unsaved_note	Το Kanavos θα επανεκκινηθεί για να εγκαταστήσει την ενημέρωση. Σε κάθε περίπτωση γράφεται αντίγραφο ανάκτησης, ώστε καμία αλλαγή να μη χαθεί.	Kanavos restarts to install the update. A recovery copy is written either way, so no change is lost.
+ui.update.verifying	Έλεγχος υπογραφής…	Checking the signature…
 ui.usage.any	Γενική χρήση	Any
 ui.usage.roof	Στέγες	Roofs
 ui.usage.slab	Πλάκες	Slabs
