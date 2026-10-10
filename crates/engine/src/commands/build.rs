@@ -430,7 +430,8 @@ pub struct PlaceOpening {
     /// How far from a wall's reference line the point may be (default 1.00 m).
     #[serde(default = "one_metre")]
     pub max_distance: Length,
-    /// Swap the opening side.
+    /// Mirror the opening across the wall. Unset, a window's outer face is the wall's left face and a door opens
+    /// towards its right face, which suits exterior walls drawn clockwise.
     #[serde(default)]
     pub flip_side: bool,
     /// Swap the hinge jamb.
@@ -736,6 +737,32 @@ mod tests {
         assert!((o.offset.as_m() - 7.0).abs() < 1e-9);
         assert!((o.sill.as_m() - 0.9).abs() < 1e-9);
         assert_eq!(s.history_labels(Locale::El).last().unwrap(), "Νέο παράθυρο");
+    }
+
+    #[test]
+    fn placed_openings_face_out_of_a_clockwise_ring_by_default() {
+        let (mut s, st) = house();
+        let outline = crate::geo::outline_from_walls(s.document(), st, OutlineFace::Outer).unwrap();
+        for (kind, x) in [("window", 3.0), ("door", 8.0)] {
+            // Arguments as a script would send them: no flip given.
+            let json = format!(r#"{{"storey":{},"point":[{x},0.0],"kind":"{kind}"}}"#, st.0);
+            let c: PlaceOpening = serde_json::from_str(&json).unwrap();
+            assert!(!c.flip_side && !c.flip_hand);
+            let id = s.run(c).unwrap().created[0];
+            let doc = s.document();
+            let o = doc.element(id).unwrap().as_opening().unwrap();
+            let pl = kanavos_elements::opening_placement(doc, id).unwrap();
+            let ctx = kanavos_objects::OpeningContext {
+                opening: o,
+                left_face: pl.left_face,
+                right_face: pl.right_face,
+            };
+            let tol = doc.tolerance();
+            let inside = |d: f64| outline.contains(pl.centre + pl.across * d, &tol);
+            // The south wall runs west, so its left face is outside: the outer face is outside and doors open in.
+            assert!(!inside(ctx.outer_face() + 0.05), "{kind}: outer face inside");
+            assert!(inside(ctx.inner_face() - 0.05), "{kind}: inner face outside");
+        }
     }
 
     #[test]

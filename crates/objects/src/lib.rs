@@ -12,14 +12,20 @@
 //! - **Openings** (doors, windows, voids): `x` along the host wall (the opening spans `−width/2 … +width/2`),
 //!   `y` across the wall (positive towards the wall's left side; the faces are at `left_face` and `right_face`),
 //!   `z` up from the sill. The opening's `width` and `height` are the hole in the wall; frames sit inside it.
-//!   By default door leaves and window sashes open towards the **left face** (the inside of a wall drawn
-//!   counter-clockwise around a building) and a window's outer face, with its sill, shutters and roller box, is
-//!   the **right face**. `flip_side` swaps the two faces; `flip_hand` swaps the hinge jamb (single hinges sit at
-//!   `x = −width/2` by default) and the side sliding leaves park on.
 //! - **Free objects** (furniture, fixtures): origin at the insertion point, `x` right, `y` back in plan, `z` up
 //!   from the object's base. Objects that stand against a wall have their origin at the middle of their front
 //!   edge and extend over `y = 0 … depth` ([`Origin::FrontCentre`]); free-standing objects (tables, trees, cars)
 //!   are centred on the origin ([`Origin::Centre`]). Views apply position, rotation and mirroring.
+//!
+//! # Orientation of openings
+//!
+//! Openings follow the wall build-up convention (`specs/objects/orientation.md`). A build-up lists its layers from
+//! the wall's left face to its right face, and the template's exterior build-ups list the outside layer first, so
+//! an exterior wall drawn clockwise around a building has its left face outside. Accordingly, by default a
+//! window's **outer face** (frame position, external sill, shutters, roller box) is the wall's **left face**, and
+//! door leaves and window sashes open towards the **right face**, into the building. `flip_side` swaps the two
+//! faces; `flip_hand` swaps the hinge jamb (single hinges sit at `x = −width/2` by default) and the side sliding
+//! leaves park on. [`OpeningContext::outer_face`] is the one place the rule is applied.
 //!
 //! # Plan symbols
 //!
@@ -265,6 +271,24 @@ pub struct OpeningContext<'a> {
     pub left_face: f64,
     /// Offset of the host's right face from its reference line (local `y`), metres.
     pub right_face: f64,
+}
+
+impl OpeningContext<'_> {
+    /// Offset (local `y`) of the opening's outer face: the wall's left face, or its right face when the opening's
+    /// `flip_side` is set.
+    ///
+    /// A window's frame is set back from this face, and its external sill, shutters and roller box lie on it. With
+    /// the template's build-ups this is the outside of an exterior wall drawn clockwise around a building
+    /// (`specs/objects/orientation.md`).
+    pub fn outer_face(&self) -> f64 {
+        if self.opening.flip_side { self.right_face } else { self.left_face }
+    }
+
+    /// Offset (local `y`) of the face that door leaves and window sashes open towards: the face opposite
+    /// [`outer_face`](Self::outer_face), the wall's right face unless `flip_side` is set.
+    pub fn inner_face(&self) -> f64 {
+        if self.opening.flip_side { self.left_face } else { self.right_face }
+    }
 }
 
 /// A coloured 3D part.

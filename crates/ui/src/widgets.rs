@@ -316,8 +316,16 @@ pub fn choice<T: PartialEq + Clone>(
 
 /// A check box for a possibly mixed boolean. Returns the new value when clicked.
 pub fn tri_check(ui: &mut Ui, value: Option<bool>, label: &str) -> Option<bool> {
+    tri_check_hint(ui, value, label, None)
+}
+
+/// [`tri_check`] with an optional explanation shown on hover.
+pub fn tri_check_hint(ui: &mut Ui, value: Option<bool>, label: &str, hint: Option<&str>) -> Option<bool> {
     let mut v = value.unwrap_or(false);
-    let response = ui.add(egui::Checkbox::new(&mut v, label).indeterminate(value.is_none()));
+    let mut response = ui.add(egui::Checkbox::new(&mut v, label).indeterminate(value.is_none()));
+    if let Some(hint) = hint {
+        response = response.on_hover_text(hint);
+    }
     if response.clicked() { Some(if value.is_none() { true } else { v }) } else { None }
 }
 

@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-001
 title: Workspace layout, panels, view tabs and split view
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §1, §2, §5, §6
   - docs/architecture.md §3 (derived views, background work)
@@ -110,3 +110,18 @@ label and, where it applies, a selected state to assistive technology.
 
 - Dragging a view from the tree onto a sheet tab to place it (docs/ux.md §2) waits for viewport editing on
   sheets.
+
+---
+
+## Review (completed by the reviewer)
+
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
+
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

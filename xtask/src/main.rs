@@ -1,5 +1,6 @@
 //! Repository automation. Run with `cargo xtask <command>`.
 
+mod dist;
 mod layers;
 
 use std::collections::HashMap;
@@ -15,6 +16,7 @@ COMMANDS:
     layering              check that crates depend only on lower layers
     provenance [RANGE]    check Signed-off-by and Clean-Room trailers (default: commits not on origin/main)
     bench                 run performance budgets (not yet implemented)
+    dist                  build release binaries and package them under dist/ (folder and archive)
 ";
 
 fn main() -> ExitCode {
@@ -23,6 +25,7 @@ fn main() -> ExitCode {
         Some("ci") => ci(),
         Some("layering") => layering(),
         Some("provenance") => provenance(args.get(1).map(String::as_str)),
+        Some("dist") => dist::dist(),
         Some("bench") => {
             println!("No benchmarks yet; budgets are defined in docs/architecture.md §7.");
             Ok(())

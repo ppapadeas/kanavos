@@ -384,7 +384,7 @@ Places a door, window or void in the wall nearest to a point; the point gives th
 | Argument | Type | Required | Description |
 | --- | --- | --- | --- |
 | `flip_hand` | boolean |  | Swap the hinge jamb. Default: `false`. |
-| `flip_side` | boolean |  | Swap the opening side. Default: `false`. |
+| `flip_side` | boolean |  | Mirror the opening across the wall. Unset, a window's outer face is the wall's left face and a door opens towards its right face, which suits exterior walls drawn clockwise. Default: `false`. |
 | `height` | `Length` or null |  | Clear height; default from the style. |
 | `host` | `Id` or null |  | Host wall; default: the nearest wall on `storey` within `max_distance`. |
 | `kind` | `OpeningKind` | yes | Door, window or void. |

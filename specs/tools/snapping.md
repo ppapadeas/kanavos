@@ -1,9 +1,9 @@
 ---
 id: SPEC-tools-001
 title: Snapping and inference while drawing and editing
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §3 (Kanavos interaction model: inference and snapping)
   - docs/architecture.md §7 (performance budgets)
@@ -91,11 +91,13 @@ by all tools. On a storey of 2,000 elements a snap query takes well under 2 ms (
 
 ## Review (completed by the reviewer)
 
-- [ ] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
-- [ ] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
-- [ ] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
-- [ ] No screenshots or images of the reference product.
-- [ ] Every claim traces to a listed source (observation log, standard, paper, regulation).
-- [ ] Describes behaviour, not implementation details of the reference product.
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
 
-Reviewed by: pending
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

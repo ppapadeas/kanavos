@@ -3,6 +3,9 @@
 //! Usage: `kanavos [project.kanavos]`. Without a file, the first launch opens the sample house and later
 //! launches start a new project.
 
+// Release builds are a Windows GUI program (no console window); debug builds keep the console for logs.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 

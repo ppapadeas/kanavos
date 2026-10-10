@@ -6,7 +6,8 @@
 //!
 //! - Plot 20 × 25 m (500 m²), street to the south; terms Σ.Δ. 0,8, κάλυψη 60 %, max height 7,50 m, 2 floors.
 //! - Footprint 12 × 10 m. Exterior walls 31 cm (render, 8 cm EPS, 20 cm brick, plaster) with their reference line
-//!   on the outer face, drawn clockwise so the insulation is outside; 13 cm brick partitions on centre lines.
+//!   on the outer face, drawn clockwise so the insulation is outside and their doors and windows face the right
+//!   way unflipped (`specs/objects/orientation.md`); 13 cm brick partitions on centre lines.
 //! - Ground floor (±0,00): living room, kitchen, dining room, stairwell, shower room, hall, storage and a covered
 //!   semi-open entrance porch (ημιυπαίθριος) in the south-east corner under the upper floor.
 //! - First floor (+3,20): three bedrooms, bathroom, WC, study, corridor, stairwell, storage and a south balcony
@@ -84,8 +85,12 @@ struct Builder {
     marble: Id,
 }
 
-/// Opening spec: kind, style, tag, centre point on the host's reference line, width, height, sill, and whether
-/// it opens to the other side.
+/// Opening spec: kind, style, tag, centre point on the host's reference line, width, height, sill, and
+/// `flip_side`.
+///
+/// Unflipped, a window's outer face is its wall's left face and a door opens towards the right face
+/// (`specs/objects/orientation.md`). The exterior walls run clockwise, so their left face is outside and their
+/// doors and windows need no flip; interior doors are flipped where they open towards their wall's left side.
 type OpeningSpec = (OpeningKind, &'static str, &'static str, (f64, f64), f64, f64, f64, bool);
 
 impl Builder {
@@ -178,15 +183,7 @@ impl Builder {
     }
 
     fn openings(&mut self, host: Id, specs: &[OpeningSpec]) -> Result<(), CommandError> {
-        // Exterior walls run clockwise, so their left face is outside: doors open inwards and windows show their
-        // outer face outside when flipped. `flip` reverses that choice.
-        let exterior = self
-            .s
-            .document()
-            .element(host)
-            .and_then(|e| e.as_wall())
-            .is_some_and(|w| w.reference == ReferenceLine::Left);
-        for (kind, style, tag, (x, y), w, h, sill, flip) in specs {
+        for (kind, style, tag, (x, y), w, h, sill, flip_side) in specs {
             self.run(PlaceOpening {
                 point: Point2::new(*x, *y),
                 kind: *kind,
@@ -197,7 +194,7 @@ impl Builder {
                 height: Some(Length::m(*h)),
                 sill: Some(Length::m(*sill)),
                 max_distance: Length::m(0.5),
-                flip_side: exterior != *flip,
+                flip_side: *flip_side,
                 flip_hand: false,
                 params: BTreeMap::new(),
                 tag: (*tag).to_owned(),
@@ -410,17 +407,19 @@ impl Builder {
             ],
         )?;
         self.openings(porch_w, &[(Window, "window.casement_1", "Θ3", (8.4, 1.2), 0.6, 0.6, 1.6, false)])?;
-        self.openings(f, &[(Door, "door.single_swing", "Π3", (6.5, 4.0), 0.9, 2.1, 0.0, false)])?;
-        self.openings(gw, &[(Door, "door.single_swing", "Π2", (7.3, 2.3), 0.8, 2.1, 0.0, true)])?;
+        // Interior doors open into the living room (f, west: its left side), the storage (gw, south: right), the
+        // shower room (a, north: left) and the kitchen (b, west: left).
+        self.openings(f, &[(Door, "door.single_swing", "Π3", (6.5, 4.0), 0.9, 2.1, 0.0, true)])?;
+        self.openings(gw, &[(Door, "door.single_swing", "Π2", (7.3, 2.3), 0.8, 2.1, 0.0, false)])?;
         self.openings(
             a,
             &[
                 (Void, "void.rectangular", "", (5.35, 5.8), 1.8, 2.4, 0.0, false),
                 (Void, "void.rectangular", "", (8.75, 5.8), 1.9, 2.4, 0.0, false),
-                (Door, "door.single_swing", "Π2", (10.8, 5.8), 0.8, 2.1, 0.0, false),
+                (Door, "door.single_swing", "Π2", (10.8, 5.8), 0.8, 2.1, 0.0, true),
             ],
         )?;
-        self.openings(b, &[(Door, "door.single_swing", "Π3", (4.2, 7.0), 0.9, 2.1, 0.0, false)])?;
+        self.openings(b, &[(Door, "door.single_swing", "Π3", (4.2, 7.0), 0.9, 2.1, 0.0, true)])?;
 
         // Slabs: the ground slab follows the outer faces; the porch is paved separately, 2 cm lower.
         self.run(SlabFromWalls {
@@ -612,23 +611,25 @@ impl Builder {
             ],
         )?;
         self.openings(west, &[(Window, "window.casement_2", "Θ1", (0.0, 2.6), 1.2, 1.4, 0.9, false)])?;
+        // Interior doors open into the bedrooms (h, south: its right side), the bathroom, WC and study (l, north:
+        // left) and the storage (d, east: right).
         self.openings(
             h,
             &[
-                (Door, "door.single_swing", "Π3", (3.8, 5.0), 0.9, 2.1, 0.0, true),
-                (Door, "door.single_swing", "Π3", (7.0, 5.0), 0.9, 2.1, 0.0, true),
-                (Door, "door.single_swing", "Π3", (9.1, 5.0), 0.9, 2.1, 0.0, true),
+                (Door, "door.single_swing", "Π3", (3.8, 5.0), 0.9, 2.1, 0.0, false),
+                (Door, "door.single_swing", "Π3", (7.0, 5.0), 0.9, 2.1, 0.0, false),
+                (Door, "door.single_swing", "Π3", (9.1, 5.0), 0.9, 2.1, 0.0, false),
             ],
         )?;
         self.openings(
             l,
             &[
-                (Door, "door.single_swing", "Π2", (2.5, 6.4), 0.8, 2.1, 0.0, false),
-                (Door, "door.single_swing", "Π2", (4.5, 6.4), 0.8, 2.1, 0.0, false),
-                (Door, "door.single_swing", "Π2", (6.5, 6.4), 0.8, 2.1, 0.0, false),
+                (Door, "door.single_swing", "Π2", (2.5, 6.4), 0.8, 2.1, 0.0, true),
+                (Door, "door.single_swing", "Π2", (4.5, 6.4), 0.8, 2.1, 0.0, true),
+                (Door, "door.single_swing", "Π2", (6.5, 6.4), 0.8, 2.1, 0.0, true),
             ],
         )?;
-        self.openings(d, &[(Door, "door.single_swing", "Π2", (9.9, 5.7), 0.8, 2.1, 0.0, true)])?;
+        self.openings(d, &[(Door, "door.single_swing", "Π2", (9.9, 5.7), 0.8, 2.1, 0.0, false)])?;
 
         // First-floor slab at the core faces with the stair well; cantilevered balcony to the south.
         self.run(SlabFromWalls {
@@ -839,14 +840,95 @@ mod tests {
                 _ => {}
             }
         }
-        // Doors in exterior walls open inwards: the exterior walls run clockwise, so they are flipped.
+        // The exterior walls run clockwise, so their doors and windows keep the default orientation.
         let entrance = doc.elements().find(|e| e.tag == "Π1").and_then(|e| e.as_opening()).unwrap();
-        assert!(entrance.flip_side);
+        assert!(!entrance.flip_side);
         // Each step is one undo step and the session replays from its log.
         let log = session.log_jsonl();
         let commands = crate::log::parse_jsonl(&log).unwrap();
         let replayed = Session::replay(sample_start(), commands).unwrap();
         assert_eq!(replayed.document(), doc);
+    }
+
+    /// The middle of an opening's drawn symbol on its main layer (`door.symbol` or `window.symbol`), in plan, and
+    /// the local `y` of that middle measured from the middle of the wall (positive towards the wall's left side).
+    ///
+    /// For a hinged door this lies in the room the leaf opens into; for a window it lies in the outer half of the
+    /// wall, where the frame stands.
+    fn symbol_middle(doc: &Document, id: Id) -> Option<(Point2, f64)> {
+        let e = doc.element(id)?;
+        let o = e.as_opening()?;
+        let pl = kanavos_elements::opening_placement(doc, id).ok()?;
+        let ctx = kanavos_objects::OpeningContext {
+            opening: o,
+            left_face: pl.left_face,
+            right_face: pl.right_face,
+        };
+        let layer = if o.kind == OpeningKind::Door { "door.symbol" } else { "window.symbol" };
+        let items = kanavos_objects::opening_symbol(&ctx).into_iter().filter(|i| i.layer == layer).collect();
+        let b = kanavos_drawing::Drawing { items, ..kanavos_drawing::Drawing::model(50.0) }.bounds()?;
+        let (x, y) = ((b.min.x + b.max.x) / 2.0, (b.min.y + b.max.y) / 2.0);
+        Some((pl.centre + pl.along * x + pl.across * y, y - (pl.left_face + pl.right_face) / 2.0))
+    }
+
+    #[test]
+    fn doors_open_into_their_rooms_and_windows_face_outwards() {
+        let doc = sample_house().unwrap();
+        let tol = doc.tolerance();
+        // Every hinged door, by its centre, and the space its leaf opens into.
+        let doors: [((f64, f64), &str); 12] = [
+            ((10.0, 2.4), "Διάδρομος"),
+            ((6.5, 4.0), "Καθιστικό"),
+            ((7.3, 2.3), "Αποθήκη"),
+            ((10.8, 5.8), "Λουτρό"),
+            ((4.2, 7.0), "Κουζίνα"),
+            ((3.8, 5.0), "Υπνοδωμάτιο 1"),
+            ((7.0, 5.0), "Υπνοδωμάτιο 2"),
+            ((9.1, 5.0), "Υπνοδωμάτιο 3"),
+            ((2.5, 6.4), "Λουτρό"),
+            ((4.5, 6.4), "WC"),
+            ((6.5, 6.4), "Γραφείο"),
+            ((9.9, 5.7), "Αποθήκη"),
+        ];
+        let mut found = 0;
+        for storey in doc.storeys() {
+            let spaces: Vec<&kanavos_model::Space> =
+                doc.elements_on(storey.id).filter_map(|e| e.as_space()).collect();
+            let outline = crate::geo::outline_from_walls(&doc, storey.id, OutlineFace::Outer).unwrap();
+            for e in doc.elements_on(storey.id) {
+                let ElementKind::Opening(o) = &e.kind else { continue };
+                if o.kind == OpeningKind::Void {
+                    continue;
+                }
+                let pl = kanavos_elements::opening_placement(&doc, e.id).unwrap();
+                let (middle, across) = symbol_middle(&doc, e.id).unwrap();
+                // Exterior walls: one side of the wall is inside the building outline, the other outside.
+                let inside = |d: f64| outline.contains(pl.centre + pl.across * d, &tol);
+                let (left_in, right_in) = (inside(pl.left_face + 0.05), inside(pl.right_face - 0.05));
+                if left_in != right_in {
+                    assert!(!o.flip_side, "{} {}: an exterior opening needs no flip", e.tag, e.id);
+                    // Sliding doors look alike from both sides; the others face one way.
+                    if across.abs() > 0.01 {
+                        let faces_inside = (across > 0.0) == left_in;
+                        assert_eq!(faces_inside, o.kind == OpeningKind::Door, "{} {}", e.tag, e.id);
+                    }
+                }
+                if o.style == "door.single_swing" {
+                    let at = doors
+                        .iter()
+                        .find(|((x, y), _)| pl.centre.coincides(Point2::new(*x, *y), &tol))
+                        .unwrap_or_else(|| panic!("door {} at {:?} is not in the table", e.tag, pl.centre));
+                    let room = spaces
+                        .iter()
+                        .find(|s| s.boundary.contains(middle, &tol))
+                        .map(|s| s.name.as_str())
+                        .unwrap_or("—");
+                    assert_eq!(room, at.1, "door {} at {:?}", e.tag, pl.centre);
+                    found += 1;
+                }
+            }
+        }
+        assert_eq!(found, 12);
     }
 
     #[test]

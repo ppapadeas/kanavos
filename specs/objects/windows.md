@@ -1,11 +1,12 @@
 ---
 id: SPEC-objects-003
 title: Windows, sills, shutters and roller shutters
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - SPEC-objects-001 (coordinates, layers, line weights)
+  - SPEC-objects-006 (which wall face is outside; where leaves open)
   - ISO 128-2:2020 (line types), ISO 7519:1991 (construction drawings)
   - General architectural drafting practice in Greece and Europe
   - Common Greek window construction: frames set back from the outer face, marble external sills, external
@@ -43,6 +44,8 @@ mullions.
 
 ### Plan
 
+- The outer face is the wall's left face, the outside of an exterior wall drawn clockwise; with swap side it is
+  the right face. The inner face is the other one (SPEC-objects-006).
 - The frame occupies a band across the wall `setback` from the outer face, `frame_depth` deep (limited to the
   wall). At 1:50 the jambs and mullions are drawn as cut profiles and each sash as its two cut stiles with a glass
   line between; at smaller scales the band is drawn as its outline with one glass line.
@@ -73,8 +76,9 @@ guide rails and one slat of the curtain showing.
 ## Acceptance tests
 
 1. Given a two-leaf casement with shutters and a roller shutter in a 30 cm wall, then the shutters lie beyond the
-   right face and wider than the hole, the roller box items are dashed, and the sills reach past both faces.
-2. Given the same window with swap side, then the shutters lie beyond the left face.
+   left face and wider than the hole, the roller box items are dashed and lie in the left half of the wall, and
+   the sills reach past both faces.
+2. Given the same window with swap side, then the shutters lie beyond the right face.
 3. Given a sliding window with four panes, then the symbol has more items than with two.
 4. Given every window style in the four swap states, then the plans are mirror images and the parts are closed.
 
@@ -86,11 +90,13 @@ guide rails and one slat of the curtain showing.
 
 ## Review (completed by the reviewer)
 
-- [ ] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
-- [ ] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
-- [ ] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
-- [ ] No screenshots or images of the reference product.
-- [ ] Every claim traces to a listed source (observation log, standard, paper, regulation).
-- [ ] Describes behaviour, not implementation details of the reference product.
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
 
-Reviewed by: pending
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

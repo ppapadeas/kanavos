@@ -1,9 +1,9 @@
 ---
 id: SPEC-files-001
 title: Saving and opening projects in the native format
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - ISO/IEC 21320-1:2015 Document Container File — Part 1 (ZIP container)
   - RFC 1951 DEFLATE Compressed Data Format
@@ -82,9 +82,10 @@ and stays readable by later versions of Kanavos and by other programs.
     imported element). It is read-only for people, kept when the element is moved or edited, and not given to
     copies (moving with copies, copying to another storey, duplicating a storey or a view's annotation, the second
     part of a split wall).
-23. Schema 1 files written before the field existed kept the `GlobalId` in the user property `ifc:GlobalId`.
-    Opening such a file moves the property's value into the external id (an existing external id wins) and drops
-    the property; the next save writes the current layout. No schema version change is needed.
+23. Files written before the field existed kept the `GlobalId` in the user property `ifc:GlobalId`. Opening such
+    a file (after any schema migration) moves the property's value into the external id (an existing external id
+    wins) and drops the property; the next save writes the current layout. Adding the field needs no schema
+    version change, so builds that do not know it still read new files.
 
 ## Edge cases
 
@@ -113,13 +114,15 @@ and stays readable by later versions of Kanavos and by other programs.
    path starting at that wall's element entry.
 7. Given a storey whose height is NaN, saving fails and names `storeys.<id>.height`.
 8. Given a hand-written schema 0 file (tables as arrays, `last_id`), opening upgrades it, warns, and the next save
-   writes schema 1 that opens without warnings.
+   writes the current schema, which opens without warnings.
 9. Given an opening whose host wall does not exist, strict opening fails and lenient opening succeeds with a warning.
-10. Two starter projects have different, non-nil version 4 ids; the same starter with a given id is identical
+10. Given a schema 1 file with doors and windows, opening it warns of the upgrade and inverts every opening's swap
+    side flag, so each door and window keeps its physical orientation (SPEC-objects-006).
+11. Two starter projects have different, non-nil version 4 ids; the same starter with a given id is identical
     twice. A document without an id saved through the engine's file adapter opens with a non-nil id and is
     otherwise unchanged; a session assigns the id once, keeps it through undo and redo and adds no undo step.
-11. A hand-written schema 1 model written before the fields added within schema 1 (no project id, a wall with the
-    legacy `ifc:GlobalId` property) opens without warnings: the id is nil and the property became the wall's
+12. A hand-written schema 1 model written before the optional fields above existed (no project id, a wall with
+    the legacy `ifc:GlobalId` property) opens with only the schema upgrade warning: the id is nil and the property became the wall's
     external id while its other properties stay; saving writes `external_id` and opening that file changes
     nothing. Copies made by moving with copies, copying to a storey, duplicating a storey or a view, and splitting
     a wall have no external id; the originals keep theirs.
@@ -133,11 +136,13 @@ and stays readable by later versions of Kanavos and by other programs.
 
 ## Review (completed by the reviewer)
 
-- [ ] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
-- [ ] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
-- [ ] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
-- [ ] No screenshots or images of the reference product.
-- [ ] Every claim traces to a listed source (observation log, standard, paper, regulation).
-- [ ] Describes behaviour, not implementation details of the reference product.
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
 
-Reviewed by: <name>, <date> — Result: approved / changes requested
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

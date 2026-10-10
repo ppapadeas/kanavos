@@ -37,7 +37,7 @@ pub struct Pens {
 }
 
 impl Pens {
-    /// The pen set for a scale denominator (50 means 1:50).
+    /// The line weights for a scale denominator (50 means 1:50).
     pub fn for_scale(scale: f64) -> Pens {
         use weights::*;
         if scale <= 20.0 {

@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-003
 title: Inspector, value fields and multi-selection editing
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §1, §2, §3 (typed input)
   - ISO 6946 (U-value of layered build-ups)
@@ -88,3 +88,18 @@ Grouped by what people change most; each section collapses.
 3. Layer thickness `8` is 8 cm, `2*9` is 18 cm, `80mm` is 8 cm.
 4. Two walls with heights 3,00 and 2,50 show "—"; setting 2,80 produces two updates, both 2,80.
 5. Updates to the same element from different fields merge into one command.
+
+---
+
+## Review (completed by the reviewer)
+
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
+
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

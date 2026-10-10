@@ -18,7 +18,7 @@ use serde_json::{Map, Value};
 use crate::FormatError;
 
 /// Schema version written by this build.
-pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 /// Oldest schema version this build can upgrade from.
 pub const OLDEST_SCHEMA_VERSION: u32 = 0;
@@ -30,7 +30,7 @@ struct Step {
 }
 
 /// All steps, in order.
-const STEPS: &[Step] = &[Step { from: 0, apply: v0_to_v1 }];
+const STEPS: &[Step] = &[Step { from: 0, apply: v0_to_v1 }, Step { from: 1, apply: v1_to_v2 }];
 
 /// Fails unless this build can read schema `version`, directly or through migrations.
 // While the oldest readable version is 0 the lower bound check is trivially true; it stays so that raising
@@ -107,6 +107,37 @@ fn v0_to_v1(model: Value) -> Result<Value, String> {
     Ok(Value::Object(root))
 }
 
+/// Schema 1 → 2.
+///
+/// Schema 2 gives an opening's `flip_side` the orientation of the wall build-ups (`specs/objects/orientation.md`):
+/// unflipped, a window's outer face is its wall's left face and a door opens towards the right face. In schema 1 it
+/// was the other way round, so every opening's `flip_side` is inverted (a missing one counts as `false`) and doors
+/// and windows stay where they were.
+fn v1_to_v2(model: Value) -> Result<Value, String> {
+    let Value::Object(mut root) = model else {
+        return Err("the model is not a JSON object".into());
+    };
+    match root.get_mut("elements") {
+        None => {}
+        Some(Value::Object(elements)) => {
+            for (id, element) in elements.iter_mut() {
+                let Some(kind) = element.get_mut("kind").and_then(Value::as_object_mut) else { continue };
+                if kind.get("type").and_then(Value::as_str) != Some("opening") {
+                    continue;
+                }
+                let flipped = match kind.get("flip_side") {
+                    None | Some(Value::Null) => false,
+                    Some(Value::Bool(b)) => *b,
+                    Some(_) => return Err(format!("elements.{id}.kind.flip_side is not a boolean")),
+                };
+                kind.insert("flip_side".into(), Value::Bool(!flipped));
+            }
+        }
+        Some(_) => return Err("elements is not an object".into()),
+    }
+    Ok(Value::Object(root))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,12 +165,43 @@ mod tests {
     }
 
     #[test]
+    fn v1_openings_swap_their_side_flag() {
+        let v1 = json!({
+            "next_id": 9,
+            "elements": {
+                "3": {"id": 3, "storey": 1, "kind": {"type": "wall", "start": [0.0, 0.0], "end": [5.0, 0.0]}},
+                "4": {"id": 4, "storey": 1, "kind": {"type": "opening", "host": 3, "flip_side": false}},
+                "5": {"id": 5, "storey": 1, "kind": {"type": "opening", "host": 3, "flip_side": true}},
+                "6": {"id": 6, "storey": 1, "kind": {"type": "opening", "host": 3, "flip_hand": true}},
+            },
+        });
+        let v2 = migrate(v1, 1).unwrap();
+        let flip = |id: &str| v2["elements"][id]["kind"]["flip_side"].clone();
+        assert_eq!(flip("4"), json!(true));
+        assert_eq!(flip("5"), json!(false));
+        assert_eq!(flip("6"), json!(true), "a missing flag was false");
+        assert_eq!(v2["elements"]["6"]["kind"]["flip_hand"], json!(true), "the hand is unchanged");
+        assert!(v2["elements"]["3"]["kind"].get("flip_side").is_none(), "walls are untouched");
+        // Schema 0 files pass through both steps.
+        let v0 = json!({"last_id": 2, "elements": [{"id": 1, "kind": {"type": "opening", "host": 9}}]});
+        assert_eq!(migrate(v0, 0).unwrap()["elements"]["1"]["kind"]["flip_side"], json!(true));
+    }
+
+    #[test]
+    fn a_malformed_side_flag_is_reported() {
+        let v1 = json!({"elements": {"4": {"id": 4, "kind": {"type": "opening", "flip_side": "yes"}}}});
+        let err = migrate(v1, 1).unwrap_err();
+        assert!(matches!(err, FormatError::Migration { from: 1, .. }), "{err}");
+        assert!(err.to_string().contains("elements.4.kind.flip_side"), "{err}");
+    }
+
+    #[test]
     fn current_version_is_untouched_and_newer_is_refused() {
         let v = json!({"next_id": 1});
         assert_eq!(migrate(v.clone(), CURRENT_SCHEMA_VERSION).unwrap(), v);
         assert!(matches!(
             migrate(v, CURRENT_SCHEMA_VERSION + 1),
-            Err(FormatError::NewerVersion { found: 2, supported: 1 })
+            Err(FormatError::NewerVersion { found: 3, supported: 2 })
         ));
     }
 

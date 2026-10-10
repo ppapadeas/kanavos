@@ -1,9 +1,9 @@
 ---
 id: SPEC-ui-004
 title: Regulation meters and storey information in the inspector
-status: in-review
+status: approved
 author: Pierros Papadeas
-reviewer: pending
+reviewer: Pierros Papadeas
 sources:
   - docs/ux.md §4
   - ν. 4067/2012 (ΝΟΚ): κάλυψη, δόμηση, μέγιστο ύψος, αριθμός ορόφων
@@ -43,3 +43,18 @@ submission.
 1. Ratios 0,5 / 0,95 / 1,2 / ∞ give green / amber / red / red.
 2. A background result for revision n replaces the previous one only when it arrives; a request for the same
    revision does not restart the computation.
+
+---
+
+## Review (completed by the reviewer)
+
+- [x] No sentence is quoted or paraphrased from any vendor manual, help page or UI.
+- [x] No vendor names for tools, settings, panels or dialogs; Kanavos vocabulary only.
+- [x] Structure follows the behaviour, not a vendor manual's chapter or dialog layout.
+- [x] No screenshots or images of the reference product.
+- [x] Every claim traces to a listed source (observation log, standard, paper, regulation).
+- [x] Describes behaviour, not implementation details of the reference product.
+
+Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.
