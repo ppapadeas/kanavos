@@ -16,7 +16,7 @@ and Linux, packages with `cargo xtask dist`, signs and publishes these assets:
 | `<archive>.sig` | Ed25519 signature over the archive bytes, base64 |
 
 The release notes are the version's section of [`CHANGELOG.md`](../CHANGELOG.md). A tag with a pre-release suffix
-(`v0.2.0-test.1`) is published as a GitHub pre-release: only copies set to the test-build update channel offer it.
+(`v0.2.0-pre.1`) is published as a GitHub pre-release: only copies set to the test-build update channel offer it.
 
 ## Signing key (once)
 
