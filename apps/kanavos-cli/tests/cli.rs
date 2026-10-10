@@ -111,6 +111,33 @@ fn usage_errors_exit_with_two() {
     assert!(cli(&["version"]).status.success());
 }
 
+/// `update` without any network: checks turned off by the environment, usage errors, help.
+#[test]
+fn update_reports_when_updates_are_off_and_checks_its_arguments() {
+    let update = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_kanavos-cli"))
+            .env("KANAVOS_NO_UPDATE_CHECK", "1")
+            .args(["--lang", "en", "update"])
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let o = update(&["--check"]);
+    assert_eq!(o.status.code(), Some(3), "{}", text(&o));
+    assert!(text(&o).contains("turned off"), "{}", text(&o));
+    let o = update(&["--channel", "test"]);
+    assert_eq!(o.status.code(), Some(3), "{}", text(&o));
+    let o = update(&["--channel", "nightly"]);
+    assert_eq!(o.status.code(), Some(2), "{}", text(&o));
+    assert!(text(&o).contains("nightly"));
+    assert_eq!(update(&["extra"]).status.code(), Some(2));
+    assert_eq!(update(&["--force"]).status.code(), Some(2));
+    let o = update(&["--help"]);
+    assert!(o.status.success());
+    assert!(text(&o).contains("--channel stable|test"));
+    assert!(text(&cli(&["help"])).contains("update"));
+}
+
 #[test]
 fn servers_speak_over_stdio() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_kanavos-cli"))

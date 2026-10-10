@@ -1575,6 +1575,7 @@ dependencies = [
  "kanavos-model",
  "kanavos-rules-gr",
  "kanavos-units",
+ "kanavos-update",
  "serde_json",
 ]
 

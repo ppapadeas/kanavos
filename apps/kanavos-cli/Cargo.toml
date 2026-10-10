@@ -19,4 +19,5 @@ kanavos-model = { path = "../../crates/model" }
 kanavos-rules-gr = { path = "../../crates/rules-gr" }
 kanavos-units = { path = "../../crates/units" }
 kanavos-i18n = { path = "../../crates/i18n" }
+kanavos-update = { path = "../../crates/update" }
 serde_json.workspace = true

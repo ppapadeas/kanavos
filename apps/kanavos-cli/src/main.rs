@@ -1,15 +1,17 @@
-//! Kanavos headless command-line interface: create, inspect, script and export projects, and serve the control
-//! protocol and MCP over stdio.
+//! Kanavos headless command-line interface: create, inspect, script and export projects, serve the control
+//! protocol and MCP over stdio, and update the installation.
 //!
 //! Exit codes: 0 success, 1 failure (a command did not apply, a file could not be read or written, a view does not
-//! exist), 2 usage error, 3 the requested format is not available in this build.
+//! exist), 2 usage error, 3 the requested format is not available in this build (or updates are not configured
+//! in this build or are turned off).
 
 mod docs;
 
 use std::collections::BTreeMap;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::AtomicBool;
 
 use kanavos_control::{Config, RpcError, Server, codes};
 use kanavos_engine::{Command, Session};
@@ -193,6 +195,7 @@ fn run(locale: Locale, args: &[String]) -> Result<()> {
         "serve" => cmd_serve(locale, rest),
         "mcp" => cmd_mcp(locale, rest),
         "demo" => cmd_demo(locale),
+        "update" => cmd_update(locale, rest),
         "version" | "--version" | "-V" => {
             println!(
                 "kanavos-cli {} (control protocol {}, MCP {})",
@@ -227,6 +230,7 @@ fn help_key(command: &str) -> Option<&'static str> {
         "serve" => "cli.help.serve",
         "mcp" => "cli.help.mcp",
         "demo" => "cli.help.demo",
+        "update" => "cli.help.update",
         _ => return None,
     })
 }
@@ -571,6 +575,83 @@ fn cmd_demo(locale: Locale) -> Result<()> {
     Ok(())
 }
 
+// ----- update ----------------------------------------------------------------------------------------------------
+
+/// `kanavos-cli update [--check] [--channel stable|test]`: looks for a newer release and, without `--check`,
+/// downloads, verifies and installs it over the installation this program runs from (both programs and the
+/// bundled documents; projects are never touched).
+fn cmd_update(locale: Locale, args: &[String]) -> Result<()> {
+    use kanavos_update::{Channel, UpdateError};
+    if wants_help(locale, "update", args) {
+        return Ok(());
+    }
+    let a = parse_args(locale, args, &["channel"], &["check"])?;
+    if !a.positional.is_empty() {
+        return Err(Failure::usage(t(locale, "cli.err.too_many").into_owned()));
+    }
+    let channel = match a.option("channel") {
+        None => Channel::Stable,
+        Some(c) => Channel::parse(c)
+            .ok_or_else(|| Failure::usage(tf(locale, "cli.err.bad_channel", &[("value", c)])))?,
+    };
+    let fail = |e: UpdateError| {
+        let code = if e.is_unavailable() { NOT_AVAILABLE } else { FAILED };
+        Failure { code, message: e.message(locale) }
+    };
+    kanavos_update::available_here().map_err(fail)?;
+    // Leftovers of an earlier update; a failure here does not stop this one.
+    let _ = kanavos_update::cleanup_old();
+    eprintln!("{}", tf(locale, "cli.update.checking", &[("channel", channel.key())]));
+    let Some(found) = kanavos_update::check(&kanavos_update::Config::new(channel)).map_err(fail)? else {
+        println!("{}", tf(locale, "cli.update.latest", &[("version", kanavos_update::CURRENT_VERSION)]));
+        return Ok(());
+    };
+    let version = found.version.to_string();
+    println!(
+        "{}",
+        tf(
+            locale,
+            "cli.update.available",
+            &[("version", &version), ("date", found.date().unwrap_or("—")), ("page", &found.page)]
+        )
+    );
+    if !found.notes.trim().is_empty() {
+        println!("\n{}\n", found.notes.trim());
+    }
+    if a.flag("check") {
+        return Ok(());
+    }
+    // Before downloading: can this installation update itself at all?
+    kanavos_update::preflight().map_err(fail)?;
+    let mut shown = None;
+    let cancel = AtomicBool::new(false);
+    let downloaded = kanavos_update::download(
+        &found,
+        |done, total| {
+            let percent = done.saturating_mul(100).checked_div(total).unwrap_or(0);
+            if shown != Some(percent) {
+                shown = Some(percent);
+                eprint!("\r{}", tf(locale, "cli.update.downloading", &[("percent", &percent.to_string())]));
+                let _ = std::io::stderr().flush();
+            }
+        },
+        &cancel,
+    );
+    eprintln!();
+    let downloaded = downloaded.map_err(fail)?;
+    println!("{}", t(locale, "cli.update.verified"));
+    let installed = kanavos_update::install(&downloaded).map_err(fail)?;
+    println!(
+        "{}",
+        tf(
+            locale,
+            "cli.update.installed",
+            &[("version", &installed.version.to_string()), ("dir", &installed.dir.display().to_string())]
+        )
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,7 +688,7 @@ mod tests {
 
     #[test]
     fn every_subcommand_has_help_in_both_languages() {
-        for c in ["new", "sample", "info", "export", "run", "commands", "serve", "mcp", "demo"] {
+        for c in ["new", "sample", "info", "export", "run", "commands", "serve", "mcp", "demo", "update"] {
             let k = help_key(c).unwrap();
             assert!(kanavos_i18n::has(k), "{k}");
         }
