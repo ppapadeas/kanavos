@@ -1,9 +1,9 @@
 ---
 id: SPEC-files-004
 title: Importing IFC models
-status: approved
+status: in-review
 author: Pierros Papadeas
-reviewer: Pierros Papadeas
+reviewer: pending
 sources:
   - ISO 16739-1:2024 (IFC 4.3) and the buildingSMART IFC 2x3 and IFC 4 documentation, entities named below
   - ISO 10303-21:2016 exchange structure (syntax, typed parameters, complex instances, string control
@@ -118,5 +118,7 @@ and everything else is listed so nothing is lost silently.
 - [x] Describes behaviour, not implementation details of the reference product.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Revised on 2026-10-10 after that review: external ids and the missing project id (item 15), acceptance test 6. The revision awaits review; the approval above covers the earlier text.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

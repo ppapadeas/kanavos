@@ -1,9 +1,9 @@
 ---
 id: SPEC-files-003
 title: Exporting a model as IFC 4.3
-status: approved
+status: in-review
 author: Pierros Papadeas
-reviewer: Pierros Papadeas
+reviewer: pending
 sources:
   - ISO 16739-1:2024 (IFC 4.3), entities and property/quantity set templates named below
   - buildingSMART IFC 4.3 ADD2 documentation (IfcGloballyUniqueId compression, IfcMaterialLayerSetUsage,
@@ -138,5 +138,7 @@ building's structure, element types, sizes, materials, quantities and position o
 - [x] Describes behaviour, not implementation details of the reference product.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Revised on 2026-10-10 after that review: identifiers from the project id and external ids (items 7–8), acceptance tests 9–10. The revision awaits review; the approval above covers the earlier text.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.

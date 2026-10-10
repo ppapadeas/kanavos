@@ -1,9 +1,9 @@
 ---
 id: SPEC-elements-003
 title: Roof planes, roof lines and roof solids
-status: approved
+status: in-review
 author: Pierros Papadeas
-reviewer: Pierros Papadeas
+reviewer: pending
 sources:
   - specs/geometry/straight-skeleton.md (Aichholzer et al. 1995; Eppstein & Erickson 1999)
   - General professional knowledge of pitched and flat roof construction
@@ -113,5 +113,7 @@ and valley lines, the plan representation, the 3D solid and the true roof area.
 - [x] Describes behaviour, not implementation details of the reference product.
 
 Reviewed by: Pierros Papadeas, 2026-10-10 — Result: approved
+
+Revised on 2026-10-10 after that review: holes (section Holes, the opening lines, quantities and wall caps), acceptance tests 9–13. The revision awaits review; the approval above covers the earlier text.
 
 Note: the reviewer is also the author of record. Clean-room protocol §2 asks for a second reviewer; add one when a second contributor joins, before the first public release.
